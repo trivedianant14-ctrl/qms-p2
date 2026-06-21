@@ -17,6 +17,7 @@
           </nav>
           <div class="user-cluster">
             <span class="notification-dot">4</span>
+            <select id="profileViewSelect" aria-label="Profile view"></select>
             <span id="activeUser">Dr. Meera Joshi</span>
           </div>
         </header>
@@ -36,13 +37,24 @@
         <section class="stats-row" id="statsRow" aria-label="Dashboard metrics"></section>
 
         <section class="toolbar">
-          <div class="search-wrap">
-            <input id="searchInput" type="search" placeholder="Search tickets..." />
-            <button id="searchClear" title="Clear search">x</button>
-          </div>
+          <label>
+            Ticket ID
+            <div class="search-wrap">
+              <input id="searchInput" type="search" placeholder="Ticket ID..." />
+              <button id="searchClear" title="Clear search">x</button>
+            </div>
+          </label>
           <label>
             Status
             <select id="statusFilter"></select>
+          </label>
+          <label>
+            Category
+            <select id="categoryFilter"></select>
+          </label>
+          <label>
+            Subcategory
+            <select id="subOptionFilter"></select>
           </label>
           <label>
             SLA
@@ -56,6 +68,24 @@
           <label id="subjectFilterWrap">
             Subject
             <select id="subjectFilter"></select>
+          </label>
+          <label>
+            Assignee
+            <select id="assigneeFilter"></select>
+          </label>
+          <label>
+            Priority
+            <select id="priorityFilter"></select>
+          </label>
+          <label>
+            Score
+            <select id="scoreFilter">
+              <option value="all">All scores</option>
+              <option value="none">No score</option>
+              <option value="good">4.0+</option>
+              <option value="ok">3.0-3.9</option>
+              <option value="bad">Below 3.0</option>
+            </select>
           </label>
           <button class="ghost" id="columnsButton">Columns</button>
         </section>
