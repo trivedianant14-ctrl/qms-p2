@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NPrep QMS Support Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="qms-shell">
+      <aside class="rail" aria-label="Primary">
+        <div class="logo">
+          <span>NP</span>
+        </div>
+        <button class="rail-button active" title="Tickets">T</button>
+        <button class="rail-button" title="Teams">C</button>
+        <button class="rail-button" title="Reports">R</button>
+        <button class="rail-button" title="Settings">S</button>
+      </aside>
+
+      <section class="workspace">
+        <header class="app-header">
+          <nav class="product-nav" aria-label="Product sections">
+            <button>Process</button>
+            <button>Learning</button>
+            <button>Assessment</button>
+            <button class="active">Ticket</button>
+            <button>Org Report</button>
+            <button>Action Point</button>
+          </nav>
+          <div class="user-cluster">
+            <button class="primary tiny" id="teamsPingButton">Teams Ping</button>
+            <span class="notification-dot">4</span>
+            <span id="activeUser">Dr. Meera Joshi</span>
+          </div>
+        </header>
+
+        <section class="page-head">
+          <div>
+            <span class="eyebrow">NPrep QMS</span>
+            <h1>Tickets Overview</h1>
+          </div>
+          <div class="role-toggle" id="roleToggle" aria-label="Login role">
+            <button class="active" data-role="faculty">Faculty</button>
+            <button data-role="content">Content Team</button>
+            <button data-role="manager">Manager</button>
+          </div>
+        </section>
+
+        <section class="stats-row" id="statsRow" aria-label="Dashboard metrics"></section>
+
+        <section class="toolbar">
+          <div class="search-wrap">
+            <input id="searchInput" type="search" placeholder="Search tickets..." />
+            <button id="searchClear" title="Clear search">x</button>
+          </div>
+          <label>
+            Status
+            <select id="statusFilter"></select>
+          </label>
+          <label>
+            SLA
+            <select id="slaFilter">
+              <option value="all">All urgency</option>
+              <option value="critical">Breaching in 2h</option>
+              <option value="warning">Under 12h</option>
+              <option value="healthy">On time</option>
+            </select>
+          </label>
+          <label id="subjectFilterWrap">
+            Subject
+            <select id="subjectFilter"></select>
+          </label>
+          <button class="ghost" id="columnsButton">Columns</button>
+          <button class="ghost" id="pinButton">Pin Columns</button>
+          <button class="primary" id="exportButton">Export CSV</button>
+        </section>
+
+        <section class="ticket-tabs" id="ticketTabs" aria-label="Ticket filters"></section>
+
+        <section class="main-grid">
+          <article class="table-panel">
+            <div class="table-meta">
+              <strong id="tableTitle">Faculty Queries</strong>
+              <span id="tableSubtitle">All open and closed tickets assigned to the selected login.</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr id="tableHead"></tr>
+                </thead>
+                <tbody id="ticketTable"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <aside class="side-panel" id="insightPanel"></aside>
+        </section>
+      </section>
+    </main>
+
+    <section class="drawer-scrim" id="drawerScrim" hidden></section>
+    <aside class="ticket-drawer" id="ticketDrawer" aria-label="Ticket details" aria-hidden="true"></aside>
+
+    <section class="modal-scrim" id="modalScrim" hidden>
+      <dialog class="config-modal" id="configModal"></dialog>
+    </section>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
