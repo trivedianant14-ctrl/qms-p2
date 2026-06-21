@@ -3,6 +3,7 @@ outputs/
 tools/
 qms-working-prototype.png
 qms-cleaned-layout.png
+qms-faculty-content-v3.png
 *.log
 .DS_Store
 Thumbs.db

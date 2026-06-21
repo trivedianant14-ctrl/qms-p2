@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v2";
+const STORE_KEY = "nprep-qms-phase2-prototype-v3";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -334,6 +334,84 @@ function seedDb() {
       studentReference: "Screenshot attached",
     }),
   ];
+
+  const studentNames = ["Riya Sharma", "Mohit P.", "Ankit Rathore", "Neha K.", "Sana Ali", "Harsh V.", "Kavya N.", "Dev S."];
+  const facultySubjects = ["Anatomy", "Pharmacology", "Medical Surgical Nursing", "Community Health Nursing"];
+  const facultySubOptions = [
+    ["Problem with the Answer", "The answer shown is wrong"],
+    ["Problem with the Answer", "My book / teacher says something different"],
+    ["I Have a Doubt", "Why is this the correct answer?"],
+    ["I Have a Doubt", "I didn't understand the explanation"],
+    ["I Have a Doubt", "Why is this option wrong?"],
+  ];
+  const facultyOwners = [current.faculty, null, "Dr. Arjun Rao", "Dr. Sunita Verma", null];
+  for (let index = 0; index < 20; index += 1) {
+    const [category, subOption] = facultySubOptions[index % facultySubOptions.length];
+    const ownerName = facultyOwners[index % facultyOwners.length];
+    const subject = facultySubjects[index % facultySubjects.length];
+    const isClosed = index % 9 === 0;
+    tickets.push(createTicket({
+      id: `NF-${String(index + 1).padStart(4, "0")}`,
+      questionId: 85001 + index,
+      student: studentNames[index % studentNames.length],
+      category,
+      subOption,
+      subject,
+      routedTo: "faculty",
+      facultyAssigned: isClosed ? people.faculty[index % people.faculty.length].name : ownerName,
+      status: isClosed ? "Closed" : ownerName ? "With Faculty" : "Raised",
+      timelineStatus: isClosed ? "resolved" : ownerName ? "assigned" : "raised",
+      priority: index % 5 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
+      ageHours: 2 + ((index * 2.25) % 46),
+      queryText: `Faculty-routed doubt ${index + 1}: student needs expert explanation for ${subject}.`,
+      studentDoubt: `Please explain the reasoning for this ${subject} question in simple steps.`,
+      studentVoiceNote: index % 4 === 0 ? "0:18 voice note" : "",
+      studentReference: index % 6 === 0 ? "Textbook page photo attached" : "",
+      resolvedAt: isClosed ? new Date(Date.now() - (index + 1) * 1800000).toISOString() : null,
+      resolutionText: isClosed ? "Faculty clarified the concept and added a supporting reference." : "",
+      feedbackType: isClosed ? (index % 2 === 0 ? "thumbs_up" : "auto_closed") : null,
+      satisfactionScore: isClosed ? (index % 2 === 0 ? 4.5 : 3.5) : null,
+    }));
+  }
+
+  const contentCategories = [
+    ["Can't See Something", "Image in the question is not loading"],
+    ["Can't See Something", "Option text is missing or has symbols"],
+    ["Can't See Something", "Explanation / table / formula is not showing"],
+    ["Problem with this Question", "The question itself is wrong"],
+    ["Problem with this Question", "Question is in the wrong language"],
+    ["Problem with the Answer", "Explanation / rationale doesn't match the answer"],
+  ];
+  const contentOwners = [null, current.resolver, "Rahul M.", null, "Amit K."];
+  for (let index = 0; index < 20; index += 1) {
+    const [category, subOption] = contentCategories[index % contentCategories.length];
+    const ownerName = contentOwners[index % contentOwners.length];
+    const isClosed = index % 10 === 0;
+    tickets.push(createTicket({
+      id: `NC-${String(index + 1).padStart(4, "0")}`,
+      questionId: 86001 + index,
+      student: studentNames[(index + 2) % studentNames.length],
+      category,
+      subOption,
+      subject: facultySubjects[(index + 1) % facultySubjects.length],
+      routedTo: "content",
+      claimedBy: isClosed ? current.resolver : ownerName,
+      status: isClosed ? "Closed" : ownerName ? (index % 4 === 0 ? "Being Worked On" : "In Review") : "Raised",
+      timelineStatus: isClosed ? "resolved" : ownerName ? "in_review" : "raised",
+      priority: index % 4 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
+      ageHours: 1 + ((index * 1.85) % 47),
+      queryText: `Content-routed issue ${index + 1}: ${subOption}.`,
+      studentDoubt: `The student reported: ${subOption}. Please review and correct if needed.`,
+      studentReference: index % 3 === 0 ? "Screenshot attached" : "",
+      resolvedAt: isClosed ? new Date(Date.now() - (index + 2) * 2400000).toISOString() : null,
+      resolutionText: isClosed ? "Content team reviewed and corrected the visible issue." : "",
+      finalResolutionText: isClosed ? "This has been checked and corrected. Please reload the question." : "",
+      feedbackType: isClosed ? "thumbs_up" : null,
+      satisfactionScore: isClosed ? 4.5 : null,
+      technicalEscalation: index % 8 === 0,
+    }));
+  }
+
   return {
     tickets,
     notifications: [
@@ -396,31 +474,21 @@ function addHistory(ticket, actor, text) {
 }
 
 function roleName() {
-  if (state.role === "student") return current.student;
   if (state.role === "faculty") return current.faculty;
   if (state.role === "content") return current.resolver;
   return current.manager;
 }
 
 function roleTickets() {
-  if (state.role === "student") return db.tickets.filter((ticket) => ticket.student === current.student);
   if (state.role === "faculty") {
     const subjects = people.faculty.find((person) => person.name === current.faculty).subjects;
-    return db.tickets.filter((ticket) => ticket.facultyAssigned === current.faculty || (ticket.routedTo === "faculty" && !ticket.facultyAssigned && subjects.includes(ticket.subject)));
+    return db.tickets.filter((ticket) => ticket.routedTo === "faculty" && (ticket.facultyAssigned === current.faculty || !ticket.facultyAssigned || subjects.includes(ticket.subject)));
   }
-  if (state.role === "content") return db.tickets.filter((ticket) => ticket.routedTo === "content" || ticket.routedTo === "faculty" || ticket.returnedByFaculty);
+  if (state.role === "content") return db.tickets.filter((ticket) => ticket.routedTo === "content" || ticket.returnedByFaculty || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation Resolved");
   return db.tickets;
 }
 
 function tabsForRole(base) {
-  if (state.role === "student") {
-    return [
-      ["all", "My Queries", base.length],
-      ["open", "Open", base.filter((t) => t.status !== "Closed").length],
-      ["rating", "Needs Rating", base.filter((t) => t.escalationResolved && t.feedbackType === "escalation_resolved" && !t.escalationRating).length],
-      ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
-    ];
-  }
   if (state.role === "faculty") {
     return [
       ["all", "Total", base.length],
@@ -498,20 +566,12 @@ function renderStats() {
   const escalated = base.filter((ticket) => ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved);
   const pool = db.tickets.filter((ticket) => ticket.routedTo === "faculty" && !ticket.facultyAssigned);
   const statSets = {
-    student: [
-      ["Open", open.length, "Your active support queries", ""],
-      ["Resolved", closed.length, "Closed or auto-closed", "green"],
-      ["Awaiting Call", base.filter((t) => t.callRequested && !t.escalationResolved).length, "Escalation outreach", "amber"],
-      ["Needs Rating", base.filter((t) => t.escalationResolved && !t.escalationRating && t.feedbackType === "escalation_resolved").length, "Rate resolved calls", ""],
-      ["Avg Experience", avgScore, "Your satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
-      ["Unread Updates", db.notifications.filter((n) => n.ticketId && base.some((t) => t.id === n.ticketId) && !n.read).length, "Ticket timeline pings", ""],
-    ],
     faculty: [
       ["My Open", open.filter((t) => t.facultyAssigned === current.faculty).length, "Assigned to Dr. Meera", ""],
       ["Subject Pool", pool.filter((t) => ["Anatomy", "Medical Surgical Nursing"].includes(t.subject)).length, "Claim-first subject queries", "amber"],
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Resolved", closed.length, "Closed faculty queries", "green"],
-      ["Avg Score", avgScore, "Student satisfaction", Number(avgScore) >= 4 ? "green" : "amber"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
       ["Teams Pings", db.notifications.filter((n) => n.channel === "Content Queries" && !n.read).length, "Content notifications", ""],
     ],
     content: [
@@ -553,7 +613,7 @@ function renderTabs() {
 function renderTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
-  el.tableTitle.textContent = state.role === "student" ? "My Query Tracker" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
+  el.tableTitle.textContent = state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([, label]) => `<th>${label}</th>`).join("");
   el.ticketTable.innerHTML = rows.map((ticket) => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
@@ -580,14 +640,6 @@ function cell(ticket, key) {
 function renderSidePanel() {
   if (state.role === "faculty" || state.role === "content") {
     el.insightPanel.innerHTML = "";
-    return;
-  }
-  if (state.role === "student") {
-    const latest = roleTickets()[0];
-    el.insightPanel.innerHTML = `<span class="label">Student Tracker</span>
-      <div class="insight-card"><span class="label">Current Student</span><strong>${current.student}</strong><p>Submit feedback, request a call, and rate escalation outcomes from the ticket drawer.</p></div>
-      <button class="primary" data-new-student-query>Raise New Query</button>
-      ${latest ? `<div class="insight-card"><span class="label">Latest Query</span><strong>#${latest.id}</strong><p>${latest.category} - ${latest.status}</p></div>` : ""}`;
     return;
   }
   if (state.role === "faculty") {
@@ -643,7 +695,7 @@ function drawerHtml(ticket) {
         <p class="muted">${ticket.category} - ${ticket.subOption}</p>
       </section>
       ${drawerActions(ticket)}
-      ${state.role === "student" ? studentPanel(ticket) : ""}
+      ${workflowPanel(ticket)}
       ${state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
@@ -664,6 +716,7 @@ function drawerHtml(ticket) {
 
 function drawerActions(ticket) {
   const actions = [];
+  if (canAssignToMe(ticket)) actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
   if (state.role === "faculty" && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-faculty-claim="${ticket.id}">Claim Query</button>`);
   if (state.role === "faculty" && ticket.facultyAssigned === current.faculty && ticket.status !== "Closed") actions.push(`<button class="primary" data-show-panel="facultyResolution">Submit Resolution</button>`, `<button class="danger" data-outside-subject="${ticket.id}">Mark Outside My Subject</button>`);
   if (state.role === "content" && ticket.routedTo === "content" && !ticket.claimedBy) actions.push(`<button class="primary" data-claim="${ticket.id}">Claim Ownership</button>`);
@@ -674,15 +727,19 @@ function drawerActions(ticket) {
   if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`, `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
   if (state.role === "content" && ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   if (state.role === "manager" && ticket.status !== "Closed") actions.push(`<button class="primary" data-manager-assign="${ticket.id}">Assign Manually</button>`);
-  if (state.role === "student" && ticket.status === "Closed" && !ticket.feedbackType) actions.push(`<button class="primary" data-feedback-up="${ticket.id}">Thumbs Up</button>`, `<button class="danger" data-show-panel="thumbsDown">Thumbs Down</button>`);
-  if (state.role === "student" && ticket.feedbackType === "thumbs_down" && !ticket.callRequested) actions.push(`<button class="primary" data-request-call="${ticket.id}">Request One-on-One Call</button>`, `<button class="ghost" data-wait-message="${ticket.id}">I'll wait for a message</button>`);
-  if (state.role === "student" && ticket.escalationResolved && ticket.feedbackType === "escalation_resolved" && !ticket.escalationRating) actions.push(`<button class="primary" data-show-panel="ratingPanel">Rate Escalation</button>`);
   return `<div class="drawer-actions">${actions.join("") || `<span class="muted">No primary action available in this state.</span>`}</div>`;
 }
 
-function studentPanel(ticket) {
-  return `<section class="drawer-card hidden" id="thumbsDown"><h3>We're sorry this wasn't clear.</h3><div class="resolution-form"><textarea id="followupText" placeholder="Describe what you still did not understand..."></textarea><input class="text-input" id="followupVoice" placeholder="Voice note label, optional"><div class="form-actions"><button class="primary" data-submit-thumbs-down="${ticket.id}">Submit</button><button class="ghost" data-skip-thumbs-down="${ticket.id}">Skip</button></div></div></section>
-    <section class="drawer-card hidden" id="ratingPanel"><h3>How was your experience?</h3><div class="star-row" id="ratingStars">${[1, 2, 3, 4, 5].map((n) => `<button data-rate-star="${n}">☆</button>`).join("")}</div><textarea id="ratingReview" placeholder="How can we improve? Optional"></textarea><div class="form-actions"><button class="primary" data-submit-rating="${ticket.id}">Submit Feedback</button><button class="ghost" data-skip-rating="${ticket.id}">Skip</button></div></section>`;
+function workflowPanel(ticket) {
+  return `<section class="drawer-card">
+    <h3>Workflow Control</h3>
+    <div class="workflow-grid">
+      <label>Priority<select id="prioritySelect">${["Highest", "High", "Medium", "Low"].map((priority) => `<option value="${priority}" ${ticket.priority === priority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+      <label>Status<select id="statusSelect">${["Raised", "In Review", "Being Worked On", "With Faculty", "Faculty Resolved", "Escalated", "Escalation Resolved", "Closed"].map((status) => `<option value="${status}" ${ticket.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+    </div>
+    <div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Workflow</button></div>
+    <div class="next-step"><span class="label">Next Step</span><p>${nextStepText(ticket)}</p></div>
+  </section>`;
 }
 
 function facultyPanel(ticket) {
@@ -950,6 +1007,67 @@ function managerAssign(id, assignee) {
   persistAndRender(id);
 }
 
+function canAssignToMe(ticket) {
+  if (ticket.status === "Closed") return false;
+  if (state.role === "faculty") return ticket.routedTo === "faculty" && ticket.facultyAssigned !== current.faculty;
+  if (state.role === "content") return (ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation Resolved") && ticket.claimedBy !== current.resolver;
+  return false;
+}
+
+function assignToMe(id) {
+  const ticket = ticketById(id);
+  if (state.role === "faculty") {
+    ticket.facultyAssigned = current.faculty;
+    ticket.facultyAssignedAt = new Date().toISOString();
+    ticket.status = "With Faculty";
+    ticket.timelineStatus = "assigned";
+    addHistory(ticket, current.faculty, "Assigned ticket to self");
+    pushNotification("Content Queries", `${current.faculty} assigned themselves to #${ticket.id}`, ticket.id);
+  }
+  if (state.role === "content") {
+    ticket.claimedBy = current.resolver;
+    ticket.status = ticket.status === "Raised" ? "In Review" : ticket.status;
+    ticket.timelineStatus = "in_review";
+    addHistory(ticket, current.resolver, "Assigned ticket to self");
+  }
+  persistAndRender(id);
+}
+
+function saveWorkflow(id) {
+  const ticket = ticketById(id);
+  const nextPriority = document.querySelector("#prioritySelect")?.value;
+  const nextStatus = document.querySelector("#statusSelect")?.value;
+  if (nextPriority && ticket.priority !== nextPriority) {
+    ticket.priority = nextPriority;
+    addHistory(ticket, roleName(), `Priority changed to ${nextPriority}`);
+  }
+  if (nextStatus && ticket.status !== nextStatus) {
+    ticket.status = nextStatus;
+    ticket.timelineStatus = nextStatus.toLowerCase().replaceAll(" ", "_");
+    if (nextStatus === "Closed" && !ticket.resolvedAt) ticket.resolvedAt = new Date().toISOString();
+    addHistory(ticket, roleName(), `Status changed to ${nextStatus}`);
+  }
+  persistAndRender(id);
+}
+
+function nextStepText(ticket) {
+  if (ticket.status === "Closed") return "No action needed. Review the resolution history and satisfaction score if required.";
+  if (owner(ticket) === "Unclaimed") return "Assign this ticket to yourself or route it to the right expert before doing resolution work.";
+  if (state.role === "faculty") {
+    if (ticket.facultyAssigned !== current.faculty) return "This is assigned elsewhere. Assign it to yourself only if you are taking ownership.";
+    if (!ticket.resolutionText) return "Write a faculty explanation, attach a reference if useful, then submit the resolution to the content team.";
+    return "Resolution is available. Wait for content review or revise if content sends it back.";
+  }
+  if (state.role === "content") {
+    if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the call resolved so the student can rate it.";
+    if (ticket.routedTo === "content" && !ticket.claimedBy) return "Claim ownership, add an internal note if needed, then move it into review.";
+    if (ticket.routedTo === "faculty" && !ticket.facultyAssigned) return "Assign to faculty or leave it in the subject pool for eligible faculty to claim.";
+    if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the faculty resolution, approve or send back, then finalize the student-facing answer.";
+    return "Advance status, finalize the student-facing resolution, or close with a resolution code.";
+  }
+  return "Manager can reassign this ticket based on bandwidth or SLA risk.";
+}
+
 function createStudentQuery() {
   const next = String(db.tickets.length + 1).padStart(5, "0");
   const ticket = createTicket({
@@ -1070,6 +1188,8 @@ document.addEventListener("click", (event) => {
   if (profile) openProfile(profile.dataset.profile);
   if (showPanel) document.querySelector(`#${showPanel.dataset.showPanel}`)?.classList.remove("hidden");
   if (target.closest("[data-claim]")) claimTicket(target.closest("[data-claim]").dataset.claim);
+  if (target.closest("[data-assign-self]")) assignToMe(target.closest("[data-assign-self]").dataset.assignSelf);
+  if (target.closest("[data-save-workflow]")) saveWorkflow(target.closest("[data-save-workflow]").dataset.saveWorkflow);
   if (target.closest("[data-faculty-claim]")) facultyClaim(target.closest("[data-faculty-claim]").dataset.facultyClaim);
   if (target.closest("[data-assign-faculty]")) assignToFaculty(target.closest("[data-assign-faculty]").dataset.assignFaculty);
   if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
@@ -1107,25 +1227,6 @@ document.addEventListener("click", (event) => {
     persistAndRender(ticket.id);
   }
   if (target.closest("[data-mark-escalation-resolved]")) markEscalationResolved(target.closest("[data-mark-escalation-resolved]").dataset.markEscalationResolved);
-  if (target.closest("[data-feedback-up]")) submitStudentFeedback(target.closest("[data-feedback-up]").dataset.feedbackUp, "thumbs_up");
-  if (target.closest("[data-submit-thumbs-down]")) submitStudentFeedback(target.closest("[data-submit-thumbs-down]").dataset.submitThumbsDown, "thumbs_down");
-  if (target.closest("[data-skip-thumbs-down]")) submitStudentFeedback(target.closest("[data-skip-thumbs-down]").dataset.skipThumbsDown, "thumbs_down");
-  if (target.closest("[data-request-call]")) requestCall(target.closest("[data-request-call]").dataset.requestCall);
-  if (target.closest("[data-wait-message]")) {
-    const ticket = ticketById(target.closest("[data-wait-message]").dataset.waitMessage);
-    addHistory(ticket, current.student, "Chose to wait for a message instead of a call");
-    persistAndRender(ticket.id);
-  }
-  if (target.closest("[data-rate-star]")) {
-    const rating = Number(target.closest("[data-rate-star]").dataset.rateStar);
-    document.querySelectorAll("[data-rate-star]").forEach((button) => {
-      button.textContent = Number(button.dataset.rateStar) <= rating ? "★" : "☆";
-      button.classList.toggle("active", Number(button.dataset.rateStar) <= rating);
-    });
-    window.__qmsRating = rating;
-  }
-  if (target.closest("[data-submit-rating]")) setEscalationRating(target.closest("[data-submit-rating]").dataset.submitRating, window.__qmsRating || 5, document.querySelector("#ratingReview")?.value.trim());
-  if (target.closest("[data-skip-rating]")) setEscalationRating(target.closest("[data-skip-rating]").dataset.skipRating, null, "");
   if (target.closest("[data-manager-assign]")) {
     const ticketId = target.closest("[data-manager-assign]").dataset.managerAssign;
     document.querySelector(`#managerAssignee`)?.focus();
@@ -1137,7 +1238,6 @@ document.addEventListener("click", (event) => {
     if (ticketId) managerAssign(ticketId, assignee);
     openProfile(assignee);
   }
-  if (target.closest("[data-new-student-query]")) createStudentQuery();
   if (target.closest("[data-open-notifications]")) openNotifications();
   if (target.closest("[data-period]")) {
     state.period = target.closest("[data-period]").dataset.period;

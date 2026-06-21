@@ -20,6 +20,7 @@ final result: passed
 - Student: raise query, view tracker, thumbs up/down, follow-up note, call request, escalation rating.
 - Teams-style notifications: content/general pings, unread count, notification modal, mark-read action.
 - Follow-up layout cleanup: left rail removed, top nav trimmed to Learning/Assessment/Ticket, Export CSV removed, Faculty and Content Team workbench panel hidden, and query rows open the editable ticket details drawer directly.
+- Second workflow pass: Student role removed, Faculty and Content queues expanded, Content view limited to content-routed plus escalated work, Manager keeps full visibility, and ticket details now include assign-to-me, priority/status controls, and next-step guidance.
 
 ## Notes
 

@@ -720,6 +720,36 @@ tbody tr:focus-within {
   width: 100%;
 }
 
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.workflow-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.next-step {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.next-step p {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
 .star-row {
   display: flex;
   gap: 6px;
