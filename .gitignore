@@ -1,6 +1,7 @@
 node_modules/
 outputs/
 tools/
+qms-working-prototype.png
 *.log
 .DS_Store
 Thumbs.db

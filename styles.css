@@ -24,6 +24,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -704,6 +708,43 @@ tbody tr.selected {
 .resolution-form {
   display: grid;
   gap: 10px;
+}
+
+.resolution-form select {
+  width: 100%;
+}
+
+.star-row {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+
+.star-row button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #d0d5dd;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.star-row button.active,
+.star-row button:hover {
+  color: #f59e0b;
+  border-color: #f59e0b;
+  background: #fff7e6;
+}
+
+.drawer-card p + .score {
+  display: inline-block;
+  margin-top: 10px;
+}
+
+.drawer-actions:empty {
+  display: none;
 }
 
 .timeline-item {
