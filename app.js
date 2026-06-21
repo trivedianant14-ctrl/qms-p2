@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v3";
+const STORE_KEY = "nprep-qms-phase2-prototype-v4";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -150,7 +150,7 @@ function createTicket(input) {
     claimedBy: input.claimedBy || null,
     status: input.status || "Raised",
     timelineStatus: input.timelineStatus || "raised",
-    priority: input.priority || "High",
+    priority: input.facultyAssigned || input.claimedBy || input.status === "Closed" ? input.priority ?? null : null,
     slaHours: input.slaHours || 48,
     raisedAt,
     resolvedAt: input.resolvedAt || null,
@@ -430,11 +430,16 @@ function note(channel, message, ticketId) {
 function loadDb() {
   try {
     const saved = localStorage.getItem(STORE_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      applyAutoAssignments(parsed, false, false);
+      return parsed;
+    }
   } catch (error) {
     console.warn(error);
   }
   const seeded = seedDb();
+  applyAutoAssignments(seeded, false, false);
   localStorage.setItem(STORE_KEY, JSON.stringify(seeded));
   return seeded;
 }
@@ -467,6 +472,46 @@ function unreadCount() {
 function pushNotification(channel, message, ticketId) {
   db.notifications.unshift(note(channel, message, ticketId));
   toast(`${channel}: ${message}`);
+}
+
+function applyAutoAssignments(targetDb = db, shouldNotify = true, shouldPersist = true) {
+  let changed = false;
+  targetDb.tickets.forEach((ticket) => {
+    if (ticket.status === "Closed" || owner(ticket) !== "Unclaimed" || ticketAgeHours(ticket) < 24) return;
+    const assignee = leastLoadedAssignee(ticket, targetDb.tickets);
+    if (!assignee) return;
+    if (people.faculty.some((person) => person.name === assignee)) {
+      ticket.facultyAssigned = assignee;
+      ticket.facultyAssignedAt = new Date().toISOString();
+      ticket.status = "With Faculty";
+      ticket.timelineStatus = "assigned";
+    } else {
+      ticket.claimedBy = assignee;
+      ticket.status = "In Review";
+      ticket.timelineStatus = "in_review";
+    }
+    ticket.history.unshift(eventLine("SYSTEM", `Auto-assigned after 24h unclaimed SLA to ${assignee}`));
+    targetDb.notifications.unshift(note("General", `Auto-assigned after 24h: #${ticket.id} to ${assignee}`, ticket.id));
+    changed = true;
+    if (shouldNotify) toast(`Auto-assigned #${ticket.id} to ${assignee}`);
+  });
+  if (changed && shouldPersist) saveDb();
+  return changed;
+}
+
+function leastLoadedAssignee(ticket, allTickets = db.tickets) {
+  const candidates =
+    ticket.routedTo === "faculty"
+      ? people.faculty.filter((person) => person.subjects.includes(ticket.subject))
+      : people.resolvers;
+  if (!candidates.length) return null;
+  const loads = candidates.map((person) => ({
+    person,
+    load: allTickets.filter((item) => item.status !== "Closed" && (item.facultyAssigned === person.name || item.claimedBy === person.name)).length,
+  }));
+  const min = Math.min(...loads.map((item) => item.load));
+  const tied = loads.filter((item) => item.load === min);
+  return tied[Math.floor(Math.random() * tied.length)].person.name;
 }
 
 function addHistory(ticket, actor, text) {
@@ -544,6 +589,7 @@ function filteredTickets() {
 }
 
 function render() {
+  applyAutoAssignments(db, false, true);
   el.activeUser.textContent = roleName();
   const dot = document.querySelector(".notification-dot");
   if (dot) dot.textContent = unreadCount();
@@ -572,7 +618,7 @@ function renderStats() {
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Resolved", closed.length, "Closed faculty queries", "green"],
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
-      ["Teams Pings", db.notifications.filter((n) => n.channel === "Content Queries" && !n.read).length, "Content notifications", ""],
+      ["Notifications", db.notifications.filter((n) => n.channel === "Content Queries" && !n.read).length, "Content queue updates", ""],
     ],
     content: [
       ["Queue", base.length, "Content and faculty-routed tickets", ""],
@@ -630,7 +676,7 @@ function cell(ticket, key) {
     routedTo: titleCase(ticket.routedTo),
     owner: owner(ticket),
     sla: ticket.status === "Closed" ? `<span class="badge resolved">Closed</span>` : `<span class="badge ${slaClass(ticket)}">${hoursLeft(ticket).toFixed(1)}h left</span>`,
-    priority: `<span class="priority ${ticket.priority.toLowerCase()}">${ticket.priority}</span>`,
+    priority: owner(ticket) === "Unclaimed" || !ticket.priority ? `<span class="muted">--</span>` : `<span class="priority ${ticket.priority.toLowerCase()}">${ticket.priority}</span>`,
     score: ticket.satisfactionScore == null ? `<span class="muted">--</span>` : `<strong class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)}</strong>`,
     channel: ticket.routedTo === "support" ? "Support" : ticket.routedTo === "faculty" ? "Faculty" : "Content",
   };
@@ -717,7 +763,6 @@ function drawerHtml(ticket) {
 function drawerActions(ticket) {
   const actions = [];
   if (canAssignToMe(ticket)) actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
-  if (state.role === "faculty" && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-faculty-claim="${ticket.id}">Claim Query</button>`);
   if (state.role === "faculty" && ticket.facultyAssigned === current.faculty && ticket.status !== "Closed") actions.push(`<button class="primary" data-show-panel="facultyResolution">Submit Resolution</button>`, `<button class="danger" data-outside-subject="${ticket.id}">Mark Outside My Subject</button>`);
   if (state.role === "content" && ticket.routedTo === "content" && !ticket.claimedBy) actions.push(`<button class="primary" data-claim="${ticket.id}">Claim Ownership</button>`);
   if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-update-status="${ticket.id}">Advance Status</button>`, `<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
@@ -734,7 +779,7 @@ function workflowPanel(ticket) {
   return `<section class="drawer-card">
     <h3>Workflow Control</h3>
     <div class="workflow-grid">
-      <label>Priority<select id="prioritySelect">${["Highest", "High", "Medium", "Low"].map((priority) => `<option value="${priority}" ${ticket.priority === priority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+      <label>Priority<select id="prioritySelect"><option value="">Set priority</option>${["Highest", "High", "Medium", "Low"].map((priority) => `<option value="${priority}" ${ticket.priority === priority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
       <label>Status<select id="statusSelect">${["Raised", "In Review", "Being Worked On", "With Faculty", "Faculty Resolved", "Escalated", "Escalation Resolved", "Closed"].map((status) => `<option value="${status}" ${ticket.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
     </div>
     <div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Workflow</button></div>
@@ -771,23 +816,36 @@ function detailGrid(rows) {
 }
 
 function openProfile(name) {
-  const person = [...people.faculty, ...people.resolvers].find((item) => item.name === name);
+  const allPeople = [...people.faculty, ...people.resolvers];
+  const person = allPeople.find((item) => item.name === name);
   if (!person) return;
-  const owned = db.tickets.filter((ticket) => ticket.facultyAssigned === name || ticket.claimedBy === name);
+  const scopedTickets = profileTicketsFor(person);
+  const owned = scopedTickets.filter((ticket) => ticket.facultyAssigned === name || ticket.claimedBy === name);
+  const available = scopedTickets.filter((ticket) => owner(ticket) === "Unclaimed");
   const open = owned.filter((ticket) => ticket.status !== "Closed");
   const resolved = owned.filter((ticket) => ticket.status === "Closed");
   const scores = resolved.map((ticket) => ticket.satisfactionScore).filter((score) => score != null);
   const avg = scores.length ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1) : "--";
+  const options = allPeople.map((item) => `<option value="${item.name}" ${item.name === name ? "selected" : ""}>${item.name} - ${item.role}</option>`).join("");
   el.drawerScrim.hidden = false;
   el.drawer.classList.add("open");
   el.drawer.setAttribute("aria-hidden", "false");
   el.drawer.innerHTML = `<div class="drawer-head"><strong>Profile</strong><button data-close-drawer>x</button></div>
     <div class="drawer-body">
       <section class="person"><span class="avatar" style="background:${person.color}">${person.initials}</span><div><h2>${person.name}</h2><p class="muted">${person.team}</p><span class="badge faculty">${person.role}</span></div></section>
+      <section class="drawer-card"><h3>Switch Profile View</h3><select id="profileSwitcher">${options}</select></section>
       <section class="drawer-card"><h3>Performance - ${titleCase(state.period)}</h3>${detailGrid([["Resolved", resolved.length], ["Open", open.length], ["Avg Sat. Score", avg], ["Avg Res. Time", "6.2 hours"], ["Thumbs Up", owned.filter((t) => t.feedbackType === "thumbs_up").length], ["Thumbs Down", owned.filter((t) => t.feedbackType === "thumbs_down").length], ["Auto-Closed", owned.filter((t) => t.feedbackType === "auto_closed").length], ["Escalated", owned.filter((t) => t.feedbackType === "thumbs_down" && !t.escalationResolved).length]])}</section>
-      <section class="drawer-card"><h3>Open Tickets</h3><div class="mini-list">${open.length ? open.map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.subject} - ${hoursLeft(ticket).toFixed(1)}h left</p></div><button class="ghost" data-open="${ticket.id}">Open</button></div>`).join("") : `<p class="muted">No open tickets.</p>`}</div></section>
-      <section class="drawer-card"><h3>Assign New Ticket</h3><select id="profileAssignSelect">${db.tickets.filter((ticket) => owner(ticket) === "Unclaimed").map((ticket) => `<option value="${ticket.id}">#${ticket.id} - ${ticket.subject}</option>`).join("")}</select><div class="form-actions"><button class="primary" data-profile-assign="${name}">Assign</button></div></section>
+      <section class="drawer-card"><h3>Owned Open Tickets</h3><div class="mini-list">${open.length ? open.map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.subject} - ${hoursLeft(ticket).toFixed(1)}h left</p></div><button class="ghost" data-open="${ticket.id}">Open</button></div>`).join("") : `<p class="muted">No owned open tickets.</p>`}</div></section>
+      <section class="drawer-card"><h3>Eligible Unclaimed Tickets</h3><div class="mini-list">${available.length ? available.map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.subject} - ${hoursLeft(ticket).toFixed(1)}h left</p></div><button class="ghost" data-open="${ticket.id}">Open</button></div>`).join("") : `<p class="muted">No eligible unclaimed tickets.</p>`}</div></section>
+      <section class="drawer-card"><h3>Assign From Eligible Unclaimed</h3><select id="profileAssignSelect">${available.map((ticket) => `<option value="${ticket.id}">#${ticket.id} - ${ticket.subject}</option>`).join("")}</select><div class="form-actions"><button class="primary" data-profile-assign="${name}" ${available.length ? "" : "disabled"}>Assign</button></div></section>
     </div>`;
+}
+
+function profileTicketsFor(person) {
+  if (person.role === "Faculty") {
+    return db.tickets.filter((ticket) => ticket.routedTo === "faculty" && (ticket.facultyAssigned === person.name || (owner(ticket) === "Unclaimed" && person.subjects.includes(ticket.subject))));
+  }
+  return db.tickets.filter((ticket) => ticket.claimedBy === person.name || (owner(ticket) === "Unclaimed" && (ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation Resolved")));
 }
 
 function openNotifications() {
@@ -802,12 +860,6 @@ function openColumnModal() {
   el.configModal.setAttribute("open", "");
   el.configModal.innerHTML = `<div class="modal-head"><strong>Column Display and Order Configuration</strong><button data-close-modal>x</button></div>
     <div class="modal-body"><div class="column-picker">${columns.map(([key, label]) => `<label><input type="checkbox" value="${key}" ${state.visibleColumns.includes(key) ? "checked" : ""}> ${label}</label>`).join("")}</div><div class="form-actions"><button class="primary" data-save-columns>Save</button></div></div>`;
-}
-
-function openPinModal() {
-  el.modalScrim.hidden = false;
-  el.configModal.setAttribute("open", "");
-  el.configModal.innerHTML = `<div class="modal-head"><strong>Miscellaneous Configurations</strong><button data-close-modal>x</button></div><div class="modal-body"><span class="label">Pin Column(s)</span><div class="pin-list">${columns.slice(0, 10).map(([, label]) => `<button class="pin-chip">${label}</button>`).join("")}</div></div>`;
 }
 
 function closeDrawer() {
@@ -842,8 +894,8 @@ function assignFacultyForQuery(ticket) {
   const loads = eligible.map((faculty) => ({ faculty, openCount: db.tickets.filter((t) => t.facultyAssigned === faculty.name && t.status !== "Closed").length }));
   const min = Math.min(...loads.map((item) => item.openCount));
   const leastLoaded = loads.filter((item) => item.openCount === min);
-  if (leastLoaded.length === 1) return { assigned: leastLoaded[0].faculty.name, reason: "LEAST_LOADED" };
-  return { assigned: null, reason: "EQUAL_LOAD_CLAIM_POOL", eligibleFaculty: leastLoaded.map((item) => item.faculty.name) };
+  const selected = leastLoaded[Math.floor(Math.random() * leastLoaded.length)].faculty.name;
+  return { assigned: selected, reason: leastLoaded.length === 1 ? "LEAST_LOADED" : "RANDOM_TIE_BREAK" };
 }
 
 function assignToFaculty(id) {
@@ -851,18 +903,13 @@ function assignToFaculty(id) {
   const result = assignFacultyForQuery(ticket);
   if (result.reason === "NO_FACULTY_FOR_SUBJECT") {
     pushNotification("General", `No faculty for ${ticket.subject}: #${ticket.id} - Manager action needed`, ticket.id);
-  } else if (result.reason === "EQUAL_LOAD_CLAIM_POOL") {
-    ticket.facultyAssigned = null;
-    ticket.status = "Raised";
-    addHistory(ticket, "Content Queries", `Added to Subject Pool: ${result.eligibleFaculty.join(", ")}`);
-    pushNotification("Content Queries", `Added to Subject Pool: #${ticket.id} - ${ticket.subject} - Equal load`, ticket.id);
   } else {
     ticket.facultyAssigned = result.assigned;
     ticket.facultyAssignedAt = new Date().toISOString();
     ticket.status = "With Faculty";
     ticket.timelineStatus = "assigned";
-    addHistory(ticket, "Content Queries", `Auto-assigned to ${result.assigned}`);
-    pushNotification("Content Queries", `Auto-assigned to ${result.assigned}: #${ticket.id} - ${ticket.subject}`, ticket.id);
+    addHistory(ticket, "Content Queries", `${result.reason === "RANDOM_TIE_BREAK" ? "Random tie-break assigned" : "Auto-assigned"} to ${result.assigned}`);
+    pushNotification("Content Queries", `Assigned to ${result.assigned}: #${ticket.id} - ${ticket.subject}`, ticket.id);
   }
   persistAndRender(id);
 }
@@ -1037,9 +1084,9 @@ function saveWorkflow(id) {
   const ticket = ticketById(id);
   const nextPriority = document.querySelector("#prioritySelect")?.value;
   const nextStatus = document.querySelector("#statusSelect")?.value;
-  if (nextPriority && ticket.priority !== nextPriority) {
-    ticket.priority = nextPriority;
-    addHistory(ticket, roleName(), `Priority changed to ${nextPriority}`);
+  if (nextPriority !== undefined && ticket.priority !== (nextPriority || null)) {
+    ticket.priority = nextPriority || null;
+    addHistory(ticket, roleName(), nextPriority ? `Priority changed to ${nextPriority}` : "Priority cleared");
   }
   if (nextStatus && ticket.status !== nextStatus) {
     ticket.status = nextStatus;
@@ -1061,7 +1108,7 @@ function nextStepText(ticket) {
   if (state.role === "content") {
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the call resolved so the student can rate it.";
     if (ticket.routedTo === "content" && !ticket.claimedBy) return "Claim ownership, add an internal note if needed, then move it into review.";
-    if (ticket.routedTo === "faculty" && !ticket.facultyAssigned) return "Assign to faculty or leave it in the subject pool for eligible faculty to claim.";
+    if (ticket.routedTo === "faculty" && !ticket.facultyAssigned) return "Assign it to an eligible faculty member. If it remains unclaimed for 24 hours, it will auto-assign by least load.";
     if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the faculty resolution, approve or send back, then finalize the student-facing answer.";
     return "Advance status, finalize the student-facing resolution, or close with a resolution code.";
   }
@@ -1175,6 +1222,10 @@ el.subjectFilter.addEventListener("change", (event) => {
   renderTable();
 });
 
+document.addEventListener("change", (event) => {
+  if (event.target?.id === "profileSwitcher") openProfile(event.target.value);
+});
+
 document.addEventListener("click", (event) => {
   const target = event.target;
   const open = target.closest("[data-open]");
@@ -1254,8 +1305,6 @@ document.addEventListener("keydown", (event) => {
 
 el.drawerScrim.addEventListener("click", closeDrawer);
 document.querySelector("#columnsButton").addEventListener("click", openColumnModal);
-document.querySelector("#pinButton").addEventListener("click", openPinModal);
-document.querySelector("#teamsPingButton").addEventListener("click", openNotifications);
 
 el.modalScrim.addEventListener("click", (event) => {
   if (event.target === el.modalScrim || event.target.closest("[data-close-modal]")) closeModal();

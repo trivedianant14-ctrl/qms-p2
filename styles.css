@@ -864,22 +864,6 @@ tbody tr:focus-within {
   font-size: 13px;
 }
 
-.pin-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.pin-chip {
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  padding: 7px 10px;
-  background: #ffffff;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 700;
-}
-
 .toast-stack {
   position: fixed;
   right: 16px;
