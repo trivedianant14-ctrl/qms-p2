@@ -480,6 +480,7 @@ function render() {
   const dot = document.querySelector(".notification-dot");
   if (dot) dot.textContent = unreadCount();
   document.querySelectorAll("#roleToggle button").forEach((button) => button.classList.toggle("active", button.dataset.role === state.role));
+  document.querySelector(".main-grid")?.classList.toggle("no-side", state.role === "faculty" || state.role === "content");
   renderStats();
   renderFilters();
   renderTabs();
@@ -555,7 +556,7 @@ function renderTable() {
   el.tableTitle.textContent = state.role === "student" ? "My Query Tracker" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([, label]) => `<th>${label}</th>`).join("");
-  el.ticketTable.innerHTML = rows.map((ticket) => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
+  el.ticketTable.innerHTML = rows.map((ticket) => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
 }
 
 function cell(ticket, key) {
@@ -577,6 +578,10 @@ function cell(ticket, key) {
 }
 
 function renderSidePanel() {
+  if (state.role === "faculty" || state.role === "content") {
+    el.insightPanel.innerHTML = "";
+    return;
+  }
   if (state.role === "student") {
     const latest = roleTickets()[0];
     el.insightPanel.innerHTML = `<span class="label">Student Tracker</span>
@@ -1055,10 +1060,12 @@ el.subjectFilter.addEventListener("change", (event) => {
 document.addEventListener("click", (event) => {
   const target = event.target;
   const open = target.closest("[data-open]");
+  const rowOpen = target.closest("[data-row-open]");
   const close = target.closest("[data-close-drawer]");
   const profile = target.closest("[data-profile]");
   const showPanel = target.closest("[data-show-panel]");
   if (open) openTicket(open.dataset.open);
+  if (rowOpen && !target.closest("button, input, select, textarea, a, label")) openTicket(rowOpen.dataset.rowOpen);
   if (close) closeDrawer();
   if (profile) openProfile(profile.dataset.profile);
   if (showPanel) document.querySelector(`#${showPanel.dataset.showPanel}`)?.classList.remove("hidden");
@@ -1138,11 +1145,17 @@ document.addEventListener("click", (event) => {
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  const row = event.target.closest?.("[data-row-open]");
+  if (!row || (event.key !== "Enter" && event.key !== " ")) return;
+  event.preventDefault();
+  openTicket(row.dataset.rowOpen);
+});
+
 el.drawerScrim.addEventListener("click", closeDrawer);
 document.querySelector("#columnsButton").addEventListener("click", openColumnModal);
 document.querySelector("#pinButton").addEventListener("click", openPinModal);
 document.querySelector("#teamsPingButton").addEventListener("click", openNotifications);
-document.querySelector("#exportButton").addEventListener("click", () => toast("CSV export prepared for the current filtered queue."));
 
 el.modalScrim.addEventListener("click", (event) => {
   if (event.target === el.modalScrim || event.target.closest("[data-close-modal]")) closeModal();

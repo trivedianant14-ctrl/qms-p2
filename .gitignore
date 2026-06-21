@@ -2,6 +2,7 @@ node_modules/
 outputs/
 tools/
 qms-working-prototype.png
+qms-cleaned-layout.png
 *.log
 .DS_Store
 Thumbs.db

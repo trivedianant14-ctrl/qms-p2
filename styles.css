@@ -48,19 +48,11 @@ button {
 }
 
 .qms-shell {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .rail {
-  background: #ffffff;
-  border-right: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 8px;
+  display: none;
 }
 
 .logo {
@@ -395,6 +387,14 @@ textarea {
   padding: 0 24px 24px;
 }
 
+.main-grid.no-side {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.main-grid.no-side .side-panel {
+  display: none;
+}
+
 .table-panel,
 .side-panel {
   min-width: 0;
@@ -451,11 +451,17 @@ th {
 
 tbody tr {
   background: #ffffff;
+  cursor: pointer;
 }
 
 tbody tr:hover,
 tbody tr.selected {
   background: #f4f9fd;
+}
+
+tbody tr:focus-within {
+  outline: 2px solid var(--blue-soft);
+  outline-offset: -2px;
 }
 
 .ticket-link {
@@ -891,7 +897,7 @@ tbody tr.selected {
 
 @media (max-width: 760px) {
   .qms-shell {
-    grid-template-columns: 1fr;
+    min-height: 100vh;
   }
 
   .rail {

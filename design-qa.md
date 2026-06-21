@@ -8,6 +8,7 @@ final result: passed
 - Local Chrome render succeeded.
 - Fixed the hidden overlay issue by forcing `[hidden] { display: none !important; }`.
 - Captured the verified dashboard at `qms-working-prototype-fixed.png`.
+- Captured the cleaned layout at `qms-cleaned-layout.png` during the follow-up UI cleanup.
 
 ## Prototype Coverage
 
@@ -18,6 +19,7 @@ final result: passed
 - Manager: team overview, profile drawer, period toggle, manual assignment, faculty pool and SLA urgency filters.
 - Student: raise query, view tracker, thumbs up/down, follow-up note, call request, escalation rating.
 - Teams-style notifications: content/general pings, unread count, notification modal, mark-read action.
+- Follow-up layout cleanup: left rail removed, top nav trimmed to Learning/Assessment/Ticket, Export CSV removed, Faculty and Content Team workbench panel hidden, and query rows open the editable ticket details drawer directly.
 
 ## Notes
 
