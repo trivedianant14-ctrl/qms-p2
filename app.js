@@ -34,17 +34,17 @@ const CONTENT_ROUTED = {
   ],
 };
 
+const ALL_SUBJECTS = ["Anatomy", "Pharmacology", "Medical Surgical Nursing", "Community Health Nursing"];
+
 const people = {
-  faculty: [
-    { name: "Dr. Meera Joshi", initials: "MJ", color: "#7c3aed", role: "Faculty", team: "Anatomy, Medical Surgical Nursing", subjects: ["Anatomy", "Medical Surgical Nursing"] },
-    { name: "Dr. Arjun Rao", initials: "AR", color: "#2563eb", role: "Faculty", team: "Pharmacology", subjects: ["Pharmacology"] },
-    { name: "Dr. Sunita Verma", initials: "SV", color: "#059669", role: "Faculty", team: "Anatomy, Pharmacology, Community Health Nursing", subjects: ["Anatomy", "Pharmacology", "Community Health Nursing"] },
-  ],
-  resolvers: [
-    { name: "Priya S.", initials: "PS", color: "#7c3aed", role: "Resolver", team: "Content QA" },
-    { name: "Rahul M.", initials: "RM", color: "#2563eb", role: "Resolver", team: "Engineering" },
-    { name: "Sneha T.", initials: "ST", color: "#059669", role: "Resolver", team: "Support" },
-    { name: "Amit K.", initials: "AK", color: "#d97706", role: "Resolver", team: "Ops Triage" },
+  operators: [
+    { name: "Dr. Meera Joshi", initials: "MJ", color: "#7c3aed", role: "Resolver", team: "Anatomy, Medical Surgical Nursing", subjects: ["Anatomy", "Medical Surgical Nursing"] },
+    { name: "Dr. Arjun Rao", initials: "AR", color: "#2563eb", role: "Resolver", team: "Pharmacology", subjects: ["Pharmacology"] },
+    { name: "Dr. Sunita Verma", initials: "SV", color: "#059669", role: "Resolver", team: "Anatomy, Pharmacology, Community Health Nursing", subjects: ["Anatomy", "Pharmacology", "Community Health Nursing"] },
+    { name: "Priya S.", initials: "PS", color: "#7c3aed", role: "Resolver", team: "Content QA", subjects: ALL_SUBJECTS },
+    { name: "Rahul M.", initials: "RM", color: "#2563eb", role: "Resolver", team: "Engineering", subjects: ALL_SUBJECTS },
+    { name: "Sneha T.", initials: "ST", color: "#059669", role: "Resolver", team: "Support", subjects: ALL_SUBJECTS },
+    { name: "Amit K.", initials: "AK", color: "#d97706", role: "Resolver", team: "Ops Triage", subjects: ALL_SUBJECTS },
   ],
 };
 
@@ -446,7 +446,7 @@ function seedDb() {
       subOption,
       subject,
       routedTo: "faculty",
-      facultyAssigned: isClosed ? people.faculty[index % people.faculty.length].name : ownerName,
+      facultyAssigned: isClosed ? allOperators()[index % allOperators().length].name : ownerName,
       status: isClosed ? "Closed" : ownerName ? "Faculty" : "Unclaimed",
       timelineStatus: isClosed ? "resolved" : ownerName ? "assigned" : "raised",
       priority: index % 5 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
@@ -554,11 +554,11 @@ function owner(ticket) {
 }
 
 function allOperators() {
-  return [...people.faculty, ...people.resolvers];
+  return people.operators;
 }
 
 function activeOperator() {
-  return allOperators().find((person) => person.name === current.operator) || people.faculty[0] || people.resolvers[0];
+  return allOperators().find((person) => person.name === current.operator) || allOperators()[0];
 }
 
 function activeOperatorName() {
@@ -581,6 +581,11 @@ function facultyActorName() {
   return state.role === "team" ? activeOperatorName() : current.faculty;
 }
 
+function subjectResolvers(subject) {
+  const eligible = allOperators().filter((person) => person.subjects?.includes(subject));
+  return eligible.length ? eligible : allOperators();
+}
+
 function ticketById(id) {
   return db.tickets.find((ticket) => ticket.id === id);
 }
@@ -596,16 +601,11 @@ function applyAutoAssignments(targetDb = db, shouldNotify = true, shouldPersist 
     if (ticket.status === "Closed" || owner(ticket) !== "Unclaimed" || ticketAgeHours(ticket) < 24) return;
     const assignee = leastLoadedAssignee(ticket, targetDb.tickets);
     if (!assignee) return;
-    if (people.faculty.some((person) => person.name === assignee)) {
-      ticket.facultyAssigned = assignee;
-      ticket.facultyAssignedAt = new Date().toISOString();
-      ticket.status = "Faculty";
-      ticket.timelineStatus = "assigned";
-    } else {
-      ticket.claimedBy = assignee;
-      ticket.status = "Being reviewed";
-      ticket.timelineStatus = "in_review";
-    }
+    ticket.facultyAssigned = assignee;
+    ticket.claimedBy = null;
+    ticket.facultyAssignedAt = new Date().toISOString();
+    ticket.status = "Faculty";
+    ticket.timelineStatus = "assigned";
     ticket.history.unshift(eventLine("SYSTEM", `Auto-assigned after 24h unclaimed SLA to ${assignee}`));
     targetDb.notifications.unshift(note("General", `Auto-assigned after 24h: #${ticket.id} to ${assignee}`, ticket.id));
     changed = true;
@@ -616,10 +616,7 @@ function applyAutoAssignments(targetDb = db, shouldNotify = true, shouldPersist 
 }
 
 function leastLoadedAssignee(ticket, allTickets = db.tickets) {
-  const candidates =
-    ticket.routedTo === "faculty"
-      ? people.faculty.filter((person) => person.subjects.includes(ticket.subject))
-      : people.resolvers;
+  const candidates = subjectResolvers(ticket.subject);
   if (!candidates.length) return null;
   const loads = candidates.map((person) => ({
     person,
@@ -668,7 +665,7 @@ function roleTickets() {
     return db.tickets.filter((ticket) => owner(ticket) === "Unclaimed" || isAssignedTo(ticket, activeName));
   }
   if (state.role === "faculty") {
-    const subjects = people.faculty.find((person) => person.name === current.faculty).subjects;
+    const subjects = allOperators().find((person) => person.name === current.faculty)?.subjects || ALL_SUBJECTS;
     return db.tickets.filter((ticket) => ticket.routedTo === "faculty" && (ticket.facultyAssigned === current.faculty || (!ticket.facultyAssigned && subjects.includes(ticket.subject))));
   }
   if (state.role === "content") {
@@ -813,7 +810,7 @@ function renderProfileSelect() {
     el.profileSelect.innerHTML = "";
     return;
   }
-  const options = state.role === "team" ? allOperators() : state.role === "faculty" ? people.faculty : people.resolvers;
+  const options = allOperators();
   const activeName = state.role === "team" ? activeOperatorName() : state.role === "faculty" ? current.faculty : current.resolver;
   el.profileSelect.hidden = false;
   el.profileSelect.innerHTML = options.map((person) => `<option value="${person.name}" ${person.name === activeName ? "selected" : ""}>${person.name} - ${person.role}</option>`).join("");
@@ -831,7 +828,7 @@ function renderStats() {
   const breaching = open.filter((ticket) => hoursLeft(ticket) <= 2);
   const scores = base.map((ticket) => ticket.satisfactionScore).filter((score) => score != null);
   const avgScore = scores.length ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1) : "--";
-  const activeFaculty = people.faculty.find((person) => person.name === current.faculty);
+  const activeFaculty = allOperators().find((person) => person.name === current.faculty);
   const facultySubjects = activeFaculty?.subjects || [];
   const pool = db.tickets.filter((ticket) => ticket.routedTo === "faculty" && !ticket.facultyAssigned && inDateRange(ticket.raisedAt));
   const activeName = activeOperatorName();
@@ -1101,7 +1098,7 @@ function downloadReport(type) {
 }
 
 function managerReportRows(rows) {
-  const agents = [...people.resolvers, ...people.faculty];
+  const agents = allOperators();
   return [
     ["Summary", "Total tickets", rows.length, dateRangeLabel() || "All raised dates"],
     ["Summary", "Open tickets", rows.filter((ticket) => ticket.status !== "Closed").length, "Across content and faculty"],
@@ -1161,7 +1158,7 @@ function managerReportPanel() {
   const subjectLeaders = topCounts(rows, "subject", 5);
   const topicLeaders = topCounts(rows, "topic", 5);
   const questionLeaders = topQuestionRows(rows, 5);
-  const agents = [...people.resolvers, ...people.faculty];
+  const agents = allOperators();
   return `<div class="report-head"><div><span class="label">Manager Report</span><h3>Team Health</h3></div><button class="primary tiny" data-download-report="manager">Download Report</button></div>
     <div class="report-metrics">
       ${reportMetric("Top Subject", subjectLeaders[0]?.label || "--", `${subjectLeaders[0]?.count || 0} queries`)}
@@ -1465,7 +1462,7 @@ function dailySeries(rows, valueGetter, mode = "sum", days = 7) {
 }
 
 function agentLoadItems(rows) {
-  return [...people.resolvers, ...people.faculty].map((person) => ({
+  return allOperators().map((person) => ({
     label: person.name.replace(/^Dr\. /, ""),
     count: rows.filter((ticket) => ticket.status !== "Closed" && (ticket.facultyAssigned === person.name || ticket.claimedBy === person.name)).length,
   })).sort((a, b) => b.count - a.count).slice(0, 7);
@@ -1902,7 +1899,7 @@ function sessionJsonPayloads(ticket, session) {
 }
 
 function assignmentSelect(id, selectId) {
-  const options = [...people.resolvers, ...people.faculty].map((person) => `<option value="${person.name}">${person.name} - ${person.role}</option>`).join("");
+  const options = allOperators().map((person) => `<option value="${person.name}">${person.name} - ${person.role}</option>`).join("");
   return `<div class="resolution-form"><select id="${selectId}">${options}</select><button class="primary" data-save-manager-assign="${id}">Assign Selected Person</button></div>`;
 }
 
@@ -1911,7 +1908,7 @@ function detailGrid(rows) {
 }
 
 function openProfile(name) {
-  const allPeople = [...people.faculty, ...people.resolvers];
+  const allPeople = allOperators();
   const person = allPeople.find((item) => item.name === name);
   if (!person) return;
   const scopedTickets = profileTicketsFor(person);
@@ -1975,7 +1972,7 @@ function claimTicket(id, assignee = resolverActorName()) {
 }
 
 function assignFacultyForQuery(ticket) {
-  const eligible = people.faculty.filter((faculty) => faculty.subjects.includes(ticket.subject));
+  const eligible = subjectResolvers(ticket.subject);
   if (!eligible.length) return { assigned: null, reason: "NO_FACULTY_FOR_SUBJECT" };
   const loads = eligible.map((faculty) => ({ faculty, openCount: db.tickets.filter((t) => t.facultyAssigned === faculty.name && t.status !== "Closed").length }));
   const min = Math.min(...loads.map((item) => item.openCount));
@@ -2120,17 +2117,10 @@ function requestCall(id) {
 
 function managerAssign(id, assignee) {
   const ticket = ticketById(id);
-  const isFaculty = people.faculty.some((person) => person.name === assignee);
-  if (isFaculty) {
-    ticket.facultyAssigned = assignee;
-    ticket.claimedBy = null;
-    ticket.routedTo = "faculty";
-    ticket.status = "Faculty";
-  } else {
-    ticket.claimedBy = assignee;
-    ticket.facultyAssigned = null;
-    ticket.status = "Worked on";
-  }
+  ticket.facultyAssigned = assignee;
+  ticket.claimedBy = null;
+  ticket.routedTo = "faculty";
+  ticket.status = "Faculty";
   addHistory(ticket, current.manager, `Assigned to ${assignee} based on bandwidth`);
   persistAndRender(id);
 }
@@ -2169,7 +2159,7 @@ function canAssignToMe(ticket) {
   if (ticket.status === "Closed") return false;
   if (owner(ticket) !== "Unclaimed") return false;
   if (state.role === "team") return true;
-  if (state.role === "faculty") return ticket.routedTo === "faculty" && people.faculty.find((person) => person.name === current.faculty).subjects.includes(ticket.subject);
+  if (state.role === "faculty") return ticket.routedTo === "faculty" && subjectResolvers(ticket.subject).some((person) => person.name === current.faculty);
   if (state.role === "content") return ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved";
   return false;
 }
@@ -2414,8 +2404,8 @@ el.roleToggle.addEventListener("click", (event) => {
 el.profileSelect.addEventListener("change", (event) => {
   if (state.role === "team") {
     current.operator = event.target.value;
-    if (people.faculty.some((person) => person.name === event.target.value)) current.faculty = event.target.value;
-    if (people.resolvers.some((person) => person.name === event.target.value)) current.resolver = event.target.value;
+    current.faculty = event.target.value;
+    current.resolver = event.target.value;
   }
   if (state.role === "faculty") current.faculty = event.target.value;
   if (state.role === "content") current.resolver = event.target.value;
