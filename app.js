@@ -77,6 +77,8 @@ const state = {
   tab: "all",
   status: "all",
   assignee: "all",
+  dateFrom: "",
+  dateTo: "",
   search: "",
   period: "week",
   selectedId: "NP-00003",
@@ -96,6 +98,9 @@ const el = {
   searchClear: document.querySelector("#searchClear"),
   statusFilter: document.querySelector("#statusFilter"),
   assigneeFilter: document.querySelector("#assigneeFilter"),
+  dateFromFilter: document.querySelector("#dateFromFilter"),
+  dateToFilter: document.querySelector("#dateToFilter"),
+  exportCsvButton: document.querySelector("#exportCsvButton"),
   ticketTabs: document.querySelector("#ticketTabs"),
   tableTitle: document.querySelector("#tableTitle"),
   tableSubtitle: document.querySelector("#tableSubtitle"),
@@ -598,6 +603,7 @@ function filteredTickets() {
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.status !== "all") rows = rows.filter((t) => t.status === state.status);
   if (state.assignee !== "all") rows = rows.filter((t) => owner(t) === state.assignee);
+  rows = rows.filter((ticket) => inDateRange(ticket.raisedAt));
   if (state.search) {
     const needle = state.search.toLowerCase();
     rows = rows.filter((ticket) => ticket.id.toLowerCase().includes(needle));
@@ -676,6 +682,8 @@ function renderFilters() {
   el.statusFilter.innerHTML = statuses.map((status) => `<option value="${status}">${status === "all" ? "All statuses" : status}</option>`).join("");
   el.statusFilter.value = statuses.includes(state.status) ? state.status : "all";
   renderSelectFilter(el.assigneeFilter, ["all", ...new Set(scoped.map((ticket) => owner(ticket)))], state.assignee, "All assignees");
+  el.dateFromFilter.value = state.dateFrom;
+  el.dateToFilter.value = state.dateTo;
 }
 
 function renderSelectFilter(select, options, selected, allLabel, labels = {}) {
@@ -735,7 +743,7 @@ function toggleSort(key) {
 }
 
 function renderTabs() {
-  const tabs = tabsForRole(roleTickets());
+  const tabs = tabsForRole(roleTickets().filter((ticket) => inDateRange(ticket.raisedAt)));
   if (!tabs.some(([key]) => key === state.tab)) state.tab = "all";
   el.ticketTabs.innerHTML = tabs.map(([key, label, count]) => `<button class="${state.tab === key ? "active" : ""}" data-tab="${key}">${label}<span class="count">${count}</span></button>`).join("");
 }
@@ -744,7 +752,7 @@ function renderTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
   el.tableTitle.textContent = state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
-  el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
+  el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map((ticket) => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
 }
@@ -773,6 +781,74 @@ function cell(ticket, key) {
     channel: ticket.routedTo === "support" ? "Support" : ticket.routedTo === "faculty" ? "Faculty" : "Content",
   };
   return value[key] || "";
+}
+
+function rawCell(ticket, key) {
+  const value = {
+    id: ticket.id,
+    student: ticket.student,
+    status: ticket.status,
+    category: ticket.category,
+    subOption: ticket.subOption,
+    subject: ticket.subject,
+    routedTo: titleCase(ticket.routedTo),
+    owner: owner(ticket),
+    sla: ticket.status === "Closed" ? "Closed" : `${hoursLeft(ticket).toFixed(1)}h left`,
+    priority: owner(ticket) === "Unclaimed" || !ticket.priority ? "" : ticket.priority,
+    score: ticket.satisfactionScore == null ? "" : ticket.satisfactionScore.toFixed(1),
+    channel: ticket.routedTo === "support" ? "Support" : ticket.routedTo === "faculty" ? "Faculty" : "Content",
+  };
+  return value[key] ?? "";
+}
+
+function exportCsv() {
+  if (dateRangeInvalid()) {
+    toast("Choose a From Date that is before the To Date.");
+    return;
+  }
+  const rows = filteredTickets();
+  if (!rows.length) {
+    toast("No tickets match this date range.");
+    return;
+  }
+  const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
+  const headers = [...visible.map(([, label]) => label), "Raised At", "Resolved At"];
+  const csvRows = [
+    headers.map(csvEscape).join(","),
+    ...rows.map((ticket) => [
+      ...visible.map(([key]) => rawCell(ticket, key)),
+      absoluteDate(ticket.raisedAt),
+      ticket.resolvedAt ? absoluteDate(ticket.resolvedAt) : "",
+    ].map(csvEscape).join(",")),
+  ];
+  const blob = new Blob([csvRows.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = csvFileName();
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${rows.length} ticket${rows.length === 1 ? "" : "s"} to CSV.`);
+}
+
+function csvFileName() {
+  const role = state.role === "content" ? "content-team" : state.role;
+  const from = state.dateFrom || "all";
+  const to = state.dateTo || "all";
+  return `qms-${role}-tickets-${from}-to-${to}.csv`;
+}
+
+function dateRangeInvalid() {
+  return Boolean(state.dateFrom && state.dateTo && new Date(state.dateFrom) > new Date(state.dateTo));
+}
+
+function dateRangeLabel() {
+  if (state.dateFrom && state.dateTo) return ` raised from ${state.dateFrom} to ${state.dateTo}`;
+  if (state.dateFrom) return ` raised from ${state.dateFrom}`;
+  if (state.dateTo) return ` raised until ${state.dateTo}`;
+  return "";
 }
 
 function renderSidePanel() {
@@ -1292,6 +1368,20 @@ function isToday(date) {
   return target.getFullYear() === now.getFullYear() && target.getMonth() === now.getMonth() && target.getDate() === now.getDate();
 }
 
+function inDateRange(date) {
+  if (!date) return false;
+  const value = new Date(date).getTime();
+  if (state.dateFrom) {
+    const from = new Date(`${state.dateFrom}T00:00:00`).getTime();
+    if (value < from) return false;
+  }
+  if (state.dateTo) {
+    const to = new Date(`${state.dateTo}T23:59:59.999`).getTime();
+    if (value > to) return false;
+  }
+  return true;
+}
+
 function absoluteDate(date) {
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
@@ -1304,6 +1394,11 @@ function absoluteDate(date) {
 
 function escapeAttr(value) {
   return String(value).replaceAll('"', "&quot;");
+}
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 function toast(message) {
@@ -1362,6 +1457,20 @@ el.assigneeFilter.addEventListener("change", (event) => {
   state.assignee = event.target.value;
   renderTable();
 });
+
+el.dateFromFilter.addEventListener("change", (event) => {
+  state.dateFrom = event.target.value;
+  renderTabs();
+  renderTable();
+});
+
+el.dateToFilter.addEventListener("change", (event) => {
+  state.dateTo = event.target.value;
+  renderTabs();
+  renderTable();
+});
+
+el.exportCsvButton.addEventListener("click", exportCsv);
 
 document.addEventListener("change", (event) => {
   if (event.target?.id === "profileSwitcher") openProfile(event.target.value);
