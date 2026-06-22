@@ -241,6 +241,8 @@ function createTicket(input) {
     slaHours: input.slaHours || 48,
     raisedAt,
     resolvedAt: input.resolvedAt || null,
+    escalationRaisedAt: input.escalationRaisedAt || null,
+    escalationResolvedAt: input.escalationResolvedAt || null,
     resolutionText: input.resolutionText || "",
     finalResolutionText: input.finalResolutionText || "",
     resolutionReference: input.resolutionReference || "",
@@ -1598,18 +1600,7 @@ function drawerHtml(ticket) {
       ${workflowPanel(ticket)}
       ${state.role === "team" || state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
-      <section class="drawer-card"><h3>Student's Query</h3>${detailGrid([
-        ["Student", ticket.student],
-        ["Subject", ticket.subject],
-        ["Topic", ticket.topic],
-        ["Question ID", `#${ticket.questionId}`],
-        ["Raised At", absoluteDate(ticket.raisedAt)],
-        ["Age", relativeTime(ticket.raisedAt)],
-        ["Doubt", ticket.studentDoubt],
-        ["Voice Note", ticket.studentVoiceNote || "None"],
-        ["Reference", studentReferenceCell(ticket)],
-        ["Owner", owner(ticket)],
-      ])}</section>
+      <section class="drawer-card"><h3>Student's Query</h3>${detailGrid(studentQueryRows(ticket))}</section>
       ${state.role === "team" || state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${sessionDetailPanel(ticket)}
       ${escalationPanel(ticket)}
@@ -1642,6 +1633,49 @@ function drawerActions(ticket) {
   if (contentOwnedByMe && ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   if (state.role === "manager" && ticket.status !== "Closed" && owner(ticket) === "Unclaimed") actions.push(`<button class="primary" data-manager-claim="${ticket.id}">Claim as Manager</button>`);
   return `<div class="drawer-actions">${actions.join("") || `<span class="muted">No primary action available in this state.</span>`}</div>`;
+}
+
+function studentQueryRows(ticket) {
+  const rows = [
+    ["Student", ticket.student],
+    ["Subject", ticket.subject],
+    ["Topic", ticket.topic],
+    ["Question ID", `#${ticket.questionId}`],
+    ["Raised At", absoluteDate(ticket.raisedAt)],
+    ["Age", relativeTime(ticket.raisedAt)],
+    ["Resolved At", ticket.resolvedAt ? absoluteDate(ticket.resolvedAt) : "Not resolved yet"],
+  ];
+  if (ticket.resolvedAt) rows.push(["Resolution Time", durationBetween(ticket.raisedAt, ticket.resolvedAt)]);
+  if (hasEscalation(ticket)) {
+    const escalationAt = escalationRaisedAt(ticket);
+    const escalationDoneAt = escalationResolvedAt(ticket);
+    rows.push(["Escalation Raised At", escalationAt ? absoluteDate(escalationAt) : "Not captured"]);
+    rows.push(["Escalation Resolved At", escalationDoneAt ? absoluteDate(escalationDoneAt) : "Pending"]);
+    rows.push(["Escalation Resolution Time", escalationAt && escalationDoneAt ? durationBetween(escalationAt, escalationDoneAt) : "Pending"]);
+  }
+  rows.push(
+    ["Doubt", ticket.studentDoubt],
+    ["Voice Note", ticket.studentVoiceNote || "None"],
+    ["Reference", studentReferenceCell(ticket)],
+    ["Owner", owner(ticket)],
+  );
+  return rows;
+}
+
+function hasEscalation(ticket) {
+  return ticket.status === "Escalation" || ticket.status === "Escalation resolved" || ticket.feedbackType === "thumbs_down" || ticket.feedbackType === "escalation_resolved" || ticket.escalationResolved || Boolean(ticket.followupText || ticket.escalationRaisedAt || ticket.escalationResolvedAt);
+}
+
+function escalationRaisedAt(ticket) {
+  return ticket.escalationRaisedAt || historyDate(ticket, [/marked resolution as unclear/i, /escalation needed/i, /student not satisfied/i]) || (hasEscalation(ticket) ? ticket.resolvedAt || ticket.raisedAt : null);
+}
+
+function escalationResolvedAt(ticket) {
+  return ticket.escalationResolvedAt || historyDate(ticket, [/resolved escalation/i, /escalation closed/i, /rated escalation/i]) || (ticket.escalationResolved || ticket.feedbackType === "escalation_resolved" || ticket.status === "Escalation resolved" ? ticket.resolvedAt : null);
+}
+
+function historyDate(ticket, patterns) {
+  return [...(ticket.history || [])].reverse().find((item) => patterns.some((pattern) => pattern.test(item.text || "")))?.at || null;
 }
 
 function workflowPanel(ticket) {
@@ -2185,6 +2219,7 @@ function submitStudentFeedback(id, type) {
   ticket.satisfactionScore = satisfactionScore(type);
   if (type === "thumbs_down") {
     ticket.status = "Escalation";
+    ticket.escalationRaisedAt = new Date().toISOString();
     ticket.followupText = document.querySelector("#followupText")?.value.trim() || "";
     addHistory(ticket, current.student, "Marked resolution as unclear");
     pushNotification("General", `Escalation needed: #${ticket.id} - Student not satisfied`, ticket.id);
@@ -2203,9 +2238,11 @@ function setEscalationRating(id, rating, review) {
   ticket.escalationRating = rating || null;
   ticket.escalationReview = review || "";
   ticket.escalationResolved = true;
+  ticket.escalationResolvedAt = new Date().toISOString();
   ticket.satisfactionScore = satisfactionScore("escalation_resolved", rating);
   ticket.status = "Closed";
   ticket.timelineStatus = "resolved";
+  ticket.resolvedAt = new Date().toISOString();
   addHistory(ticket, current.student, rating ? `Rated escalation ${rating}/5` : "Skipped escalation rating");
   pushNotification("General", `Escalation closed: #${ticket.id} - ${ticket.satisfactionScore} score`, ticket.id);
   persistAndRender(id);
@@ -2218,6 +2255,7 @@ function markEscalationResolved(id) {
   ticket.escalationRating = null;
   ticket.satisfactionScore = null;
   ticket.status = "Escalation resolved";
+  ticket.escalationResolvedAt = new Date().toISOString();
   addHistory(ticket, resolverActorName(), "Resolved escalation through outreach; waiting for student rating");
   pushNotification("General", `Escalation ready for student rating: #${ticket.id}`, ticket.id);
   persistAndRender(id);
@@ -2421,6 +2459,17 @@ function relativeTime(date) {
   if (hours < 1) return `${Math.round(hours * 60)}m ago`;
   if (hours < 48) return `${hours.toFixed(1)}h ago`;
   return `${Math.round(hours / 24)}d ago`;
+}
+
+function durationBetween(start, end) {
+  if (!start || !end) return "Pending";
+  const minutes = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = minutes / 60;
+  if (hours < 48) return `${hours.toFixed(1)}h`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = Math.round(hours % 24);
+  return `${days}d ${remainingHours}h`;
 }
 
 function shortDate(date) {
