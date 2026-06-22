@@ -1622,12 +1622,16 @@ function drawerHtml(ticket) {
 function drawerActions(ticket) {
   const actions = [];
   const unclaimed = owner(ticket) === "Unclaimed";
-  const teamClaimedByMe = state.role === "team" && ticket.claimedBy === activeOperatorName();
-  const teamFacultyReadyForReview = state.role === "team" && ticket.facultyAssigned === activeOperatorName() && ticket.status !== "Faculty";
-  const contentOwnedByMe = (state.role === "content" && ticket.claimedBy === current.resolver) || teamClaimedByMe || teamFacultyReadyForReview;
+  const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
+  const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
   if (canAssignToMe(ticket)) {
     actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
     if (unclaimed && (state.role === "content" || state.role === "team")) return `<div class="drawer-actions">${actions.join("")}</div>`;
+  }
+  if (teamOwnedByMe && ticket.status !== "Closed") {
+    actions.push(ticket.technicalEscalation ? `<span class="workflow-chip escalated">Escalated to Engineering</span>` : `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
+    if (ticket.resolutionText && !ticket.finalResolutionText) actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
+    if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   }
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
   if (contentOwnedByMe && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
@@ -1662,7 +1666,10 @@ function workflowPanel(ticket) {
 }
 
 function facultyPanel(ticket) {
-  if (ticket.facultyAssigned !== facultyActorName() || ticket.status !== "Faculty") return "";
+  const canUseFacultyFlow = state.role === "team"
+    ? activeOwnsTicket(ticket) && ticket.status !== "Closed" && ticket.status !== "Faculty resolved"
+    : ticket.facultyAssigned === facultyActorName() && ticket.status === "Faculty";
+  if (!canUseFacultyFlow) return "";
   return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
 }
 
@@ -2171,18 +2178,11 @@ function assignToMe(id) {
   const ticket = ticketById(id);
   if (state.role === "team") {
     const actor = activeOperatorName();
-    const operator = activeOperator();
-    const claimAsFaculty = operator?.role === "Faculty" && ticket.routedTo === "faculty";
-    if (claimAsFaculty) {
-      ticket.facultyAssigned = actor;
-      ticket.facultyAssignedAt = new Date().toISOString();
-      ticket.status = "Faculty";
-      ticket.timelineStatus = "assigned";
-    } else {
-      ticket.claimedBy = actor;
-      ticket.status = ticket.status === "Raised" || ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
-      ticket.timelineStatus = "in_review";
-    }
+    ticket.facultyAssigned = actor;
+    ticket.claimedBy = null;
+    ticket.facultyAssignedAt = new Date().toISOString();
+    ticket.status = "Faculty";
+    ticket.timelineStatus = "assigned";
     addHistory(ticket, actor, "Claimed this ticket");
     pushNotification("Content Queries", `${actor} assigned themselves to #${ticket.id}`, ticket.id);
     persistAndRender(id);
@@ -2236,7 +2236,7 @@ function nextStepText(ticket) {
   if (owner(ticket) === "Unclaimed") return "Assign this ticket to yourself or route it to the right expert before doing resolution work.";
   if (state.role === "team") {
     if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
-    if (ticket.status === "Faculty") return "Write a faculty explanation, attach a reference if useful, then submit the resolution for final review.";
+    if (!ticket.resolutionText) return "Write an explanation, attach a reference or voice note if useful, then submit the resolution.";
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
     if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the explanation, finalize the student-facing answer, then close the ticket when ready.";
     return "Add context if needed, finalize the student-facing resolution, or escalate to Engineering for rendering or technical issues.";
