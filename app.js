@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v6";
+const STORE_KEY = "nprep-qms-phase2-prototype-v8";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -53,6 +53,27 @@ const current = {
   faculty: "Dr. Meera Joshi",
   resolver: "Priya S.",
   manager: "Harshit",
+};
+
+const STATUSES = [
+  "Unclaimed",
+  "Raised",
+  "Being reviewed",
+  "Worked on",
+  "Faculty",
+  "Faculty resolved",
+  "Escalation",
+  "Escalation resolved",
+  "Closed",
+];
+
+const STATUS_ALIASES = {
+  "In Review": "Being reviewed",
+  "Being Worked On": "Worked on",
+  "With Faculty": "Faculty",
+  "Faculty Resolved": "Faculty resolved",
+  Escalated: "Escalation",
+  "Escalation Resolved": "Escalation resolved",
 };
 
 const columns = [
@@ -137,6 +158,11 @@ function satisfactionScore(feedbackType, rating) {
   return null;
 }
 
+function normalizeStatus(status) {
+  const next = STATUS_ALIASES[status] || status || "Raised";
+  return STATUSES.includes(next) ? next : "Raised";
+}
+
 function createTicket(input) {
   const subject = input.subject || deriveSubject(input.questionId);
   const routedTo = input.routedTo || deriveRouting(input.category, input.subOption);
@@ -156,7 +182,7 @@ function createTicket(input) {
     facultyAssigned: input.facultyAssigned || null,
     facultyAssignedAt: input.facultyAssigned ? new Date(now - 4 * 3600000).toISOString() : null,
     claimedBy: input.claimedBy || null,
-    status: input.status || "Raised",
+    status: normalizeStatus(input.status),
     timelineStatus: input.timelineStatus || "raised",
     priority: input.facultyAssigned || input.claimedBy || input.status === "Closed" ? input.priority ?? null : null,
     slaHours: input.slaHours || 48,
@@ -217,7 +243,7 @@ function seedDb() {
       queryText: "The image area is blank in question 84294.",
       priority: "High",
       ageHours: 8,
-      status: "In Review",
+      status: "Being reviewed",
       timelineStatus: "in_review",
       claimedBy: "Priya S.",
       studentReference: "Screenshot attached",
@@ -231,7 +257,7 @@ function seedDb() {
       queryText: "The rationale says B is correct but I thought it should be C because both mention autonomic activity.",
       priority: "High",
       ageHours: 6,
-      status: "With Faculty",
+      status: "Faculty",
       timelineStatus: "assigned",
       facultyAssigned: "Dr. Meera Joshi",
       studentVoiceNote: "0:24 voice note",
@@ -265,7 +291,7 @@ function seedDb() {
       queryText: "I think option C should also be correct here.",
       priority: "Highest",
       ageHours: 20,
-      status: "Escalated",
+      status: "Escalation",
       timelineStatus: "assigned",
       facultyAssigned: "Dr. Arjun Rao",
       resolvedAt: new Date(Date.now() - 4 * 3600000).toISOString(),
@@ -335,7 +361,7 @@ function seedDb() {
       queryText: "Formula renders as symbols on Android.",
       priority: "Highest",
       ageHours: 47,
-      status: "Being Worked On",
+      status: "Worked on",
       timelineStatus: "being_worked_on",
       claimedBy: "Rahul M.",
       technicalEscalation: true,
@@ -367,7 +393,7 @@ function seedDb() {
       subject,
       routedTo: "faculty",
       facultyAssigned: isClosed ? people.faculty[index % people.faculty.length].name : ownerName,
-      status: isClosed ? "Closed" : ownerName ? "With Faculty" : "Raised",
+      status: isClosed ? "Closed" : ownerName ? "Faculty" : "Unclaimed",
       timelineStatus: isClosed ? "resolved" : ownerName ? "assigned" : "raised",
       priority: index % 5 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
       ageHours: 2 + ((index * 2.25) % 46),
@@ -404,7 +430,7 @@ function seedDb() {
       subject: facultySubjects[(index + 1) % facultySubjects.length],
       routedTo: "content",
       claimedBy: isClosed ? current.resolver : ownerName,
-      status: isClosed ? "Closed" : ownerName ? (index % 4 === 0 ? "Being Worked On" : "In Review") : "Raised",
+      status: isClosed ? "Closed" : ownerName ? (index % 4 === 0 ? "Worked on" : "Being reviewed") : "Unclaimed",
       timelineStatus: isClosed ? "resolved" : ownerName ? "in_review" : "raised",
       priority: index % 4 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
       ageHours: 1 + ((index * 1.85) % 47),
@@ -440,6 +466,7 @@ function loadDb() {
     const saved = localStorage.getItem(STORE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      normalizeTicketStatuses(parsed);
       normalizeTimeline(parsed);
       applyAutoAssignments(parsed, false, false);
       return parsed;
@@ -448,6 +475,7 @@ function loadDb() {
     console.warn(error);
   }
   const seeded = seedDb();
+  normalizeTicketStatuses(seeded);
   normalizeTimeline(seeded);
   applyAutoAssignments(seeded, false, false);
   localStorage.setItem(STORE_KEY, JSON.stringify(seeded));
@@ -489,11 +517,11 @@ function applyAutoAssignments(targetDb = db, shouldNotify = true, shouldPersist 
     if (people.faculty.some((person) => person.name === assignee)) {
       ticket.facultyAssigned = assignee;
       ticket.facultyAssignedAt = new Date().toISOString();
-      ticket.status = "With Faculty";
+      ticket.status = "Faculty";
       ticket.timelineStatus = "assigned";
     } else {
       ticket.claimedBy = assignee;
-      ticket.status = "In Review";
+      ticket.status = "Being reviewed";
       ticket.timelineStatus = "in_review";
     }
     ticket.history.unshift(eventLine("SYSTEM", `Auto-assigned after 24h unclaimed SLA to ${assignee}`));
@@ -524,6 +552,12 @@ function addHistory(ticket, actor, text) {
   ticket.history.unshift(eventLine(actor, text));
 }
 
+function normalizeTicketStatuses(targetDb) {
+  targetDb.tickets.forEach((ticket) => {
+    ticket.status = normalizeStatus(ticket.status);
+  });
+}
+
 function normalizeTimeline(targetDb) {
   targetDb.tickets.forEach((ticket) => {
     ticket.history = ticket.history || [];
@@ -551,7 +585,7 @@ function roleTickets() {
   }
   if (state.role === "content") {
     return db.tickets.filter((ticket) => {
-      const eligible = ticket.routedTo === "content" || ticket.returnedByFaculty || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation Resolved";
+      const eligible = ticket.routedTo === "content" || ticket.returnedByFaculty || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved";
       return eligible && (ticket.claimedBy === current.resolver || owner(ticket) === "Unclaimed");
     });
   }
@@ -571,10 +605,10 @@ function tabsForRole(base) {
     return [
       ["all", "Total", base.length],
       ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
-      ["review", "In Review", base.filter((t) => t.status === "In Review").length],
-      ["faculty", "With Faculty", base.filter((t) => t.facultyAssigned).length],
+      ["review", "Being reviewed", base.filter((t) => t.status === "Being reviewed").length],
+      ["faculty", "Faculty", base.filter((t) => t.facultyAssigned).length],
       ["returned", "Returned", base.filter((t) => t.returnedByFaculty).length],
-      ["escalated", "Escalated", base.filter((t) => t.feedbackType === "thumbs_down" && !t.escalationResolved).length],
+      ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
     ];
   }
   return [
@@ -583,7 +617,7 @@ function tabsForRole(base) {
     ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
     ["facultyPool", "Faculty Pool", base.filter((t) => t.routedTo === "faculty" && !t.facultyAssigned).length],
     ["breaching", "Breaching Soon", base.filter((t) => t.status !== "Closed" && hoursLeft(t) <= 2).length],
-    ["escalated", "Escalated", base.filter((t) => t.feedbackType === "thumbs_down" && !t.escalationResolved).length],
+    ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
   ];
 }
 
@@ -595,11 +629,11 @@ function filteredTickets() {
   if (state.tab === "my") rows = rows.filter((t) => t.facultyAssigned === current.faculty && t.status !== "Closed");
   if (state.tab === "pool" || state.tab === "facultyPool") rows = rows.filter((t) => t.routedTo === "faculty" && !t.facultyAssigned);
   if (state.tab === "unclaimed") rows = rows.filter((t) => owner(t) === "Unclaimed");
-  if (state.tab === "review") rows = rows.filter((t) => t.status === "In Review");
+  if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "faculty") rows = rows.filter((t) => t.facultyAssigned);
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
   if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= 2);
-  if (state.tab === "escalated") rows = rows.filter((t) => t.feedbackType === "thumbs_down" && !t.escalationResolved);
+  if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation");
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.status !== "all") rows = rows.filter((t) => t.status === state.status);
   if (state.assignee !== "all") rows = rows.filter((t) => owner(t) === state.assignee);
@@ -678,7 +712,7 @@ function renderStats() {
 
 function renderFilters() {
   const scoped = roleTickets();
-  const statuses = ["all", ...new Set(scoped.map((ticket) => ticket.status))];
+  const statuses = ["all", ...STATUSES];
   el.statusFilter.innerHTML = statuses.map((status) => `<option value="${status}">${status === "all" ? "All statuses" : status}</option>`).join("");
   el.statusFilter.value = statuses.includes(state.status) ? state.status : "all";
   renderSelectFilter(el.assigneeFilter, ["all", ...new Set(scoped.map((ticket) => owner(ticket)))], state.assignee, "All assignees");
@@ -703,14 +737,15 @@ function sortTickets(rows) {
 function sortValue(ticket, key) {
   const priorityRank = { Highest: 1, High: 2, Medium: 3, Low: 4 };
   const statusRank = {
-    Raised: 1,
-    "In Review": 2,
-    "Being Worked On": 3,
-    "With Faculty": 4,
-    "Faculty Resolved": 5,
-    Escalated: 6,
-    "Escalation Resolved": 7,
-    Closed: 8,
+    Unclaimed: 1,
+    Raised: 2,
+    "Being reviewed": 3,
+    "Worked on": 4,
+    Faculty: 5,
+    "Faculty resolved": 6,
+    Escalation: 7,
+    "Escalation resolved": 8,
+    Closed: 9,
   };
   const values = {
     id: Number(ticket.id.replace(/\D/g, "")),
@@ -922,6 +957,7 @@ function drawerHtml(ticket) {
         ["Reference", ticket.studentReference || "None"],
         ["Owner", owner(ticket)],
       ])}</section>
+      ${escalationPanel(ticket)}
       ${resolutionPanel(ticket)}
       <section class="drawer-card"><h3>Timeline</h3><div class="timeline">${ticket.history.map((item) => `<div class="timeline-item"><span class="timeline-dot">${item.actor.slice(0, 1)}</span><div><strong>${item.actor}</strong><p class="timeline-text">${item.text}</p><p class="timeline-meta">${absoluteDate(item.at)} - ${relativeTime(item.at)}</p></div></div>`).join("")}</div></section>
     </div>`;
@@ -930,11 +966,11 @@ function drawerHtml(ticket) {
 function drawerActions(ticket) {
   const actions = [];
   if (canAssignToMe(ticket)) actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
-  if (state.role === "faculty" && ticket.facultyAssigned === current.faculty && ticket.status !== "Closed") actions.push(`<button class="primary" data-show-panel="facultyResolution">Submit Resolution</button>`, `<button class="danger" data-outside-subject="${ticket.id}">Mark Outside My Subject</button>`);
-  if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-update-status="${ticket.id}">Advance Status</button>`, `<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
+  if (state.role === "faculty" && ticket.facultyAssigned === current.faculty && ticket.status === "Faculty") actions.push(`<button class="primary" data-show-panel="facultyResolution">Submit Resolution</button>`, `<button class="danger" data-outside-subject="${ticket.id}">Mark Outside My Subject</button>`);
+  if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
   if (state.role === "content" && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
   if (state.role === "content" && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Faculty</button>`);
-  if (state.role === "content" && ticket.resolutionText && ticket.status !== "Closed") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Faculty Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
+  if (state.role === "content" && ticket.resolutionText && ticket.status === "Faculty resolved") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Faculty Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
   if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`, `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
   if (state.role === "content" && ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   if (state.role === "manager" && ticket.status !== "Closed" && owner(ticket) === "Unclaimed") actions.push(`<button class="primary" data-manager-claim="${ticket.id}">Claim as Manager</button>`);
@@ -946,9 +982,9 @@ function workflowPanel(ticket) {
     <h3>Workflow Control</h3>
     <div class="workflow-grid">
       <label>Priority<select id="prioritySelect"><option value="">Set priority</option>${["Highest", "High", "Medium", "Low"].map((priority) => `<option value="${priority}" ${ticket.priority === priority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
-      <label>Status<select id="statusSelect">${["Raised", "In Review", "Being Worked On", "With Faculty", "Faculty Resolved", "Escalated", "Escalation Resolved", "Closed"].map((status) => `<option value="${status}" ${ticket.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+      <div class="readonly-status"><span class="label">Status</span><span class="badge ${statusClass(ticket.status)}">${ticket.status}</span><small>Updated automatically by workflow actions.</small></div>
     </div>
-    <div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Workflow</button></div>
+    <div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Priority</button></div>
     <div class="next-step"><span class="label">Next Step</span><p>${nextStepText(ticket)}</p></div>
   </section>`;
 }
@@ -971,6 +1007,18 @@ function managerPanel(ticket) {
 function resolutionPanel(ticket) {
   if (!ticket.resolutionText && !ticket.finalResolutionText) return "";
   return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Faculty Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p><p class="muted">${ticket.resolutionReference || "No reference attached"}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}</p>${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
+}
+
+function escalationPanel(ticket) {
+  const isEscalation = ticket.status === "Escalation" || ticket.status === "Escalation resolved" || ticket.feedbackType === "thumbs_down" || ticket.escalationResolved;
+  if (!isEscalation) return "";
+  return `<section class="drawer-card"><h3>Escalation Intake</h3>${detailGrid([
+    ["Student response", ticket.followupText || "No written follow-up captured"],
+    ["Call requested", ticket.callRequested ? "Yes" : "No"],
+    ["Escalation output", ticket.escalationResolved ? "Escalation resolved" : "Needs outreach"],
+    ["Student understood", ticket.escalationRating ? `${ticket.escalationRating}/5 rating` : "Pending"],
+    ["Student review", ticket.escalationReview || "None"],
+  ])}</section>`;
 }
 
 function assignmentSelect(id, selectId) {
@@ -1001,7 +1049,7 @@ function openProfile(name) {
     <div class="drawer-body">
       <section class="person"><span class="avatar" style="background:${person.color}">${person.initials}</span><div><h2>${person.name}</h2><p class="muted">${person.team}</p><span class="badge faculty">${person.role}</span></div></section>
       <section class="drawer-card"><h3>Switch Profile View</h3><select id="profileSwitcher">${options}</select></section>
-      <section class="drawer-card"><h3>Performance - ${titleCase(state.period)}</h3>${detailGrid([["Resolved", resolved.length], ["Open", open.length], ["Avg Sat. Score", avg], ["Avg Res. Time", "6.2 hours"], ["Thumbs Up", owned.filter((t) => t.feedbackType === "thumbs_up").length], ["Thumbs Down", owned.filter((t) => t.feedbackType === "thumbs_down").length], ["Auto-Closed", owned.filter((t) => t.feedbackType === "auto_closed").length], ["Escalated", owned.filter((t) => t.feedbackType === "thumbs_down" && !t.escalationResolved).length]])}</section>
+      <section class="drawer-card"><h3>Performance - ${titleCase(state.period)}</h3>${detailGrid([["Resolved", resolved.length], ["Open", open.length], ["Avg Sat. Score", avg], ["Avg Res. Time", "6.2 hours"], ["Thumbs Up", owned.filter((t) => t.feedbackType === "thumbs_up").length], ["Thumbs Down", owned.filter((t) => t.feedbackType === "thumbs_down").length], ["Auto-Closed", owned.filter((t) => t.feedbackType === "auto_closed").length], ["Escalation", owned.filter((t) => t.status === "Escalation").length]])}</section>
       <section class="drawer-card"><h3>Owned Open Tickets</h3><div class="mini-list">${open.length ? open.map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.subject} - ${hoursLeft(ticket).toFixed(1)}h left</p></div><button class="ghost" data-open="${ticket.id}">Open</button></div>`).join("") : `<p class="muted">No owned open tickets.</p>`}</div></section>
       <section class="drawer-card"><h3>Eligible Unclaimed Tickets</h3><div class="mini-list">${available.length ? available.map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.subject} - ${hoursLeft(ticket).toFixed(1)}h left</p></div><button class="ghost" data-open="${ticket.id}">Open</button></div>`).join("") : `<p class="muted">No eligible unclaimed tickets.</p>`}</div></section>
       <section class="drawer-card"><h3>Assign From Eligible Unclaimed</h3><select id="profileAssignSelect">${available.map((ticket) => `<option value="${ticket.id}">#${ticket.id} - ${ticket.subject}</option>`).join("")}</select><div class="form-actions"><button class="primary" data-profile-assign="${name}" ${available.length ? "" : "disabled"}>Assign</button></div></section>
@@ -1012,7 +1060,7 @@ function profileTicketsFor(person) {
   if (person.role === "Faculty") {
     return db.tickets.filter((ticket) => ticket.routedTo === "faculty" && (ticket.facultyAssigned === person.name || (owner(ticket) === "Unclaimed" && person.subjects.includes(ticket.subject))));
   }
-  return db.tickets.filter((ticket) => ticket.claimedBy === person.name || (owner(ticket) === "Unclaimed" && (ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation Resolved")));
+  return db.tickets.filter((ticket) => ticket.claimedBy === person.name || (owner(ticket) === "Unclaimed" && (ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved")));
 }
 
 function openColumnModal() {
@@ -1042,7 +1090,7 @@ function persistAndRender(openId) {
 function claimTicket(id, assignee = current.resolver) {
   const ticket = ticketById(id);
   ticket.claimedBy = assignee;
-  if (ticket.status === "Raised") ticket.status = "In Review";
+  if (ticket.status === "Raised" || ticket.status === "Unclaimed") ticket.status = "Being reviewed";
   ticket.timelineStatus = "in_review";
   addHistory(ticket, assignee, "Claimed this ticket");
   persistAndRender(id);
@@ -1066,7 +1114,7 @@ function assignToFaculty(id) {
   } else {
     ticket.facultyAssigned = result.assigned;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "With Faculty";
+    ticket.status = "Faculty";
     ticket.timelineStatus = "assigned";
     addHistory(ticket, "Content Queries", `${result.reason === "RANDOM_TIE_BREAK" ? "Random tie-break assigned" : "Auto-assigned"} to ${result.assigned}`);
     pushNotification("Content Queries", `Assigned to ${result.assigned}: #${ticket.id} - ${ticket.subject}`, ticket.id);
@@ -1078,7 +1126,7 @@ function facultyClaim(id) {
   const ticket = ticketById(id);
   ticket.facultyAssigned = current.faculty;
   ticket.facultyAssignedAt = new Date().toISOString();
-  ticket.status = "With Faculty";
+  ticket.status = "Faculty";
   ticket.timelineStatus = "assigned";
   addHistory(ticket, current.faculty, "Claimed from Subject Pool");
   pushNotification("Content Queries", `${current.faculty} claimed #${ticket.id} from Subject Pool`, ticket.id);
@@ -1095,7 +1143,7 @@ function submitFacultyResolution(id) {
   ticket.resolutionText = text;
   ticket.resolutionReference = document.querySelector("#resolutionRef")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
-  ticket.status = "Faculty Resolved";
+  ticket.status = "Faculty resolved";
   ticket.timelineStatus = "faculty_resolved";
   addHistory(ticket, current.faculty, "Submitted faculty resolution for content review");
   pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${current.faculty}`, ticket.id);
@@ -1107,7 +1155,7 @@ function markOutsideSubject(id) {
   ticket.facultyAssigned = null;
   ticket.routedTo = "content";
   ticket.returnedByFaculty = true;
-  ticket.status = "In Review";
+  ticket.status = "Being reviewed";
   addHistory(ticket, current.faculty, "Marked outside subject area and returned to content team");
   pushNotification("Content Queries", `Returned by Faculty: #${ticket.id} - Outside subject area`, ticket.id);
   persistAndRender(id);
@@ -1116,7 +1164,7 @@ function markOutsideSubject(id) {
 function approveFacultyResolution(id) {
   const ticket = ticketById(id);
   ticket.finalResolutionText = ticket.resolutionText;
-  ticket.status = "Being Worked On";
+  ticket.status = "Worked on";
   ticket.revisionRequested = false;
   addHistory(ticket, current.resolver, "Approved faculty resolution and moved to finalization");
   persistAndRender(id);
@@ -1124,7 +1172,7 @@ function approveFacultyResolution(id) {
 
 function sendRevision(id) {
   const ticket = ticketById(id);
-  ticket.status = "With Faculty";
+  ticket.status = "Faculty";
   ticket.revisionRequested = true;
   addHistory(ticket, current.resolver, "Sent faculty resolution back for revision");
   pushNotification("Content Queries", `Revision requested for #${ticket.id}`, ticket.id);
@@ -1156,11 +1204,14 @@ function submitStudentFeedback(id, type) {
   ticket.feedbackType = type;
   ticket.satisfactionScore = satisfactionScore(type);
   if (type === "thumbs_down") {
-    ticket.status = "Escalated";
+    ticket.status = "Escalation";
     ticket.followupText = document.querySelector("#followupText")?.value.trim() || "";
     addHistory(ticket, current.student, "Marked resolution as unclear");
     pushNotification("General", `Escalation needed: #${ticket.id} - Student not satisfied`, ticket.id);
   } else {
+    ticket.status = "Closed";
+    ticket.timelineStatus = "resolved";
+    ticket.resolvedAt = new Date().toISOString();
     addHistory(ticket, current.student, "Marked resolution helpful");
   }
   persistAndRender(id);
@@ -1186,7 +1237,7 @@ function markEscalationResolved(id) {
   ticket.escalationResolved = true;
   ticket.escalationRating = null;
   ticket.satisfactionScore = null;
-  ticket.status = "Escalation Resolved";
+  ticket.status = "Escalation resolved";
   addHistory(ticket, current.resolver, "Resolved escalation through outreach; waiting for student rating");
   pushNotification("General", `Escalation ready for student rating: #${ticket.id}`, ticket.id);
   persistAndRender(id);
@@ -1206,11 +1257,11 @@ function managerAssign(id, assignee) {
     ticket.facultyAssigned = assignee;
     ticket.claimedBy = null;
     ticket.routedTo = "faculty";
-    ticket.status = "With Faculty";
+    ticket.status = "Faculty";
   } else {
     ticket.claimedBy = assignee;
     ticket.facultyAssigned = null;
-    ticket.status = "Being Worked On";
+    ticket.status = "Worked on";
   }
   addHistory(ticket, current.manager, `Assigned to ${assignee} based on bandwidth`);
   persistAndRender(id);
@@ -1223,7 +1274,7 @@ function managerClaim(id) {
     return;
   }
   ticket.claimedBy = current.manager;
-  ticket.status = ticket.status === "Raised" ? "In Review" : ticket.status;
+  ticket.status = ticket.status === "Raised" || ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
   ticket.timelineStatus = "in_review";
   addHistory(ticket, current.manager, "Manager claimed this unowned ticket");
   persistAndRender(id);
@@ -1250,7 +1301,7 @@ function canAssignToMe(ticket) {
   if (ticket.status === "Closed") return false;
   if (owner(ticket) !== "Unclaimed") return false;
   if (state.role === "faculty") return ticket.routedTo === "faculty" && people.faculty.find((person) => person.name === current.faculty).subjects.includes(ticket.subject);
-  if (state.role === "content") return ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation Resolved";
+  if (state.role === "content") return ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved";
   return false;
 }
 
@@ -1259,14 +1310,14 @@ function assignToMe(id) {
   if (state.role === "faculty") {
     ticket.facultyAssigned = current.faculty;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "With Faculty";
+    ticket.status = "Faculty";
     ticket.timelineStatus = "assigned";
     addHistory(ticket, current.faculty, "Claimed this ticket");
     pushNotification("Content Queries", `${current.faculty} assigned themselves to #${ticket.id}`, ticket.id);
   }
   if (state.role === "content") {
     ticket.claimedBy = current.resolver;
-    ticket.status = ticket.status === "Raised" ? "In Review" : ticket.status;
+    ticket.status = ticket.status === "Raised" || ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
     ticket.timelineStatus = "in_review";
     addHistory(ticket, current.resolver, "Claimed this ticket");
   }
@@ -1276,16 +1327,9 @@ function assignToMe(id) {
 function saveWorkflow(id) {
   const ticket = ticketById(id);
   const nextPriority = document.querySelector("#prioritySelect")?.value;
-  const nextStatus = document.querySelector("#statusSelect")?.value;
   if (nextPriority !== undefined && ticket.priority !== (nextPriority || null)) {
     ticket.priority = nextPriority || null;
     addHistory(ticket, roleName(), nextPriority ? `Priority changed to ${nextPriority}` : "Priority cleared");
-  }
-  if (nextStatus && ticket.status !== nextStatus) {
-    ticket.status = nextStatus;
-    ticket.timelineStatus = nextStatus.toLowerCase().replaceAll(" ", "_");
-    if (nextStatus === "Closed" && !ticket.resolvedAt) ticket.resolvedAt = new Date().toISOString();
-    addHistory(ticket, roleName(), `Status changed to ${nextStatus}`);
   }
   persistAndRender(id);
 }
@@ -1305,7 +1349,7 @@ function nextStepText(ticket) {
     if (ticket.routedTo === "content" && !ticket.claimedBy) return "Assign it to yourself, add an internal note if needed, then move it into review.";
     if (ticket.routedTo === "faculty" && !ticket.facultyAssigned) return "Assign it to an eligible faculty member. If it remains unclaimed for 24 hours, it will auto-assign by least load.";
     if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the faculty resolution, approve or send back, then finalize the student-facing answer.";
-    return "Advance status, finalize the student-facing resolution, or close with a resolution code.";
+    return "Work the ticket through the available actions. The status updates automatically when the next workflow step is completed.";
   }
   return "Manager can reassign this ticket based on bandwidth or SLA risk.";
 }
@@ -1329,11 +1373,12 @@ function createStudentQuery() {
 
 function statusClass(status) {
   if (status === "Closed") return "closed";
-  if (status === "With Faculty" || status === "Faculty Resolved") return "faculty";
-  if (status === "Being Worked On") return "work";
-  if (status === "Escalated") return "escalated";
-  if (status === "Escalation Resolved") return "review";
-  if (status === "In Review") return "review";
+  if (status === "Faculty" || status === "Faculty resolved") return "faculty";
+  if (status === "Worked on") return "work";
+  if (status === "Escalation") return "escalated";
+  if (status === "Escalation resolved") return "review";
+  if (status === "Being reviewed") return "review";
+  if (status === "Unclaimed") return "pool";
   return "open";
 }
 
@@ -1500,12 +1545,6 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-assign-faculty]")) assignToFaculty(target.closest("[data-assign-faculty]").dataset.assignFaculty);
   if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
   if (target.closest("[data-outside-subject]") && window.confirm("This will return the query to the content team. Continue?")) markOutsideSubject(target.closest("[data-outside-subject]").dataset.outsideSubject);
-  if (target.closest("[data-update-status]")) {
-    const ticket = ticketById(target.closest("[data-update-status]").dataset.updateStatus);
-    ticket.status = ticket.status === "Raised" ? "In Review" : ticket.status === "In Review" ? "Being Worked On" : "Being Worked On";
-    addHistory(ticket, current.resolver, `Updated status to ${ticket.status}`);
-    persistAndRender(ticket.id);
-  }
   if (target.closest("[data-save-note]")) {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);
     const text = document.querySelector("#noteText")?.value.trim();
@@ -1518,7 +1557,7 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-recall]")) {
     const ticket = ticketById(target.closest("[data-recall]").dataset.recall);
     ticket.facultyAssigned = null;
-    ticket.status = "In Review";
+    ticket.status = "Being reviewed";
     addHistory(ticket, current.resolver, "Recalled from faculty");
     persistAndRender(ticket.id);
   }

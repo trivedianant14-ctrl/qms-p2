@@ -25,6 +25,7 @@ final result: passed
 - Fourth workflow pass: added a profile selector beside the active profile, scoped Faculty and Content views to the selected person plus eligible unclaimed work, expanded filters for ticket ID/status/category/subcategory/subject/assignee/SLA/priority/score, clarified claim timeline timestamps, and replaced the manager-only manual action with working reassignment plus manager resolution controls.
 - Fifth workflow pass: reduced visible filters to Ticket ID, Status, and Assignee, moved category/subcategory/subject/SLA/priority/score into two-state table sorting, removed visible notification cards/counts, and added Closed Today plus Overall Closed performance cards for Faculty, Content, and Manager views.
 - Sixth workflow pass: restored Export CSV, added Raised From/Raised To date filters that scope the visible ticket table and tab counts, and verified the CSV download includes the selected date window with raised/resolved timestamps.
+- Seventh workflow pass: restricted statuses to Unclaimed, Raised, Being reviewed, Worked on, Faculty, Faculty resolved, Escalation, Escalation resolved, and Closed; removed the manual status dropdown/advance action; and verified status transitions are driven by claim, assignment, faculty resolution, escalation, and close/feedback actions.
 
 ## Notes
 
