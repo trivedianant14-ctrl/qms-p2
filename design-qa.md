@@ -26,6 +26,7 @@ final result: passed
 - Fifth workflow pass: reduced visible filters to Ticket ID, Status, and Assignee, moved category/subcategory/subject/SLA/priority/score into two-state table sorting, removed visible notification cards/counts, and added Closed Today plus Overall Closed performance cards for Faculty, Content, and Manager views.
 - Sixth workflow pass: restored Export CSV, added Raised From/Raised To date filters that scope the visible ticket table and tab counts, and verified the CSV download includes the selected date window with raised/resolved timestamps.
 - Seventh workflow pass: restricted statuses to Unclaimed, Raised, Being reviewed, Worked on, Faculty, Faculty resolved, Escalation, Escalation resolved, and Closed; removed the manual status dropdown/advance action; and verified status transitions are driven by claim, assignment, faculty resolution, escalation, and close/feedback actions.
+- Eighth workflow pass: made priority a one-time confirmed save after ticket ownership, moved the faculty resolution form below the student's query, and added a collapsible Student Device Detail card with app, device, location, network, renderer, API, and attachment context for engineering reference.
 
 ## Notes
 

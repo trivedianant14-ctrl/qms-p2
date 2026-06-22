@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v8";
+const STORE_KEY = "nprep-qms-phase2-prototype-v9";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -163,12 +163,37 @@ function normalizeStatus(status) {
   return STATUSES.includes(next) ? next : "Raised";
 }
 
+function buildSessionDetails(input, raisedAt) {
+  const seed = Number(String(input.questionId || input.id || 0).replace(/\D/g, "")) || 1;
+  const devices = ["Samsung Galaxy M34", "Redmi Note 12", "iPhone 13", "Pixel 7a", "OnePlus Nord CE"];
+  const platforms = ["Android 14", "Android 13", "iOS 17.5", "Android 14", "Android 13"];
+  const appVersions = ["4.18.2", "4.18.1", "4.17.9", "4.18.2", "4.17.8"];
+  const locations = ["Delhi, IN", "Jaipur, IN", "Lucknow, IN", "Patna, IN", "Pune, IN"];
+  const networks = ["4G - Jio", "Wi-Fi - home", "5G - Airtel", "Wi-Fi - campus", "4G - Vi"];
+  const hasRenderConcern = input.technicalEscalation || input.category === "Can't See Something";
+  return {
+    sessionId: `SES-${String(seed).slice(-6).padStart(6, "0")}`,
+    appVersion: appVersions[seed % appVersions.length],
+    device: devices[seed % devices.length],
+    osVersion: platforms[seed % platforms.length],
+    location: locations[seed % locations.length],
+    network: networks[seed % networks.length],
+    lastActive: raisedAt,
+    questionRenderEngine: hasRenderConcern ? "Content renderer flagged" : "Content renderer healthy",
+    apiTrace: hasRenderConcern ? "Last asset request timed out" : "All content APIs returned 200",
+    attachmentCount: Number(Boolean(input.studentReference)) + Number(Boolean(input.studentVoiceNote)),
+    engineeringSignal: hasRenderConcern ? "Check asset payload, WebView cache, and rendering logs." : "No active technical signal.",
+  };
+}
+
 function createTicket(input) {
   const subject = input.subject || deriveSubject(input.questionId);
   const routedTo = input.routedTo || deriveRouting(input.category, input.subOption);
   const feedbackType = input.feedbackType || null;
   const now = Date.now();
   const raisedAt = input.raisedAt || new Date(now - (input.ageHours || 1) * 3600000).toISOString();
+  const normalizedStatus = normalizeStatus(input.status);
+  const initialPriority = input.facultyAssigned || input.claimedBy || normalizedStatus === "Closed" ? input.priority ?? null : null;
   return {
     id: input.id,
     questionId: input.questionId,
@@ -182,9 +207,11 @@ function createTicket(input) {
     facultyAssigned: input.facultyAssigned || null,
     facultyAssignedAt: input.facultyAssigned ? new Date(now - 4 * 3600000).toISOString() : null,
     claimedBy: input.claimedBy || null,
-    status: normalizeStatus(input.status),
+    status: normalizedStatus,
     timelineStatus: input.timelineStatus || "raised",
-    priority: input.facultyAssigned || input.claimedBy || input.status === "Closed" ? input.priority ?? null : null,
+    priority: initialPriority,
+    prioritySetAt: input.prioritySetAt || (initialPriority ? raisedAt : null),
+    prioritySetBy: input.prioritySetBy || (initialPriority ? "Content Queries" : null),
     slaHours: input.slaHours || 48,
     raisedAt,
     resolvedAt: input.resolvedAt || null,
@@ -207,6 +234,7 @@ function createTicket(input) {
     revisionRequested: input.revisionRequested || false,
     technicalEscalation: input.technicalEscalation || false,
     studentConfirmed: input.studentConfirmed || false,
+    sessionDetails: input.sessionDetails || buildSessionDetails(input, raisedAt),
     history: input.history || [
       eventLine("SYSTEM", "Ticket created from student query"),
       eventLine(routedTo === "faculty" ? "Content Queries" : "Content Queries", `Routed to ${routedTo}`),
@@ -811,7 +839,7 @@ function cell(ticket, key) {
     routedTo: titleCase(ticket.routedTo),
     owner: owner(ticket),
     sla: ticket.status === "Closed" ? `<span class="badge resolved">Closed</span>` : `<span class="badge ${slaClass(ticket)}">${hoursLeft(ticket).toFixed(1)}h left</span>`,
-    priority: owner(ticket) === "Unclaimed" || !ticket.priority ? `<span class="muted">--</span>` : `<span class="priority ${ticket.priority.toLowerCase()}">${ticket.priority}</span>`,
+    priority: owner(ticket) === "Unclaimed" || !ticket.priority ? `<span class="muted">--</span>` : `<span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span>`,
     score: ticket.satisfactionScore == null ? `<span class="muted">--</span>` : `<strong class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)}</strong>`,
     channel: ticket.routedTo === "support" ? "Support" : ticket.routedTo === "faculty" ? "Faculty" : "Content",
   };
@@ -944,7 +972,6 @@ function drawerHtml(ticket) {
       </section>
       ${drawerActions(ticket)}
       ${workflowPanel(ticket)}
-      ${state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
       <section class="drawer-card"><h3>Student's Query</h3>${detailGrid([
@@ -957,6 +984,8 @@ function drawerHtml(ticket) {
         ["Reference", ticket.studentReference || "None"],
         ["Owner", owner(ticket)],
       ])}</section>
+      ${state.role === "faculty" ? facultyPanel(ticket) : ""}
+      ${sessionDetailPanel(ticket)}
       ${escalationPanel(ticket)}
       ${resolutionPanel(ticket)}
       <section class="drawer-card"><h3>Timeline</h3><div class="timeline">${ticket.history.map((item) => `<div class="timeline-item"><span class="timeline-dot">${item.actor.slice(0, 1)}</span><div><strong>${item.actor}</strong><p class="timeline-text">${item.text}</p><p class="timeline-meta">${absoluteDate(item.at)} - ${relativeTime(item.at)}</p></div></div>`).join("")}</div></section>
@@ -966,7 +995,7 @@ function drawerHtml(ticket) {
 function drawerActions(ticket) {
   const actions = [];
   if (canAssignToMe(ticket)) actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
-  if (state.role === "faculty" && ticket.facultyAssigned === current.faculty && ticket.status === "Faculty") actions.push(`<button class="primary" data-show-panel="facultyResolution">Submit Resolution</button>`, `<button class="danger" data-outside-subject="${ticket.id}">Mark Outside My Subject</button>`);
+  if (state.role === "faculty" && ticket.facultyAssigned === current.faculty && ticket.status === "Faculty") actions.push(`<button class="danger" data-outside-subject="${ticket.id}">Mark Outside My Subject</button>`);
   if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
   if (state.role === "content" && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
   if (state.role === "content" && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Faculty</button>`);
@@ -978,19 +1007,27 @@ function drawerActions(ticket) {
 }
 
 function workflowPanel(ticket) {
+  const priorityLocked = Boolean(ticket.priority);
+  const unclaimed = owner(ticket) === "Unclaimed";
+  const priorityControl = priorityLocked
+    ? `<div class="readonly-status"><span class="label">Priority</span><span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span><small>Locked after first save. It cannot be changed later.</small></div>`
+    : unclaimed
+      ? `<div class="readonly-status"><span class="label">Priority</span><span class="muted">Not set</span><small>Claim or assign the ticket before setting priority.</small></div>`
+    : `<label>Priority<select id="prioritySelect"><option value="">Set priority</option>${["Highest", "High", "Medium", "Low"].map((priority) => `<option value="${priority}">${priority}</option>`).join("")}</select><small class="field-warning">One-time save. Confirm carefully.</small></label>`;
   return `<section class="drawer-card">
     <h3>Workflow Control</h3>
     <div class="workflow-grid">
-      <label>Priority<select id="prioritySelect"><option value="">Set priority</option>${["Highest", "High", "Medium", "Low"].map((priority) => `<option value="${priority}" ${ticket.priority === priority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+      ${priorityControl}
       <div class="readonly-status"><span class="label">Status</span><span class="badge ${statusClass(ticket.status)}">${ticket.status}</span><small>Updated automatically by workflow actions.</small></div>
     </div>
-    <div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Priority</button></div>
+    ${priorityLocked || unclaimed ? "" : `<div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Priority</button></div>`}
     <div class="next-step"><span class="label">Next Step</span><p>${nextStepText(ticket)}</p></div>
   </section>`;
 }
 
 function facultyPanel(ticket) {
-  return `<section class="drawer-card hidden" id="facultyResolution"><h3>Your Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}"><input class="text-input" id="resolutionVoice" placeholder="Voice note label, optional" value="${escapeAttr(ticket.facultyVoiceNote || "")}"><div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
+  if (ticket.facultyAssigned !== current.faculty || ticket.status !== "Faculty") return "";
+  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}"><input class="text-input" id="resolutionVoice" placeholder="Voice note label, optional" value="${escapeAttr(ticket.facultyVoiceNote || "")}"><div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
 }
 
 function contentPanel(ticket) {
@@ -1019,6 +1056,27 @@ function escalationPanel(ticket) {
     ["Student understood", ticket.escalationRating ? `${ticket.escalationRating}/5 rating` : "Pending"],
     ["Student review", ticket.escalationReview || "None"],
   ])}</section>`;
+}
+
+function sessionDetailPanel(ticket) {
+  const session = ticket.sessionDetails || buildSessionDetails(ticket, ticket.raisedAt);
+  const technical = ticket.technicalEscalation || ticket.category === "Can't See Something";
+  return `<details class="drawer-card collapse-card" ${technical ? "open" : ""}>
+    <summary><span><strong>Student Device Detail</strong><small>Session context for engineering reference</small></span><span class="badge ${technical ? "critical" : "review"}">${technical ? "Technical signal" : "Session detail"}</span></summary>
+    ${detailGrid([
+      ["Session ID", session.sessionId],
+      ["App Version", session.appVersion],
+      ["Device", session.device],
+      ["OS Version", session.osVersion],
+      ["Device Location", session.location],
+      ["Network", session.network],
+      ["Last Active", absoluteDate(session.lastActive)],
+      ["Question Renderer", session.questionRenderEngine],
+      ["API Trace", session.apiTrace],
+      ["Attachments", `${session.attachmentCount} attached`],
+      ["Engineering Note", session.engineeringSignal],
+    ])}
+  </details>`;
 }
 
 function assignmentSelect(id, selectId) {
@@ -1327,10 +1385,26 @@ function assignToMe(id) {
 function saveWorkflow(id) {
   const ticket = ticketById(id);
   const nextPriority = document.querySelector("#prioritySelect")?.value;
-  if (nextPriority !== undefined && ticket.priority !== (nextPriority || null)) {
-    ticket.priority = nextPriority || null;
-    addHistory(ticket, roleName(), nextPriority ? `Priority changed to ${nextPriority}` : "Priority cleared");
+  if (owner(ticket) === "Unclaimed") {
+    toast("Claim or assign this ticket before setting priority.");
+    return;
   }
+  if (ticket.priority) {
+    toast(`Priority is locked as ${ticket.priority}. It cannot be changed.`);
+    return;
+  }
+  if (!nextPriority) {
+    toast("Choose a priority before saving.");
+    return;
+  }
+  if (!window.confirm("Priority can only be set once. After saving, it cannot be changed. Continue?")) {
+    return;
+  }
+  ticket.priority = nextPriority;
+  ticket.prioritySetAt = new Date().toISOString();
+  ticket.prioritySetBy = roleName();
+  addHistory(ticket, roleName(), `Set priority to ${nextPriority}; priority is now locked`);
+  toast(`Priority set to ${nextPriority} and locked.`);
   persistAndRender(id);
 }
 
@@ -1387,6 +1461,10 @@ function slaClass(ticket) {
   if (hoursLeft(ticket) <= 2) return "critical";
   if (hoursLeft(ticket) <= 12) return "warn";
   return "open";
+}
+
+function priorityClass(priority) {
+  return String(priority || "").toLowerCase();
 }
 
 function scoreClass(score) {

@@ -765,6 +765,13 @@ tbody tr:focus-within {
   font-weight: 800;
 }
 
+.workflow-grid label small,
+.field-warning {
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .readonly-status {
   display: grid;
   align-content: start;
@@ -822,6 +829,65 @@ tbody tr:focus-within {
 .drawer-card p + .score {
   display: inline-block;
   margin-top: 10px;
+}
+
+.collapse-card {
+  padding: 0;
+  min-height: 68px;
+}
+
+.collapse-card[open] {
+  min-height: 0;
+}
+
+.collapse-card summary {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapse-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapse-card summary::after {
+  content: "+";
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.collapse-card[open] summary::after {
+  content: "-";
+}
+
+.collapse-card summary span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.collapse-card summary strong {
+  font-size: 14px;
+}
+
+.collapse-card summary small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.collapse-card .detail-grid {
+  padding: 0 14px 14px;
 }
 
 .drawer-actions:empty {
