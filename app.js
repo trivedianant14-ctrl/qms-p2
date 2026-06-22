@@ -995,7 +995,6 @@ function drawerHtml(ticket) {
 function drawerActions(ticket) {
   const actions = [];
   if (canAssignToMe(ticket)) actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
-  if (state.role === "faculty" && ticket.facultyAssigned === current.faculty && ticket.status === "Faculty") actions.push(`<button class="danger" data-outside-subject="${ticket.id}">Mark Outside My Subject</button>`);
   if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
   if (state.role === "content" && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
   if (state.role === "content" && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Faculty</button>`);
@@ -1205,17 +1204,6 @@ function submitFacultyResolution(id) {
   ticket.timelineStatus = "faculty_resolved";
   addHistory(ticket, current.faculty, "Submitted faculty resolution for content review");
   pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${current.faculty}`, ticket.id);
-  persistAndRender(id);
-}
-
-function markOutsideSubject(id) {
-  const ticket = ticketById(id);
-  ticket.facultyAssigned = null;
-  ticket.routedTo = "content";
-  ticket.returnedByFaculty = true;
-  ticket.status = "Being reviewed";
-  addHistory(ticket, current.faculty, "Marked outside subject area and returned to content team");
-  pushNotification("Content Queries", `Returned by Faculty: #${ticket.id} - Outside subject area`, ticket.id);
   persistAndRender(id);
 }
 
@@ -1622,7 +1610,6 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-faculty-claim]")) facultyClaim(target.closest("[data-faculty-claim]").dataset.facultyClaim);
   if (target.closest("[data-assign-faculty]")) assignToFaculty(target.closest("[data-assign-faculty]").dataset.assignFaculty);
   if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
-  if (target.closest("[data-outside-subject]") && window.confirm("This will return the query to the content team. Continue?")) markOutsideSubject(target.closest("[data-outside-subject]").dataset.outsideSubject);
   if (target.closest("[data-save-note]")) {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);
     const text = document.querySelector("#noteText")?.value.trim();
