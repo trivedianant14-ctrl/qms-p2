@@ -7,7 +7,7 @@ final result: passed
 - JavaScript parse check passed with `node --check app.js`.
 - Local Chrome render succeeded.
 - Fixed the hidden overlay issue by forcing `[hidden] { display: none !important; }`.
-- Captured the latest product dashboard verification at `qms-manager-product-dashboard-v12.png`.
+- Captured the latest report dashboard verifications at `qms-report-dashboard-v13.png` and `qms-manager-report-dashboard-v13.png`.
 
 ## Prototype Coverage
 
@@ -28,6 +28,7 @@ final result: passed
 - Ninth workflow pass: expanded Student Device Detail into an engineering handoff panel with nested mock JSON payloads for session context, device runtime, and render diagnostics.
 - Tenth workflow pass: added Question ID, Raised On, and Topic to the ticket table, made Question ID filterable, made question/topic/raised columns sortable, replaced ASC/DSC text with arrow indicators, and added absolute raised date-time to Student's Query.
 - Eleventh workflow pass: removed Channel from the table/export surface, kept wide tables horizontally scrollable, added engineering escalation labels inside Current Status, added a Manager Report section with subject/topic/question/agent-load metrics plus report download, and added a Product Team dashboard with category, suboption, SLA, CSAT, technical signal, recommendation, and report download coverage.
+- Twelfth workflow pass: moved reporting into a top-level Report nav item beside Learning, Assessment, and Ticket; removed Product Team from ticket-role queues; made Manager Report and Product Team separate full-width report dashboards; and replaced the Product Intake Tickets table with canvas-based pie, line, and bar charts plus analytical cards and report downloads.
 
 ## Notes
 

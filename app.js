@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v12";
+const STORE_KEY = "nprep-qms-phase2-prototype-v13";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -96,7 +96,9 @@ const columns = [
 const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score"]);
 
 const state = {
+  section: "ticket",
   role: "faculty",
+  reportView: "manager",
   tab: "all",
   status: "all",
   assignee: "all",
@@ -115,6 +117,8 @@ let db = loadDb();
 
 const el = {
   activeUser: document.querySelector("#activeUser"),
+  productNav: document.querySelector("#productNav"),
+  pageTitle: document.querySelector(".page-head h1"),
   roleToggle: document.querySelector("#roleToggle"),
   profileSelect: document.querySelector("#profileViewSelect"),
   statsRow: document.querySelector("#statsRow"),
@@ -125,13 +129,16 @@ const el = {
   assigneeFilter: document.querySelector("#assigneeFilter"),
   dateFromFilter: document.querySelector("#dateFromFilter"),
   dateToFilter: document.querySelector("#dateToFilter"),
+  toolbar: document.querySelector(".toolbar"),
   exportCsvButton: document.querySelector("#exportCsvButton"),
   ticketTabs: document.querySelector("#ticketTabs"),
+  mainGrid: document.querySelector(".main-grid"),
   tableTitle: document.querySelector("#tableTitle"),
   tableSubtitle: document.querySelector("#tableSubtitle"),
   tableHead: document.querySelector("#tableHead"),
   ticketTable: document.querySelector("#ticketTable"),
   insightPanel: document.querySelector("#insightPanel"),
+  reportDashboard: document.querySelector("#reportDashboard"),
   drawer: document.querySelector("#ticketDrawer"),
   drawerScrim: document.querySelector("#drawerScrim"),
   modalScrim: document.querySelector("#modalScrim"),
@@ -619,9 +626,9 @@ function normalizeTimeline(targetDb) {
 }
 
 function roleName() {
+  if (state.section === "report") return state.reportView === "product" ? "Product Team" : "Manager Report";
   if (state.role === "faculty") return current.faculty;
   if (state.role === "content") return current.resolver;
-  if (state.role === "product") return "Product Team";
   return current.manager;
 }
 
@@ -710,19 +717,53 @@ function filteredTickets() {
 
 function render() {
   applyAutoAssignments(db, false, true);
+  renderTopNav();
+  renderModeControls();
   renderProfileSelect();
   el.activeUser.textContent = roleName();
-  document.querySelectorAll("#roleToggle button").forEach((button) => button.classList.toggle("active", button.dataset.role === state.role));
-  document.querySelector(".main-grid")?.classList.toggle("no-side", state.role === "faculty" || state.role === "content");
+  const isReport = state.section === "report";
+  el.pageTitle.textContent = isReport ? "Reports Dashboard" : "Tickets Overview";
+  el.toolbar.hidden = isReport;
+  el.ticketTabs.hidden = isReport;
+  el.mainGrid.hidden = isReport;
+  el.reportDashboard.hidden = !isReport;
+  el.mainGrid?.classList.toggle("no-side", true);
   renderStats();
+  if (isReport) {
+    renderReportDashboard();
+    return;
+  }
   renderFilters();
   renderTabs();
   renderTable();
   renderSidePanel();
 }
 
+function renderTopNav() {
+  document.querySelectorAll("#productNav [data-section]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.section === state.section);
+  });
+}
+
+function renderModeControls() {
+  if (state.section === "report") {
+    el.roleToggle.setAttribute("aria-label", "Report view");
+    el.roleToggle.innerHTML = [
+      ["manager", "Manager Report"],
+      ["product", "Product Team"],
+    ].map(([view, label]) => `<button class="${state.reportView === view ? "active" : ""}" data-report-view="${view}">${label}</button>`).join("");
+    return;
+  }
+  el.roleToggle.setAttribute("aria-label", "Login role");
+  el.roleToggle.innerHTML = [
+    ["faculty", "Faculty"],
+    ["content", "Content Team"],
+    ["manager", "Manager"],
+  ].map(([role, label]) => `<button class="${state.role === role ? "active" : ""}" data-role="${role}">${label}</button>`).join("");
+}
+
 function renderProfileSelect() {
-  if (state.role === "manager" || state.role === "product") {
+  if (state.section === "report" || state.role === "manager") {
     el.profileSelect.hidden = true;
     el.profileSelect.innerHTML = "";
     return;
@@ -734,6 +775,10 @@ function renderProfileSelect() {
 }
 
 function renderStats() {
+  if (state.section === "report") {
+    renderReportStats();
+    return;
+  }
   const base = roleTickets().filter((ticket) => inDateRange(ticket.raisedAt));
   const open = base.filter((ticket) => ticket.status !== "Closed");
   const closed = base.filter((ticket) => ticket.status === "Closed");
@@ -779,6 +824,36 @@ function renderStats() {
     ],
   };
   el.statsRow.innerHTML = statSets[state.role].map(([label, value, help, tone]) => `<article class="stat-card ${tone}"><span class="label">${label}</span><strong>${value}</strong><span>${help}</span></article>`).join("");
+}
+
+function renderReportStats() {
+  const rows = db.tickets.filter((ticket) => inDateRange(ticket.raisedAt));
+  const open = rows.filter((ticket) => ticket.status !== "Closed");
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3);
+  const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something");
+  const subjectTop = topCount(rows, "subject");
+  const topicTop = topCount(rows, "topic");
+  const categoryTop = topCount(rows, "category");
+  const suboptionTop = topCount(rows, "subOption");
+  const statSets = {
+    manager: [
+      ["Open Tickets", open.length, "Across content and faculty", ""],
+      ["SLA Risk", open.filter((ticket) => hoursLeft(ticket) <= 2).length, "Breaching within 2 hours", "red"],
+      ["Top Subject", subjectTop?.label || "--", `${subjectTop?.count || 0} queries`, "amber"],
+      ["Top Topic", topicTop?.label || "--", `${topicTop?.count || 0} doubts`, ""],
+      ["Avg Resolution", avgResolutionHours(rows), "Closed ticket cycle time", "green"],
+      ["Avg Score", averageScore(rows), "Resolved CSAT", "green"],
+    ],
+    product: [
+      ["Top Category", categoryTop?.label || "--", `${categoryTop?.count || 0} picks`, ""],
+      ["Top Suboption", suboptionTop?.label || "--", `${suboptionTop?.count || 0} picks`, "amber"],
+      ["Avg SLA Left", avgOpenSla(rows), "Open ticket runway", ""],
+      ["CSAT", averageScore(rows), `${lowCsat.length} low scores`, Number(averageScore(rows)) >= 4 ? "green" : "amber"],
+      ["Engineering", technical.length, "Technical/render signals", "red"],
+      ["Intake Friction", rows.filter((ticket) => ticket.category !== "I Have a Doubt").length, "Non-doubt categories", "amber"],
+    ],
+  };
+  el.statsRow.innerHTML = statSets[state.reportView].map(([label, value, help, tone]) => `<article class="stat-card ${tone}"><span class="label">${label}</span><strong>${value}</strong><span>${help}</span></article>`).join("");
 }
 
 function renderFilters() {
@@ -1024,16 +1099,7 @@ function dateRangeLabel() {
 }
 
 function renderSidePanel() {
-  if (state.role === "faculty" || state.role === "content") {
-    el.insightPanel.innerHTML = "";
-    return;
-  }
-  if (state.role === "product") {
-    el.insightPanel.innerHTML = productDashboardPanel();
-    return;
-  }
-  el.insightPanel.innerHTML = managerReportPanel();
-  document.querySelectorAll("[data-period]").forEach((button) => button.classList.toggle("active", button.dataset.period === state.period));
+  el.insightPanel.innerHTML = "";
 }
 
 function managerReportPanel() {
@@ -1081,6 +1147,293 @@ function productDashboardPanel() {
       <li>Show SLA-risk and low-CSAT tickets together for daily product review.</li>
       <li>Route recurring topic/question IDs into content correction backlog.</li>
     </ul></section>`;
+}
+
+function renderReportDashboard() {
+  const rows = db.tickets.filter((ticket) => inDateRange(ticket.raisedAt));
+  el.reportDashboard.innerHTML = state.reportView === "product" ? productReportDashboard(rows) : managerReportDashboard(rows);
+  requestAnimationFrame(() => drawReportCharts(rows, state.reportView));
+}
+
+function reportControlBar(type) {
+  return `<div class="report-controlbar">
+    <div>
+      <span class="label">Raised date window</span>
+      <div class="report-date-row">
+        <label>From <input class="date-input" data-report-date="from" type="date" value="${escapeAttr(state.dateFrom)}"></label>
+        <label>To <input class="date-input" data-report-date="to" type="date" value="${escapeAttr(state.dateTo)}"></label>
+      </div>
+    </div>
+    <button class="primary" data-download-report="${type}">Download Report</button>
+  </div>`;
+}
+
+function managerReportDashboard(rows) {
+  const subjectLeaders = topCounts(rows, "subject", 6);
+  const topicLeaders = topCounts(rows, "topic", 6);
+  const questionLeaders = topQuestionRows(rows, 8);
+  return `${reportControlBar("manager")}
+    <section class="report-hero">
+      <div><span class="label">Manager Report</span><h2>Team Health and Query Load</h2><p>Subject, topic, question, SLA, and bandwidth signals across the full QMS queue.</p></div>
+      <div class="report-hero-metrics">${reportMetric("Top Subject", subjectLeaders[0]?.label || "--", `${subjectLeaders[0]?.count || 0} tickets`)}${reportMetric("Top Topic", topicLeaders[0]?.label || "--", `${topicLeaders[0]?.count || 0} doubts`)}</div>
+    </section>
+    <section class="dashboard-grid manager-report-grid">
+      <article class="chart-card chart-wide"><div class="chart-head"><div><span class="label">Bar Graph</span><h3>Subject Query Volume</h3></div></div><canvas data-chart="manager-subject-bar"></canvas></article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Pie Chart</span><h3>Status Mix</h3></div></div><canvas data-chart="manager-status-pie"></canvas><div class="chart-legend">${chartLegend(topCounts(rows, "status", 6))}</div></article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Line Chart</span><h3>SLA Risk Trend</h3></div></div><canvas data-chart="manager-sla-line"></canvas></article>
+      <article class="chart-card chart-wide"><div class="chart-head"><div><span class="label">Question ID Analysis</span><h3>Most Doubtful Questions</h3></div></div>${questionHotspotTable(questionLeaders)}</article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Bar Graph</span><h3>Agent Open Load</h3></div></div><canvas data-chart="manager-agent-bar"></canvas></article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Topic Analytics</span><h3>Top Doubt Topics</h3></div></div>${barList(topicLeaders, rows.length)}</article>
+    </section>`;
+}
+
+function productReportDashboard(rows) {
+  const categoryLeaders = topCounts(rows, "category", 6);
+  const suboptionLeaders = topCounts(rows, "subOption", 7);
+  const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something").length;
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length;
+  return `${reportControlBar("product")}
+    <section class="report-hero">
+      <div><span class="label">Product Team Dashboard</span><h2>Student Intake and Experience Signals</h2><p>Visual readout of what students choose, where intake creates friction, and which issues need product or engineering attention.</p></div>
+      <div class="report-hero-metrics">${reportMetric("Technical Signals", technical, "rendering/app-context issues")}${reportMetric("Low CSAT", lowCsat, "tickets below 3.0")}</div>
+    </section>
+    <section class="dashboard-grid product-report-grid">
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Pie Chart</span><h3>Category Mix</h3></div></div><canvas data-chart="product-category-pie"></canvas><div class="chart-legend">${chartLegend(categoryLeaders)}</div></article>
+      <article class="chart-card chart-wide"><div class="chart-head"><div><span class="label">Bar Graph</span><h3>Suboption Selection</h3></div></div><canvas data-chart="product-suboption-bar"></canvas></article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Line Chart</span><h3>Current SLA Duration</h3></div></div><canvas data-chart="product-sla-line"></canvas></article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Line Chart</span><h3>CSAT Trend</h3></div></div><canvas data-chart="product-csat-line"></canvas></article>
+      <article class="chart-card chart-wide"><div class="chart-head"><div><span class="label">Suboption by Category</span><h3>What Each Intake Category Produces</h3></div></div>${suboptionByCategory(rows)}</article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Signal Bars</span><h3>Internal Dashboard Support</h3></div></div><canvas data-chart="product-signal-bar"></canvas></article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Product Actions</span><h3>Recommended Improvements</h3></div></div><ul class="recommendation-list">
+        <li>Move the top suboption under each category into guided student intake prompts.</li>
+        <li>Attach session JSON automatically when the category is a visibility/rendering issue.</li>
+        <li>Review low-CSAT and SLA-risk tickets together during product standup.</li>
+        <li>Create a correction backlog from recurring topic and question-ID hotspots.</li>
+      </ul></article>
+    </section>`;
+}
+
+function chartLegend(items) {
+  if (!items.length) return `<p class="muted">No chart data.</p>`;
+  return items.map((item, index) => `<span><i style="background:${chartColor(index)}"></i>${item.label}<strong>${item.count}</strong></span>`).join("");
+}
+
+function questionHotspotTable(items) {
+  if (!items.length) return `<p class="muted">No question trend yet.</p>`;
+  return `<div class="hotspot-table">${items.map((item, index) => `<div><span>${index + 1}</span><strong>#${item.questionId}</strong><p>${item.topic}</p><em>${item.subject}</em><b>${item.count}</b></div>`).join("")}</div>`;
+}
+
+function drawReportCharts(rows, view) {
+  if (view === "manager") {
+    drawBarChart(document.querySelector('[data-chart="manager-subject-bar"]'), topCounts(rows, "subject", 6), { horizontal: false, valueLabel: "tickets" });
+    drawDonutChart(document.querySelector('[data-chart="manager-status-pie"]'), topCounts(rows, "status", 6));
+    drawLineChart(document.querySelector('[data-chart="manager-sla-line"]'), dailySeries(rows, (ticket) => ticket.status !== "Closed" && hoursLeft(ticket) <= 2 ? 1 : 0, "sum"), { suffix: " risk" });
+    drawBarChart(document.querySelector('[data-chart="manager-agent-bar"]'), agentLoadItems(rows), { horizontal: true, valueLabel: "open" });
+    return;
+  }
+  drawDonutChart(document.querySelector('[data-chart="product-category-pie"]'), topCounts(rows, "category", 6));
+  drawBarChart(document.querySelector('[data-chart="product-suboption-bar"]'), topCounts(rows, "subOption", 7), { horizontal: false, valueLabel: "picks" });
+  drawLineChart(document.querySelector('[data-chart="product-sla-line"]'), dailySeries(rows.filter((ticket) => ticket.status !== "Closed"), hoursLeft, "avg"), { suffix: "h" });
+  drawLineChart(document.querySelector('[data-chart="product-csat-line"]'), dailySeries(rows.filter((ticket) => ticket.satisfactionScore != null), (ticket) => ticket.satisfactionScore, "avg"), { suffix: "" });
+  drawBarChart(document.querySelector('[data-chart="product-signal-bar"]'), productSignalItems(rows), { horizontal: true, valueLabel: "tickets" });
+}
+
+function setupCanvas(canvas) {
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(rect.width, 280);
+  const height = Math.max(rect.height, 220);
+  canvas.width = Math.floor(width * dpr);
+  canvas.height = Math.floor(height * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = "12px Inter, system-ui, sans-serif";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  return { ctx, width, height };
+}
+
+function drawBarChart(canvas, items, options = {}) {
+  const setup = setupCanvas(canvas);
+  if (!setup) return;
+  const { ctx, width, height } = setup;
+  const data = items.length ? items : [{ label: "No data", count: 0 }];
+  const max = Math.max(1, ...data.map((item) => item.count));
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0, 0, width, height);
+  if (options.horizontal) {
+    const top = 22;
+    const row = Math.min(34, (height - 42) / data.length);
+    data.forEach((item, index) => {
+      const y = top + index * row;
+      const barWidth = Math.max(4, ((width - 150) * item.count) / max);
+      ctx.fillStyle = "#475467";
+      ctx.fillText(truncate(item.label, 17), 12, y + 16);
+      ctx.fillStyle = chartColor(index);
+      ctx.fillRect(122, y + 4, barWidth, 13);
+      ctx.fillStyle = "#344054";
+      ctx.fillText(String(item.count), 130 + barWidth, y + 16);
+    });
+    return;
+  }
+  const left = 34;
+  const bottom = height - 42;
+  const chartHeight = bottom - 20;
+  const gap = 12;
+  const barWidth = Math.max(18, (width - left - 20 - gap * (data.length - 1)) / data.length);
+  ctx.strokeStyle = "#e4e7ec";
+  ctx.beginPath();
+  ctx.moveTo(left, 16);
+  ctx.lineTo(left, bottom);
+  ctx.lineTo(width - 12, bottom);
+  ctx.stroke();
+  data.forEach((item, index) => {
+    const barHeight = (chartHeight * item.count) / max;
+    const x = left + 12 + index * (barWidth + gap);
+    const y = bottom - barHeight;
+    ctx.fillStyle = chartColor(index);
+    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillStyle = "#344054";
+    ctx.fillText(String(item.count), x + 2, y - 6);
+    ctx.save();
+    ctx.translate(x + barWidth / 2, bottom + 12);
+    ctx.rotate(-Math.PI / 5);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#667085";
+    ctx.fillText(truncate(item.label, 16), 0, 0);
+    ctx.restore();
+  });
+}
+
+function drawDonutChart(canvas, items) {
+  const setup = setupCanvas(canvas);
+  if (!setup) return;
+  const { ctx, width, height } = setup;
+  const data = items.length ? items : [{ label: "No data", count: 1 }];
+  const total = data.reduce((sum, item) => sum + item.count, 0) || 1;
+  const cx = width / 2;
+  const cy = height / 2 - 4;
+  const radius = Math.min(width, height) * 0.34;
+  let start = -Math.PI / 2;
+  data.forEach((item, index) => {
+    const angle = (Math.PI * 2 * item.count) / total;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, start, start + angle);
+    ctx.closePath();
+    ctx.fillStyle = chartColor(index);
+    ctx.fill();
+    start += angle;
+  });
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.58, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#101828";
+  ctx.font = "800 24px Inter, system-ui, sans-serif";
+  ctx.fillText(String(total), cx, cy + 4);
+  ctx.font = "12px Inter, system-ui, sans-serif";
+  ctx.fillStyle = "#667085";
+  ctx.fillText("tickets", cx, cy + 24);
+  ctx.textAlign = "left";
+}
+
+function drawLineChart(canvas, points, options = {}) {
+  const setup = setupCanvas(canvas);
+  if (!setup) return;
+  const { ctx, width, height } = setup;
+  const data = points.length ? points : [{ label: "No data", value: 0 }];
+  const max = Math.max(1, ...data.map((point) => point.value));
+  const left = 34;
+  const right = width - 16;
+  const top = 24;
+  const bottom = height - 38;
+  ctx.strokeStyle = "#e4e7ec";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i += 1) {
+    const y = top + ((bottom - top) * i) / 3;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(right, y);
+    ctx.stroke();
+  }
+  const step = data.length > 1 ? (right - left) / (data.length - 1) : 0;
+  const coords = data.map((point, index) => ({
+    x: left + step * index,
+    y: bottom - ((bottom - top) * point.value) / max,
+    ...point,
+  }));
+  ctx.strokeStyle = "#0875be";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  coords.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
+  ctx.stroke();
+  coords.forEach((point, index) => {
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = chartColor(index);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#344054";
+    ctx.fillText(`${Number(point.value).toFixed(point.value % 1 ? 1 : 0)}${options.suffix || ""}`, point.x - 8, point.y - 10);
+    if (index === 0 || index === coords.length - 1 || index % 2 === 0) {
+      ctx.fillStyle = "#667085";
+      ctx.fillText(point.label, point.x - 18, bottom + 22);
+    }
+  });
+}
+
+function dailySeries(rows, valueGetter, mode = "sum", days = 7) {
+  const today = new Date();
+  const buckets = [];
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    const end = start + 86400000;
+    const items = rows.filter((ticket) => {
+      const raised = new Date(ticket.raisedAt).getTime();
+      return raised >= start && raised < end;
+    });
+    const values = items.map(valueGetter).filter((value) => Number.isFinite(value));
+    const value = mode === "avg" ? (values.length ? values.reduce((sum, item) => sum + item, 0) / values.length : 0) : values.reduce((sum, item) => sum + item, 0);
+    buckets.push({ label: `${day.getDate()}/${day.getMonth() + 1}`, value });
+  }
+  return buckets;
+}
+
+function agentLoadItems(rows) {
+  return [...people.resolvers, ...people.faculty].map((person) => ({
+    label: person.name.replace(/^Dr\. /, ""),
+    count: rows.filter((ticket) => ticket.status !== "Closed" && (ticket.facultyAssigned === person.name || ticket.claimedBy === person.name)).length,
+  })).sort((a, b) => b.count - a.count).slice(0, 7);
+}
+
+function productSignalItems(rows) {
+  return [
+    { label: "Render / visibility", count: rows.filter((ticket) => ticket.category === "Can't See Something").length },
+    { label: "Engineering escalation", count: rows.filter((ticket) => ticket.technicalEscalation).length },
+    { label: "Escalation", count: rows.filter((ticket) => ticket.status === "Escalation" || ticket.feedbackType === "thumbs_down").length },
+    { label: "Low CSAT", count: rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length },
+    { label: "Unclaimed backlog", count: rows.filter((ticket) => owner(ticket) === "Unclaimed").length },
+  ];
+}
+
+function chartColor(index) {
+  return ["#0875be", "#079455", "#d98b12", "#6941c6", "#d92d20", "#475467", "#0e9384", "#dd2590"][index % 8];
+}
+
+function truncate(text, length) {
+  const value = String(text || "");
+  return value.length > length ? `${value.slice(0, length - 1)}...` : value;
 }
 
 function reportMetric(label, value, helper) {
@@ -1841,7 +2194,23 @@ function toast(message) {
   setTimeout(() => item.remove(), 3400);
 }
 
+el.productNav.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-section]");
+  if (!button) return;
+  state.section = button.dataset.section;
+  state.tab = "all";
+  closeDrawer();
+  render();
+});
+
 el.roleToggle.addEventListener("click", (event) => {
+  const reportButton = event.target.closest("[data-report-view]");
+  if (reportButton) {
+    state.reportView = reportButton.dataset.reportView;
+    closeDrawer();
+    render();
+    return;
+  }
   const button = event.target.closest("[data-role]");
   if (!button) return;
   state.role = button.dataset.role;
@@ -1910,6 +2279,13 @@ el.dateToFilter.addEventListener("change", (event) => {
 el.exportCsvButton.addEventListener("click", exportCsv);
 
 document.addEventListener("change", (event) => {
+  const reportDate = event.target.closest?.("[data-report-date]");
+  if (reportDate) {
+    if (reportDate.dataset.reportDate === "from") state.dateFrom = reportDate.value;
+    if (reportDate.dataset.reportDate === "to") state.dateTo = reportDate.value;
+    render();
+    return;
+  }
   if (event.target?.id === "profileSwitcher") openProfile(event.target.value);
 });
 

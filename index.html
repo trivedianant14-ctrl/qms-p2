@@ -10,10 +10,11 @@
     <main class="qms-shell">
       <section class="workspace">
         <header class="app-header">
-          <nav class="product-nav" aria-label="Product sections">
+          <nav class="product-nav" id="productNav" aria-label="Product sections">
             <button>Learning</button>
             <button>Assessment</button>
-            <button class="active">Ticket</button>
+            <button class="active" data-section="ticket">Ticket</button>
+            <button data-section="report">Report</button>
           </nav>
           <div class="user-cluster">
             <select id="profileViewSelect" aria-label="Profile view"></select>
@@ -30,7 +31,6 @@
             <button class="active" data-role="faculty">Faculty</button>
             <button data-role="content">Content Team</button>
             <button data-role="manager">Manager</button>
-            <button data-role="product">Product Team</button>
           </div>
         </section>
 
@@ -88,6 +88,8 @@
 
           <aside class="side-panel" id="insightPanel"></aside>
         </section>
+
+        <section class="report-dashboard" id="reportDashboard" hidden></section>
       </section>
     </main>
 
