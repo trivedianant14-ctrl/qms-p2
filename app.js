@@ -114,6 +114,7 @@ const state = {
 };
 
 let db = loadDb();
+let voiceRecorderTimer = null;
 
 const el = {
   activeUser: document.querySelector("#activeUser"),
@@ -1525,6 +1526,7 @@ function renderAgentRow(person) {
 function openTicket(id) {
   const ticket = ticketById(id);
   if (!ticket) return;
+  stopVoiceTimer();
   state.selectedId = id;
   el.drawerScrim.hidden = false;
   el.drawer.classList.add("open");
@@ -1606,7 +1608,105 @@ function workflowPanel(ticket) {
 
 function facultyPanel(ticket) {
   if (ticket.facultyAssigned !== current.faculty || ticket.status !== "Faculty") return "";
-  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}"><input class="text-input" id="resolutionVoice" placeholder="Voice note label, optional" value="${escapeAttr(ticket.facultyVoiceNote || "")}"><div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
+  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
+}
+
+function voiceRecorderMarkup(ticket) {
+  const note = ticket.facultyVoiceNote || "";
+  const hasNote = Boolean(note);
+  return `<div class="voice-recorder ${hasNote ? "has-note" : ""}" data-recording="false">
+    <div class="voice-main">
+      <span class="voice-icon">REC</span>
+      <div><strong>Voice explanation</strong><p data-voice-status>${hasNote ? note : "No voice note attached"}</p></div>
+    </div>
+    <div class="voice-waveform" aria-hidden="true">${Array.from({ length: 18 }, (_, index) => `<span style="height:${12 + ((index * 7) % 24)}px"></span>`).join("")}</div>
+    <div class="voice-controls">
+      <button type="button" class="ghost" data-toggle-voice-recording>${hasNote ? "Re-record Voice Note" : "Record Voice Note"}</button>
+      <button type="button" class="soft-button" data-play-voice-note ${hasNote ? "" : "disabled"}>Play Mock</button>
+      <button type="button" class="ghost" data-clear-voice-note ${hasNote ? "" : "disabled"}>Clear</button>
+      <span class="voice-timer" data-voice-timer>${hasNote ? "attached" : "00:00"}</span>
+    </div>
+    <input type="hidden" id="resolutionVoice" value="${escapeAttr(note)}">
+  </div>`;
+}
+
+function toggleVoiceRecording() {
+  const recorder = document.querySelector("#facultyResolution .voice-recorder");
+  if (!recorder) return;
+  if (recorder.dataset.recording === "true") {
+    finishVoiceRecording(recorder);
+    return;
+  }
+  stopVoiceTimer();
+  recorder.dataset.recording = "true";
+  recorder.dataset.startedAt = String(Date.now());
+  recorder.classList.add("recording");
+  recorder.querySelector("[data-toggle-voice-recording]").textContent = "Stop Recording";
+  recorder.querySelector("[data-voice-status]").textContent = "Recording mock voice note...";
+  recorder.querySelector("[data-play-voice-note]").disabled = true;
+  recorder.querySelector("[data-clear-voice-note]").disabled = true;
+  updateVoiceTimer(recorder);
+  voiceRecorderTimer = window.setInterval(() => updateVoiceTimer(recorder), 1000);
+}
+
+function finishVoiceRecording(recorder) {
+  const elapsed = Math.max(3, Math.round((Date.now() - Number(recorder.dataset.startedAt || Date.now())) / 1000));
+  const label = `Mock voice note ${formatDuration(elapsed)}`;
+  stopVoiceTimer();
+  recorder.dataset.recording = "false";
+  recorder.classList.remove("recording");
+  recorder.classList.add("has-note");
+  recorder.querySelector("#resolutionVoice").value = label;
+  recorder.querySelector("[data-voice-status]").textContent = label;
+  recorder.querySelector("[data-toggle-voice-recording]").textContent = "Re-record Voice Note";
+  recorder.querySelector("[data-play-voice-note]").disabled = false;
+  recorder.querySelector("[data-clear-voice-note]").disabled = false;
+  recorder.querySelector("[data-voice-timer]").textContent = "attached";
+  toast("Mock voice note attached to this resolution.");
+}
+
+function updateVoiceTimer(recorder) {
+  const timer = recorder.querySelector("[data-voice-timer]");
+  const startedAt = Number(recorder.dataset.startedAt || Date.now());
+  timer.textContent = formatDuration(Math.round((Date.now() - startedAt) / 1000));
+}
+
+function clearVoiceNote() {
+  const recorder = document.querySelector("#facultyResolution .voice-recorder");
+  if (!recorder) return;
+  stopVoiceTimer();
+  recorder.dataset.recording = "false";
+  recorder.classList.remove("recording", "has-note", "playing");
+  recorder.querySelector("#resolutionVoice").value = "";
+  recorder.querySelector("[data-voice-status]").textContent = "No voice note attached";
+  recorder.querySelector("[data-toggle-voice-recording]").textContent = "Record Voice Note";
+  recorder.querySelector("[data-play-voice-note]").disabled = true;
+  recorder.querySelector("[data-clear-voice-note]").disabled = true;
+  recorder.querySelector("[data-voice-timer]").textContent = "00:00";
+}
+
+function playVoiceNote() {
+  const recorder = document.querySelector("#facultyResolution .voice-recorder");
+  if (!recorder || !recorder.querySelector("#resolutionVoice").value) return;
+  recorder.classList.add("playing");
+  recorder.querySelector("[data-voice-status]").textContent = `Playing ${recorder.querySelector("#resolutionVoice").value}`;
+  window.setTimeout(() => {
+    if (!document.body.contains(recorder)) return;
+    recorder.classList.remove("playing");
+    recorder.querySelector("[data-voice-status]").textContent = recorder.querySelector("#resolutionVoice").value;
+  }, 1800);
+}
+
+function stopVoiceTimer() {
+  if (voiceRecorderTimer) {
+    window.clearInterval(voiceRecorderTimer);
+    voiceRecorderTimer = null;
+  }
+}
+
+function formatDuration(seconds) {
+  const safe = Math.max(0, Number(seconds) || 0);
+  return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
 }
 
 function contentPanel(ticket) {
@@ -1789,6 +1889,7 @@ function openColumnModal() {
 }
 
 function closeDrawer() {
+  stopVoiceTimer();
   el.drawer.classList.remove("open");
   el.drawer.setAttribute("aria-hidden", "true");
   el.drawerScrim.hidden = true;
@@ -2324,6 +2425,9 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-save-workflow]")) saveWorkflow(target.closest("[data-save-workflow]").dataset.saveWorkflow);
   if (target.closest("[data-faculty-claim]")) facultyClaim(target.closest("[data-faculty-claim]").dataset.facultyClaim);
   if (target.closest("[data-assign-faculty]")) assignToFaculty(target.closest("[data-assign-faculty]").dataset.assignFaculty);
+  if (target.closest("[data-toggle-voice-recording]")) toggleVoiceRecording();
+  if (target.closest("[data-play-voice-note]")) playVoiceNote();
+  if (target.closest("[data-clear-voice-note]")) clearVoiceNote();
   if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
   if (target.closest("[data-save-note]")) {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);
