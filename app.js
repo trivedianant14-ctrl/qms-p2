@@ -1566,13 +1566,21 @@ function drawerHtml(ticket) {
 
 function drawerActions(ticket) {
   const actions = [];
-  if (canAssignToMe(ticket)) actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
-  if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
-  if (state.role === "content" && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
-  if (state.role === "content" && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Faculty</button>`);
-  if (state.role === "content" && ticket.resolutionText && ticket.status === "Faculty resolved") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Faculty Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
-  if (state.role === "content" && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`, `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
-  if (state.role === "content" && ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
+  const unclaimed = owner(ticket) === "Unclaimed";
+  const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
+  if (canAssignToMe(ticket)) {
+    actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
+    if (unclaimed && state.role === "content") return `<div class="drawer-actions">${actions.join("")}</div>`;
+  }
+  if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
+  if (contentOwnedByMe && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
+  if (contentOwnedByMe && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Faculty</button>`);
+  if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Faculty resolved") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Faculty Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
+  if (contentOwnedByMe && ticket.status !== "Closed") {
+    actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
+    actions.push(ticket.technicalEscalation ? `<span class="workflow-chip escalated">Escalated to Engineering</span>` : `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
+  }
+  if (contentOwnedByMe && ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   if (state.role === "manager" && ticket.status !== "Closed" && owner(ticket) === "Unclaimed") actions.push(`<button class="primary" data-manager-claim="${ticket.id}">Claim as Manager</button>`);
   return `<div class="drawer-actions">${actions.join("") || `<span class="muted">No primary action available in this state.</span>`}</div>`;
 }
@@ -2338,8 +2346,16 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-close-ticket]")) closeTicket(target.closest("[data-close-ticket]").dataset.closeTicket);
   if (target.closest("[data-escalate-engineering]")) {
     const ticket = ticketById(target.closest("[data-escalate-engineering]").dataset.escalateEngineering);
+    if (ticket.claimedBy !== current.resolver) {
+      toast("Claim this ticket before escalating it to Engineering.");
+      return;
+    }
+    if (ticket.technicalEscalation) {
+      toast("This ticket is already escalated to Engineering.");
+      return;
+    }
     ticket.technicalEscalation = true;
-    addHistory(ticket, current.resolver, "Escalated rendering issue to Engineering via Teams");
+    addHistory(ticket, current.resolver, "Escalated rendering issue to Engineering");
     pushNotification("General", `Engineering escalation: #${ticket.id}`, ticket.id);
     persistAndRender(ticket.id);
   }

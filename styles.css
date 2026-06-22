@@ -351,6 +351,22 @@ textarea {
   color: var(--red);
 }
 
+.workflow-chip {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.workflow-chip.escalated {
+  color: #7c2d12;
+  border: 1px solid #fed7aa;
+  background: #ffedd5;
+}
+
 .ticket-tabs {
   display: flex;
   gap: 10px;

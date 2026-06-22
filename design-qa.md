@@ -29,6 +29,7 @@ final result: passed
 - Tenth workflow pass: added Question ID, Raised On, and Topic to the ticket table, made Question ID filterable, made question/topic/raised columns sortable, replaced ASC/DSC text with arrow indicators, and added absolute raised date-time to Student's Query.
 - Eleventh workflow pass: removed Channel from the table/export surface, kept wide tables horizontally scrollable, added engineering escalation labels inside Current Status, added a Manager Report section with subject/topic/question/agent-load metrics plus report download, and added a Product Team dashboard with category, suboption, SLA, CSAT, technical signal, recommendation, and report download coverage.
 - Twelfth workflow pass: moved reporting into a top-level Report nav item beside Learning, Assessment, and Ticket; removed Product Team from ticket-role queues; made Manager Report and Product Team separate full-width report dashboards; and replaced the Product Intake Tickets table with canvas-based pie, line, and bar charts plus analytical cards and report downloads.
+- Thirteenth workflow pass: gated Content ticket drawer actions so unclaimed tickets show only Assign to Me, then reveal internal note, student resolution, and engineering escalation after the resolver claims ownership; the engineering escalation action now becomes an Escalated to Engineering state chip after use.
 
 ## Notes
 
