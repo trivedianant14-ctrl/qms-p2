@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v10";
+const STORE_KEY = "nprep-qms-phase2-prototype-v12";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -91,7 +91,6 @@ const columns = [
   ["sla", "SLA"],
   ["priority", "Priority"],
   ["score", "Score"],
-  ["channel", "Channel"],
 ];
 
 const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score"]);
@@ -622,6 +621,7 @@ function normalizeTimeline(targetDb) {
 function roleName() {
   if (state.role === "faculty") return current.faculty;
   if (state.role === "content") return current.resolver;
+  if (state.role === "product") return "Product Team";
   return current.manager;
 }
 
@@ -658,6 +658,15 @@ function tabsForRole(base) {
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
     ];
   }
+  if (state.role === "product") {
+    return [
+      ["all", "All", base.length],
+      ["intake", "Intake Friction", base.filter((t) => t.category !== "I Have a Doubt").length],
+      ["technical", "Engineering", base.filter((t) => t.technicalEscalation || t.category === "Can't See Something").length],
+      ["lowCsat", "Low CSAT", base.filter((t) => t.satisfactionScore != null && t.satisfactionScore < 3).length],
+      ["breaching", "SLA Risk", base.filter((t) => t.status !== "Closed" && hoursLeft(t) <= 12).length],
+    ];
+  }
   return [
     ["all", "All", base.length],
     ["own", "My Resolver Queue", base.filter((t) => t.claimedBy === current.resolver).length],
@@ -679,9 +688,12 @@ function filteredTickets() {
   if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "faculty") rows = rows.filter((t) => t.facultyAssigned);
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
-  if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= 2);
+  if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= (state.role === "product" ? 12 : 2));
   if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation");
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
+  if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
+  if (state.tab === "technical") rows = rows.filter((t) => t.technicalEscalation || t.category === "Can't See Something");
+  if (state.tab === "lowCsat") rows = rows.filter((t) => t.satisfactionScore != null && t.satisfactionScore < 3);
   if (state.status !== "all") rows = rows.filter((t) => t.status === state.status);
   if (state.assignee !== "all") rows = rows.filter((t) => owner(t) === state.assignee);
   rows = rows.filter((ticket) => inDateRange(ticket.raisedAt));
@@ -710,7 +722,7 @@ function render() {
 }
 
 function renderProfileSelect() {
-  if (state.role === "manager") {
+  if (state.role === "manager" || state.role === "product") {
     el.profileSelect.hidden = true;
     el.profileSelect.innerHTML = "";
     return;
@@ -722,7 +734,7 @@ function renderProfileSelect() {
 }
 
 function renderStats() {
-  const base = roleTickets();
+  const base = roleTickets().filter((ticket) => inDateRange(ticket.raisedAt));
   const open = base.filter((ticket) => ticket.status !== "Closed");
   const closed = base.filter((ticket) => ticket.status === "Closed");
   const closedToday = closed.filter((ticket) => isToday(ticket.resolvedAt));
@@ -731,7 +743,7 @@ function renderStats() {
   const avgScore = scores.length ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1) : "--";
   const activeFaculty = people.faculty.find((person) => person.name === current.faculty);
   const facultySubjects = activeFaculty?.subjects || [];
-  const pool = db.tickets.filter((ticket) => ticket.routedTo === "faculty" && !ticket.facultyAssigned);
+  const pool = db.tickets.filter((ticket) => ticket.routedTo === "faculty" && !ticket.facultyAssigned && inDateRange(ticket.raisedAt));
   const statSets = {
     faculty: [
       ["My Open", open.filter((t) => t.facultyAssigned === current.faculty).length, `Assigned to ${current.faculty}`, ""],
@@ -756,6 +768,14 @@ function renderStats() {
       ["Closed Today", closedToday.length, "Team closures today", "green"],
       ["Overall Closed", closed.length, "All closed tickets", "green"],
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
+    ],
+    product: [
+      ["Top Category", topCount(base, "category")?.label || "--", `${topCount(base, "category")?.count || 0} tickets`, ""],
+      ["Top Suboption", topCount(base, "subOption")?.label || "--", `${topCount(base, "subOption")?.count || 0} tickets`, "amber"],
+      ["Avg SLA Left", avgOpenSla(base), "Open ticket runway", ""],
+      ["CSAT", avgScore, "Across resolved feedback", Number(avgScore) >= 4 ? "green" : "amber"],
+      ["Engineering", base.filter((t) => t.technicalEscalation || t.category === "Can't See Something").length, "Technical/render signals", "red"],
+      ["Low CSAT", base.filter((t) => t.satisfactionScore != null && t.satisfactionScore < 3).length, "Needs intake review", "amber"],
     ],
   };
   el.statsRow.innerHTML = statSets[state.role].map(([label, value, help, tone]) => `<article class="stat-card ${tone}"><span class="label">${label}</span><strong>${value}</strong><span>${help}</span></article>`).join("");
@@ -841,7 +861,7 @@ function renderTabs() {
 function renderTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
-  el.tableTitle.textContent = state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
+  el.tableTitle.textContent = state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : state.role === "product" ? "Product Intake Tickets" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map((ticket) => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
@@ -851,8 +871,8 @@ function headerCell(key, label) {
   if (!sortableColumns.has(key)) return `<th>${label}</th>`;
   const active = state.sortKey === key;
   const direction = active ? state.sortDir : "none";
-  const marker = active ? (state.sortDir === "asc" ? "↑" : "↓") : "↕";
-  return `<th aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><button class="sort-header ${active ? "active" : ""}" data-sort="${key}" title="Sort ${label}">${label}<span>${marker}</span></button></th>`;
+  const markerEntity = active ? (state.sortDir === "asc" ? "&#8593;" : "&#8595;") : "&#8597;";
+  return `<th aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><button class="sort-header ${active ? "active" : ""}" data-sort="${key}" title="Sort ${label}">${label}<span>${markerEntity}</span></button></th>`;
 }
 
 function cell(ticket, key) {
@@ -861,7 +881,7 @@ function cell(ticket, key) {
     questionId: `#${ticket.questionId}`,
     raisedAt: shortDate(ticket.raisedAt),
     student: ticket.student,
-    status: `<span class="badge ${statusClass(ticket.status)}">${ticket.status}</span>`,
+    status: statusCell(ticket),
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
@@ -871,7 +891,6 @@ function cell(ticket, key) {
     sla: ticket.status === "Closed" ? `<span class="badge resolved">Closed</span>` : `<span class="badge ${slaClass(ticket)}">${hoursLeft(ticket).toFixed(1)}h left</span>`,
     priority: owner(ticket) === "Unclaimed" || !ticket.priority ? `<span class="muted">--</span>` : `<span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span>`,
     score: ticket.satisfactionScore == null ? `<span class="muted">--</span>` : `<strong class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)}</strong>`,
-    channel: ticket.routedTo === "support" ? "Support" : ticket.routedTo === "faculty" ? "Faculty" : "Content",
   };
   return value[key] || "";
 }
@@ -882,7 +901,7 @@ function rawCell(ticket, key) {
     questionId: ticket.questionId,
     raisedAt: absoluteDate(ticket.raisedAt),
     student: ticket.student,
-    status: ticket.status,
+    status: ticket.technicalEscalation ? `${ticket.status} - Engineering Escalation` : ticket.status,
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
@@ -892,7 +911,6 @@ function rawCell(ticket, key) {
     sla: ticket.status === "Closed" ? "Closed" : `${hoursLeft(ticket).toFixed(1)}h left`,
     priority: owner(ticket) === "Unclaimed" || !ticket.priority ? "" : ticket.priority,
     score: ticket.satisfactionScore == null ? "" : ticket.satisfactionScore.toFixed(1),
-    channel: ticket.routedTo === "support" ? "Support" : ticket.routedTo === "faculty" ? "Faculty" : "Content",
   };
   return value[key] ?? "";
 }
@@ -930,6 +948,63 @@ function exportCsv() {
   toast(`Exported ${rows.length} ticket${rows.length === 1 ? "" : "s"} to CSV.`);
 }
 
+function downloadReport(type) {
+  if (dateRangeInvalid()) {
+    toast("Choose a From Date that is before the To Date.");
+    return;
+  }
+  const rows = db.tickets.filter((ticket) => inDateRange(ticket.raisedAt));
+  const reportRows = type === "product" ? productReportRows(rows) : managerReportRows(rows);
+  const csvRows = [
+    ["Section", "Metric", "Value", "Detail"].map(csvEscape).join(","),
+    ...reportRows.map((row) => row.map(csvEscape).join(",")),
+  ];
+  const blob = new Blob([csvRows.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `qms-${type}-report-${state.dateFrom || "all"}-to-${state.dateTo || "all"}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  toast(`Downloaded ${type === "product" ? "product" : "manager"} report.`);
+}
+
+function managerReportRows(rows) {
+  const agents = [...people.resolvers, ...people.faculty];
+  return [
+    ["Summary", "Total tickets", rows.length, dateRangeLabel() || "All raised dates"],
+    ["Summary", "Open tickets", rows.filter((ticket) => ticket.status !== "Closed").length, "Across content and faculty"],
+    ["Summary", "SLA risk", rows.filter((ticket) => ticket.status !== "Closed" && hoursLeft(ticket) <= 2).length, "Breaching within 2 hours"],
+    ["Summary", "Average resolution", avgResolutionHours(rows), "Closed tickets"],
+    ...topCounts(rows, "subject", 8).map((item) => ["Subject volume", item.label, item.count, "Most queries by subject"]),
+    ...topCounts(rows, "topic", 8).map((item) => ["Topic volume", item.label, item.count, "Most doubtful topics"]),
+    ...topQuestionRows(rows, 8).map((item) => ["Question hotspots", `#${item.questionId}`, item.count, `${item.topic} - ${item.subject}`]),
+    ...agents.map((person) => {
+      const owned = rows.filter((ticket) => ticket.facultyAssigned === person.name || ticket.claimedBy === person.name);
+      return ["Agent load", person.name, owned.filter((ticket) => ticket.status !== "Closed").length, `${person.role} - ${owned.length} total scoped tickets`];
+    }),
+  ];
+}
+
+function productReportRows(rows) {
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length;
+  const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something").length;
+  return [
+    ["Summary", "Total intake tickets", rows.length, dateRangeLabel() || "All raised dates"],
+    ["Summary", "Average SLA left", avgOpenSla(rows), "Open tickets"],
+    ["Summary", "CSAT", averageScore(rows), `${lowCsat} low-score tickets`],
+    ["Summary", "Technical/render signals", technical, "Engineering escalation or visibility issue"],
+    ...topCounts(rows, "category", 8).map((item) => ["Category mix", item.label, item.count, "Most chosen category"]),
+    ...topCounts(rows, "subOption", 10).map((item) => ["Suboption mix", item.label, item.count, "Most chosen suboption"]),
+    ...topQuestionRows(rows, 8).map((item) => ["Question hotspots", `#${item.questionId}`, item.count, `${item.topic} - ${item.subject}`]),
+    ["Recommendation", "Improve intake defaults", "High", "Use category and suboption leaders as guided choices"],
+    ["Recommendation", "Engineering handoff", "High", "Attach session JSON before resolver triage for render issues"],
+    ["Recommendation", "Daily product review", "Medium", "Review SLA risk and low CSAT together"],
+  ];
+}
+
 function csvFileName() {
   const role = state.role === "content" ? "content-team" : state.role;
   const from = state.dateFrom || "all";
@@ -953,26 +1028,134 @@ function renderSidePanel() {
     el.insightPanel.innerHTML = "";
     return;
   }
-  if (state.role === "faculty") {
-    const rows = roleTickets().filter((ticket) => ticket.routedTo === "faculty");
-    el.insightPanel.innerHTML = `<span class="label">Faculty Workbench</span>
-      <div class="insight-card"><span class="label">Logged in as</span><strong>${current.faculty}</strong><p>Anatomy and Medical Surgical Nursing queries are visible here.</p></div>
-      <div class="insight-card"><span class="label">Resolution Tools</span><strong>Text + Reference + Voice</strong><p>Submit explanations with textbook pages, links, diagrams, or voice notes.</p></div>
-      <div class="mini-list">${rows.slice(0, 5).map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.subject} - ${ticket.status}</p></div><button class="ghost" data-open="${ticket.id}">Open</button></div>`).join("")}</div>`;
+  if (state.role === "product") {
+    el.insightPanel.innerHTML = productDashboardPanel();
     return;
   }
-  if (state.role === "content") {
-    const unclaimed = roleTickets().filter((ticket) => owner(ticket) === "Unclaimed");
-    el.insightPanel.innerHTML = `<span class="label">Resolver Focus</span>
-      <div class="insight-card"><span class="label">Content Queue</span><strong>${unclaimed.length} unclaimed</strong><p>Claim eligible content-routed issues or send expert cases to faculty.</p></div>
-      <div class="mini-list">${unclaimed.slice(0, 5).map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.category}</p></div><button class="ghost" data-claim="${ticket.id}">Claim</button></div>`).join("")}</div>`;
-    return;
-  }
-  const agents = [...people.resolvers, ...people.faculty];
-  el.insightPanel.innerHTML = `<span class="label">Team Overview</span>
-    <div class="segmented" id="periodToggle"><button data-period="today">Today</button><button data-period="week">This Week</button><button data-period="month">This Month</button></div>
-    <div class="agent-list">${agents.map(renderAgentRow).join("")}</div>`;
+  el.insightPanel.innerHTML = managerReportPanel();
   document.querySelectorAll("[data-period]").forEach((button) => button.classList.toggle("active", button.dataset.period === state.period));
+}
+
+function managerReportPanel() {
+  const rows = db.tickets.filter((ticket) => inDateRange(ticket.raisedAt));
+  const subjectLeaders = topCounts(rows, "subject", 5);
+  const topicLeaders = topCounts(rows, "topic", 5);
+  const questionLeaders = topQuestionRows(rows, 5);
+  const agents = [...people.resolvers, ...people.faculty];
+  return `<div class="report-head"><div><span class="label">Manager Report</span><h3>Team Health</h3></div><button class="primary tiny" data-download-report="manager">Download Report</button></div>
+    <div class="report-metrics">
+      ${reportMetric("Top Subject", subjectLeaders[0]?.label || "--", `${subjectLeaders[0]?.count || 0} queries`)}
+      ${reportMetric("Top Topic", topicLeaders[0]?.label || "--", `${topicLeaders[0]?.count || 0} doubts`)}
+      ${reportMetric("SLA Risk", rows.filter((ticket) => ticket.status !== "Closed" && hoursLeft(ticket) <= 2).length, "within 2h")}
+      ${reportMetric("Avg Resolution", avgResolutionHours(rows), "closed tickets")}
+    </div>
+    <section class="insight-card"><h4>Subject Volume</h4>${barList(subjectLeaders, rows.length)}</section>
+    <section class="insight-card"><h4>Most Doubtful Topics by Question</h4>${questionList(questionLeaders)}</section>
+    <section class="insight-card"><h4>Agent Load</h4><div class="agent-list">${agents.map(renderAgentRow).join("")}</div></section>`;
+}
+
+function productDashboardPanel() {
+  const rows = db.tickets.filter((ticket) => inDateRange(ticket.raisedAt));
+  const categoryLeaders = topCounts(rows, "category", 5);
+  const suboptionLeaders = topCounts(rows, "subOption", 5);
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length;
+  const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something").length;
+  return `<div class="report-head"><div><span class="label">Product Dashboard</span><h3>Intake Quality</h3></div><button class="primary tiny" data-download-report="product">Download Report</button></div>
+    <div class="report-metrics">
+      ${reportMetric("Top Category", categoryLeaders[0]?.label || "--", `${categoryLeaders[0]?.count || 0} picks`)}
+      ${reportMetric("Top Suboption", suboptionLeaders[0]?.label || "--", `${suboptionLeaders[0]?.count || 0} picks`)}
+      ${reportMetric("Avg SLA Left", avgOpenSla(rows), "open tickets")}
+      ${reportMetric("CSAT", averageScore(rows), `${lowCsat} low scores`)}
+    </div>
+    <section class="insight-card"><h4>Category Mix</h4>${barList(categoryLeaders, rows.length)}</section>
+    <section class="insight-card"><h4>Suboption Hotspots</h4>${suboptionByCategory(rows)}</section>
+    <section class="insight-card"><h4>Product Signals</h4>${detailGrid([
+      ["Technical/render issues", technical],
+      ["Escalations", rows.filter((ticket) => ticket.status === "Escalation" || ticket.feedbackType === "thumbs_down").length],
+      ["Low CSAT", lowCsat],
+      ["Unclaimed backlog", rows.filter((ticket) => owner(ticket) === "Unclaimed").length],
+    ])}</section>
+    <section class="insight-card"><h4>Internal Dashboard Support</h4><ul class="recommendation-list">
+      <li>Surface top category and suboption defaults in the student intake flow.</li>
+      <li>Flag rendering issues with session JSON before resolver triage.</li>
+      <li>Show SLA-risk and low-CSAT tickets together for daily product review.</li>
+      <li>Route recurring topic/question IDs into content correction backlog.</li>
+    </ul></section>`;
+}
+
+function reportMetric(label, value, helper) {
+  return `<article class="report-metric"><span class="label">${label}</span><strong>${value}</strong><small>${helper}</small></article>`;
+}
+
+function countBy(rows, key) {
+  return rows.reduce((map, ticket) => {
+    const value = typeof key === "function" ? key(ticket) : ticket[key];
+    const label = value || "Unknown";
+    map.set(label, (map.get(label) || 0) + 1);
+    return map;
+  }, new Map());
+}
+
+function topCounts(rows, key, limit = 3) {
+  return [...countBy(rows, key).entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, limit);
+}
+
+function topCount(rows, key) {
+  return topCounts(rows, key, 1)[0];
+}
+
+function barList(items, total) {
+  if (!items.length) return `<p class="muted">No data available.</p>`;
+  return `<div class="bar-list">${items.map((item) => {
+    const pct = total ? Math.round((item.count / total) * 100) : 0;
+    return `<div class="bar-row"><div><strong>${item.label}</strong><span>${item.count} tickets</span></div><div class="bar-track"><span style="width:${Math.max(pct, 4)}%"></span></div><em>${pct}%</em></div>`;
+  }).join("")}</div>`;
+}
+
+function questionList(items) {
+  if (!items.length) return `<p class="muted">No question trend yet.</p>`;
+  return `<div class="mini-list">${items.map((item) => `<div class="mini-row"><div><strong>#${item.questionId}</strong><p class="muted">${item.topic} - ${item.subject}</p></div><span class="badge review">${item.count}</span></div>`).join("")}</div>`;
+}
+
+function topQuestionRows(rows, limit = 5) {
+  const grouped = new Map();
+  rows.forEach((ticket) => {
+    const key = `${ticket.questionId}-${ticket.topic}`;
+    const current = grouped.get(key) || { questionId: ticket.questionId, topic: ticket.topic, subject: ticket.subject, count: 0 };
+    current.count += 1;
+    grouped.set(key, current);
+  });
+  return [...grouped.values()].sort((a, b) => b.count - a.count || a.questionId - b.questionId).slice(0, limit);
+}
+
+function suboptionByCategory(rows) {
+  const categories = topCounts(rows, "category", 10);
+  if (!categories.length) return `<p class="muted">No intake data available.</p>`;
+  return `<div class="mini-list">${categories.map(({ label }) => {
+    const top = topCounts(rows.filter((ticket) => ticket.category === label), "subOption", 1)[0];
+    return `<div class="mini-row"><div><strong>${label}</strong><p class="muted">${top?.label || "--"}</p></div><span class="badge open">${top?.count || 0}</span></div>`;
+  }).join("")}</div>`;
+}
+
+function averageScore(rows) {
+  const scores = rows.map((ticket) => ticket.satisfactionScore).filter((score) => score != null);
+  return scores.length ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1) : "--";
+}
+
+function avgOpenSla(rows) {
+  const open = rows.filter((ticket) => ticket.status !== "Closed");
+  if (!open.length) return "--";
+  return `${(open.reduce((sum, ticket) => sum + hoursLeft(ticket), 0) / open.length).toFixed(1)}h`;
+}
+
+function avgResolutionHours(rows) {
+  const closed = rows.filter((ticket) => ticket.resolvedAt);
+  if (!closed.length) return "--";
+  const avg = closed.reduce((sum, ticket) => sum + ((new Date(ticket.resolvedAt).getTime() - new Date(ticket.raisedAt).getTime()) / 3600000), 0) / closed.length;
+  return `${avg.toFixed(1)}h`;
 }
 
 function renderAgentRow(person) {
@@ -1001,7 +1184,7 @@ function drawerHtml(ticket) {
   return `<div class="drawer-head"><strong>Ticket Details</strong><button data-close-drawer>x</button></div>
     <div class="drawer-body">
       <section>
-        <div class="drawer-title"><h2>#${ticket.id}</h2><span class="badge ${statusClass(ticket.status)}">${ticket.status}</span><span class="badge ${slaClass(ticket)}">${ticket.status === "Closed" ? "Closed" : `${hoursLeft(ticket).toFixed(1)}h left`}</span></div>
+        <div class="drawer-title"><h2>#${ticket.id}</h2>${statusCell(ticket)}<span class="badge ${slaClass(ticket)}">${ticket.status === "Closed" ? "Closed" : `${hoursLeft(ticket).toFixed(1)}h left`}</span></div>
         <p class="muted">${ticket.category} - ${ticket.subOption}</p>
       </section>
       ${drawerActions(ticket)}
@@ -1053,7 +1236,7 @@ function workflowPanel(ticket) {
     <h3>Workflow Control</h3>
     <div class="workflow-grid">
       ${priorityControl}
-      <div class="readonly-status"><span class="label">Status</span><span class="badge ${statusClass(ticket.status)}">${ticket.status}</span><small>Updated automatically by workflow actions.</small></div>
+      <div class="readonly-status"><span class="label">Status</span>${statusCell(ticket)}<small>Updated automatically by workflow actions.</small></div>
     </div>
     ${priorityLocked || unclaimed ? "" : `<div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Priority</button></div>`}
     <div class="next-step"><span class="label">Next Step</span><p>${nextStepText(ticket)}</p></div>
@@ -1550,6 +1733,11 @@ function createStudentQuery() {
   persistAndRender(ticket.id);
 }
 
+function statusCell(ticket) {
+  const engineering = ticket.technicalEscalation ? `<span class="badge engineering">Engineering Escalation</span>` : "";
+  return `<span class="status-stack"><span class="badge ${statusClass(ticket.status)}">${ticket.status}</span>${engineering}</span>`;
+}
+
 function statusClass(status) {
   if (status === "Closed") return "closed";
   if (status === "Faculty" || status === "Faculty resolved") return "faculty";
@@ -1711,14 +1899,12 @@ el.assigneeFilter.addEventListener("change", (event) => {
 
 el.dateFromFilter.addEventListener("change", (event) => {
   state.dateFrom = event.target.value;
-  renderTabs();
-  renderTable();
+  render();
 });
 
 el.dateToFilter.addEventListener("change", (event) => {
   state.dateTo = event.target.value;
-  renderTabs();
-  renderTable();
+  render();
 });
 
 el.exportCsvButton.addEventListener("click", exportCsv);
@@ -1735,6 +1921,11 @@ document.addEventListener("click", (event) => {
   const profile = target.closest("[data-profile]");
   const showPanel = target.closest("[data-show-panel]");
   const sortButton = target.closest("[data-sort]");
+  const reportButton = target.closest("[data-download-report]");
+  if (reportButton) {
+    downloadReport(reportButton.dataset.downloadReport);
+    return;
+  }
   if (sortButton) {
     toggleSort(sortButton.dataset.sort);
     return;

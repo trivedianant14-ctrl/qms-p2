@@ -7,18 +7,16 @@ final result: passed
 - JavaScript parse check passed with `node --check app.js`.
 - Local Chrome render succeeded.
 - Fixed the hidden overlay issue by forcing `[hidden] { display: none !important; }`.
-- Captured the verified dashboard at `qms-working-prototype-fixed.png`.
-- Captured the cleaned layout at `qms-cleaned-layout.png` during the follow-up UI cleanup.
+- Captured the latest product dashboard verification at `qms-manager-product-dashboard-v12.png`.
 
 ## Prototype Coverage
 
-- Role switching: Student, Faculty, Content Team, Manager.
+- Role switching: Faculty, Content Team, Manager, Product Team.
 - Shared ticket state persisted in browser localStorage.
-- Faculty: subject pool, claim, resolution, reference, voice note label, outside-subject return.
+- Faculty: subject pool, claim, resolution, reference, and voice note label.
 - Content: claim, status advance, internal note, assign to faculty, approve/revise faculty resolution, final student answer, engineering escalation, close ticket, mark escalation call resolved.
 - Manager: team overview, profile drawer, period toggle, manual assignment, faculty pool and SLA urgency filters.
-- Student: raise query, view tracker, thumbs up/down, follow-up note, call request, escalation rating.
-- Teams-style notifications: content/general pings, unread count, notification modal, mark-read action.
+- Product Team: intake quality dashboard, category/suboption mix, SLA/CSAT signals, engineering/render issue signals, and downloadable report.
 - Follow-up layout cleanup: left rail removed, top nav trimmed to Learning/Assessment/Ticket, Export CSV removed, Faculty and Content Team workbench panel hidden, and query rows open the editable ticket details drawer directly.
 - Second workflow pass: Student role removed, Faculty and Content queues expanded, Content view limited to content-routed plus escalated work, Manager keeps full visibility, and ticket details now include assign-to-me, priority/status controls, and next-step guidance.
 - Third workflow pass: removed Teams Ping and Pin Columns controls, removed duplicate claim action, unclaimed tickets now start without priority, profile drawers are scoped to the selected person plus eligible unclaimed tickets, profile switching is available inside the drawer, and stale unclaimed tickets auto-assign after 24 hours using least-load with random tie break.
@@ -29,6 +27,7 @@ final result: passed
 - Eighth workflow pass: made priority a one-time confirmed save after ticket ownership, moved the faculty resolution form below the student's query, and added a collapsible Student Device Detail card with app, device, location, network, renderer, API, and attachment context for engineering reference.
 - Ninth workflow pass: expanded Student Device Detail into an engineering handoff panel with nested mock JSON payloads for session context, device runtime, and render diagnostics.
 - Tenth workflow pass: added Question ID, Raised On, and Topic to the ticket table, made Question ID filterable, made question/topic/raised columns sortable, replaced ASC/DSC text with arrow indicators, and added absolute raised date-time to Student's Query.
+- Eleventh workflow pass: removed Channel from the table/export surface, kept wide tables horizontally scrollable, added engineering escalation labels inside Current Status, added a Manager Report section with subject/topic/question/agent-load metrics plus report download, and added a Product Team dashboard with category, suboption, SLA, CSAT, technical signal, recommendation, and report download coverage.
 
 ## Notes
 
