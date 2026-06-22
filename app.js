@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v9";
+const STORE_KEY = "nprep-qms-phase2-prototype-v10";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -78,11 +78,14 @@ const STATUS_ALIASES = {
 
 const columns = [
   ["id", "Ticket ID"],
+  ["questionId", "Question ID"],
+  ["raisedAt", "Raised On"],
   ["student", "Student"],
   ["status", "Current Status"],
   ["category", "Category"],
   ["subOption", "Sub Category"],
   ["subject", "Subject"],
+  ["topic", "Topic"],
   ["routedTo", "Team"],
   ["owner", "Assignee"],
   ["sla", "SLA"],
@@ -91,7 +94,7 @@ const columns = [
   ["channel", "Channel"],
 ];
 
-const sortableColumns = new Set(["id", "status", "category", "subOption", "subject", "owner", "sla", "priority", "score"]);
+const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score"]);
 
 const state = {
   role: "faculty",
@@ -101,6 +104,7 @@ const state = {
   dateFrom: "",
   dateTo: "",
   search: "",
+  questionIdSearch: "",
   period: "week",
   selectedId: "NP-00003",
   sortKey: "sla",
@@ -117,6 +121,7 @@ const el = {
   statsRow: document.querySelector("#statsRow"),
   searchInput: document.querySelector("#searchInput"),
   searchClear: document.querySelector("#searchClear"),
+  questionIdFilter: document.querySelector("#questionIdFilter"),
   statusFilter: document.querySelector("#statusFilter"),
   assigneeFilter: document.querySelector("#assigneeFilter"),
   dateFromFilter: document.querySelector("#dateFromFilter"),
@@ -148,6 +153,18 @@ function deriveSubject(questionId) {
   if (lastDigit <= 5) return "Pharmacology";
   if (lastDigit <= 7) return "Medical Surgical Nursing";
   return "Community Health Nursing";
+}
+
+function deriveTopic(subject, questionId) {
+  const topicMap = {
+    Anatomy: ["Neuroanatomy", "Cardiovascular System", "Endocrine Anatomy", "Histology"],
+    Pharmacology: ["Autonomic Drugs", "Antibiotics", "CNS Pharmacology", "Emergency Drugs"],
+    "Medical Surgical Nursing": ["Respiratory Care", "Cardiac Nursing", "Fluid Electrolytes", "Post-Operative Care"],
+    "Community Health Nursing": ["Epidemiology", "National Health Programs", "Maternal Child Health", "Health Education"],
+  };
+  const topics = topicMap[subject] || ["General"];
+  const index = Number(String(questionId).slice(-2)) % topics.length;
+  return topics[index];
 }
 
 function satisfactionScore(feedbackType, rating) {
@@ -188,6 +205,7 @@ function buildSessionDetails(input, raisedAt) {
 
 function createTicket(input) {
   const subject = input.subject || deriveSubject(input.questionId);
+  const topic = input.topic || deriveTopic(subject, input.questionId);
   const routedTo = input.routedTo || deriveRouting(input.category, input.subOption);
   const feedbackType = input.feedbackType || null;
   const now = Date.now();
@@ -203,6 +221,7 @@ function createTicket(input) {
     queryText: input.queryText,
     studentDoubt: input.studentDoubt || input.queryText,
     subject,
+    topic,
     routedTo,
     facultyAssigned: input.facultyAssigned || null,
     facultyAssignedAt: input.facultyAssigned ? new Date(now - 4 * 3600000).toISOString() : null,
@@ -670,6 +689,10 @@ function filteredTickets() {
     const needle = state.search.toLowerCase();
     rows = rows.filter((ticket) => ticket.id.toLowerCase().includes(needle));
   }
+  if (state.questionIdSearch) {
+    const needle = state.questionIdSearch.toLowerCase();
+    rows = rows.filter((ticket) => String(ticket.questionId).toLowerCase().includes(needle));
+  }
   return sortTickets(rows);
 }
 
@@ -744,6 +767,7 @@ function renderFilters() {
   el.statusFilter.innerHTML = statuses.map((status) => `<option value="${status}">${status === "all" ? "All statuses" : status}</option>`).join("");
   el.statusFilter.value = statuses.includes(state.status) ? state.status : "all";
   renderSelectFilter(el.assigneeFilter, ["all", ...new Set(scoped.map((ticket) => owner(ticket)))], state.assignee, "All assignees");
+  el.questionIdFilter.value = state.questionIdSearch;
   el.dateFromFilter.value = state.dateFrom;
   el.dateToFilter.value = state.dateTo;
 }
@@ -777,10 +801,13 @@ function sortValue(ticket, key) {
   };
   const values = {
     id: Number(ticket.id.replace(/\D/g, "")),
+    questionId: Number(ticket.questionId),
+    raisedAt: new Date(ticket.raisedAt).getTime(),
     status: statusRank[ticket.status] || 99,
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
+    topic: ticket.topic,
     owner: owner(ticket),
     sla: ticket.status === "Closed" ? Number.POSITIVE_INFINITY : hoursLeft(ticket),
     priority: owner(ticket) === "Unclaimed" || !ticket.priority ? 99 : priorityRank[ticket.priority] || 99,
@@ -824,18 +851,21 @@ function headerCell(key, label) {
   if (!sortableColumns.has(key)) return `<th>${label}</th>`;
   const active = state.sortKey === key;
   const direction = active ? state.sortDir : "none";
-  const marker = active ? state.sortDir.toUpperCase() : "";
+  const marker = active ? (state.sortDir === "asc" ? "↑" : "↓") : "↕";
   return `<th aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><button class="sort-header ${active ? "active" : ""}" data-sort="${key}" title="Sort ${label}">${label}<span>${marker}</span></button></th>`;
 }
 
 function cell(ticket, key) {
   const value = {
     id: `<button class="ticket-link" data-open="${ticket.id}">#${ticket.id}</button>`,
+    questionId: `#${ticket.questionId}`,
+    raisedAt: shortDate(ticket.raisedAt),
     student: ticket.student,
     status: `<span class="badge ${statusClass(ticket.status)}">${ticket.status}</span>`,
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
+    topic: ticket.topic,
     routedTo: titleCase(ticket.routedTo),
     owner: owner(ticket),
     sla: ticket.status === "Closed" ? `<span class="badge resolved">Closed</span>` : `<span class="badge ${slaClass(ticket)}">${hoursLeft(ticket).toFixed(1)}h left</span>`,
@@ -849,11 +879,14 @@ function cell(ticket, key) {
 function rawCell(ticket, key) {
   const value = {
     id: ticket.id,
+    questionId: ticket.questionId,
+    raisedAt: absoluteDate(ticket.raisedAt),
     student: ticket.student,
     status: ticket.status,
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
+    topic: ticket.topic,
     routedTo: titleCase(ticket.routedTo),
     owner: owner(ticket),
     sla: ticket.status === "Closed" ? "Closed" : `${hoursLeft(ticket).toFixed(1)}h left`,
@@ -875,12 +908,13 @@ function exportCsv() {
     return;
   }
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
-  const headers = [...visible.map(([, label]) => label), "Raised At", "Resolved At"];
+  const includeRaisedExtra = !state.visibleColumns.includes("raisedAt");
+  const headers = [...visible.map(([, label]) => label), ...(includeRaisedExtra ? ["Raised At"] : []), "Resolved At"];
   const csvRows = [
     headers.map(csvEscape).join(","),
     ...rows.map((ticket) => [
       ...visible.map(([key]) => rawCell(ticket, key)),
-      absoluteDate(ticket.raisedAt),
+      ...(includeRaisedExtra ? [absoluteDate(ticket.raisedAt)] : []),
       ticket.resolvedAt ? absoluteDate(ticket.resolvedAt) : "",
     ].map(csvEscape).join(",")),
   ];
@@ -977,8 +1011,10 @@ function drawerHtml(ticket) {
       <section class="drawer-card"><h3>Student's Query</h3>${detailGrid([
         ["Student", ticket.student],
         ["Subject", ticket.subject],
+        ["Topic", ticket.topic],
         ["Question ID", `#${ticket.questionId}`],
-        ["Raised", relativeTime(ticket.raisedAt)],
+        ["Raised At", absoluteDate(ticket.raisedAt)],
+        ["Age", relativeTime(ticket.raisedAt)],
         ["Doubt", ticket.studentDoubt],
         ["Voice Note", ticket.studentVoiceNote || "None"],
         ["Reference", ticket.studentReference || "None"],
@@ -1100,6 +1136,7 @@ function sessionJsonPayloads(ticket, session) {
         version: "mock-session-v1",
         ticketId: ticket.id,
         questionId: ticket.questionId,
+        topic: ticket.topic,
         studentAlias: ticket.student,
         sessionId: session.sessionId,
         appVersion: session.appVersion,
@@ -1552,6 +1589,14 @@ function relativeTime(date) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+function shortDate(date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
 function isToday(date) {
   if (!date) return false;
   const target = new Date(date);
@@ -1615,6 +1660,7 @@ el.roleToggle.addEventListener("click", (event) => {
   state.tab = "all";
   state.status = "all";
   state.assignee = "all";
+  state.questionIdSearch = "";
   closeDrawer();
   render();
 });
@@ -1625,6 +1671,7 @@ el.profileSelect.addEventListener("change", (event) => {
   state.tab = "all";
   state.status = "all";
   state.assignee = "all";
+  state.questionIdSearch = "";
   closeDrawer();
   render();
 });
@@ -1644,6 +1691,11 @@ el.searchInput.addEventListener("input", (event) => {
 el.searchClear.addEventListener("click", () => {
   state.search = "";
   el.searchInput.value = "";
+  renderTable();
+});
+
+el.questionIdFilter.addEventListener("input", (event) => {
+  state.questionIdSearch = event.target.value;
   renderTable();
 });
 

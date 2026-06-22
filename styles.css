@@ -298,6 +298,10 @@ textarea {
   min-width: 150px;
 }
 
+.compact-input {
+  min-width: 150px;
+}
+
 .search-wrap button {
   position: absolute;
   top: 5px;
@@ -427,7 +431,7 @@ textarea {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1040px;
+  min-width: 1520px;
 }
 
 th,
@@ -465,9 +469,9 @@ th {
 }
 
 .sort-header span {
-  min-width: 28px;
+  min-width: 14px;
   color: var(--soft);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
 }
 
