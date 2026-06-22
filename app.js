@@ -1629,7 +1629,6 @@ function drawerActions(ticket) {
   }
   if (teamOwnedByMe && ticket.status !== "Closed") {
     actions.push(ticket.technicalEscalation ? `<span class="workflow-chip escalated">Escalated to Engineering</span>` : `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
-    if (ticket.resolutionText && !ticket.finalResolutionText) actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   }
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
@@ -1666,10 +1665,14 @@ function workflowPanel(ticket) {
 
 function facultyPanel(ticket) {
   const canUseFacultyFlow = state.role === "team"
-    ? activeOwnsTicket(ticket) && ticket.status !== "Closed" && ticket.status !== "Faculty resolved"
+    ? activeOwnsTicket(ticket) && ticket.status !== "Closed"
     : ticket.facultyAssigned === facultyActorName() && ticket.status === "Faculty";
   if (!canUseFacultyFlow) return "";
-  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
+  const submitted = Boolean(ticket.resolutionText);
+  const title = state.role === "team" && submitted ? "Edit Resolution" : "Submit Resolution";
+  const button = state.role === "team" && submitted ? "Update Resolution" : "Submit Resolution";
+  const helper = state.role === "team" && submitted ? "Updates the student-facing answer" : "Minimum 30 characters";
+  return `<section class="drawer-card" id="facultyResolution"><h3>${title}</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">${button}</button><span class="muted">${helper}</span></div></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -2113,6 +2116,7 @@ function facultyClaim(id) {
 
 function submitFacultyResolution(id) {
   const ticket = ticketById(id);
+  const alreadySubmitted = Boolean(ticket.resolutionText);
   const text = document.querySelector("#resolutionText")?.value.trim() || "";
   if (text.length < 30) {
     toast("Resolution needs at least 30 characters.");
@@ -2125,8 +2129,15 @@ function submitFacultyResolution(id) {
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.status = "Faculty resolved";
   ticket.timelineStatus = "faculty_resolved";
-  addHistory(ticket, facultyActorName(), "Submitted faculty resolution for content review");
-  pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${facultyActorName()}`, ticket.id);
+  if (state.role === "team") {
+    ticket.finalResolutionText = text;
+    ticket.resolutionCode = ticket.resolutionCode || "Student doubt resolved";
+    addHistory(ticket, facultyActorName(), alreadySubmitted ? "Updated student-facing resolution" : "Submitted student-facing resolution");
+    pushNotification("Content Queries", `Resolution ready for student: #${ticket.id} - ${facultyActorName()}`, ticket.id);
+  } else {
+    addHistory(ticket, facultyActorName(), "Submitted faculty resolution for content review");
+    pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${facultyActorName()}`, ticket.id);
+  }
   persistAndRender(id);
 }
 
@@ -2332,8 +2343,7 @@ function nextStepText(ticket) {
     if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
     if (!ticket.resolutionText) return "Write an explanation, attach a reference or voice note if useful, then submit the resolution.";
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
-    if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the explanation, finalize the student-facing answer, then close the ticket when ready.";
-    return "Add context if needed, finalize the student-facing resolution, or escalate to Engineering for rendering or technical issues.";
+    return "Resolution is now the student-facing answer. You can edit it from the resolution form below until the ticket is closed.";
   }
   const ownedByAnotherFaculty = state.role === "faculty" && ticket.facultyAssigned && ticket.facultyAssigned !== current.faculty;
   const ownedByAnotherResolver = state.role === "content" && ticket.claimedBy && ticket.claimedBy !== current.resolver;

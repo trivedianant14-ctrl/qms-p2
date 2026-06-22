@@ -36,6 +36,7 @@ final result: passed
 - Seventeenth workflow pass: applied the faculty-style claim and resolution flow to Team Queue so every claimed team ticket opens the explanation/reference/voice-note resolution path, with Engineering escalation still locked until after ownership.
 - Eighteenth workflow pass: normalized the mock people database into a single resolver pool, removing separate faculty/resolver collections while preserving subject expertise for routing and assignment.
 - Nineteenth workflow pass: added View Attachment for student screenshots/references and image upload with preview/clear/save behavior inside the resolver resolution reference area.
+- Twentieth workflow pass: removed the extra Team Queue finalize step after resolution submission; submitted team resolutions now become the student-facing answer immediately and remain editable from the same resolution form until closure.
 
 ## Notes
 
