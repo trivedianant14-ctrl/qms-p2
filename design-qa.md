@@ -32,6 +32,7 @@ final result: passed
 - Thirteenth workflow pass: gated Content ticket drawer actions so unclaimed tickets show only Assign to Me, then reveal internal note, student resolution, and engineering escalation after the resolver claims ownership; the engineering escalation action now becomes an Escalated to Engineering state chip after use.
 - Fourteenth workflow pass: replaced the faculty resolution voice-note text field with a mock voice recorder interface that supports record/stop, waveform feedback, duration, play mock, clear, and attaches the generated voice label on submit.
 - Fifteenth workflow pass: merged Faculty and Content Team into one Team Queue view, moved both faculty and content agents into the same profile selector, scoped each profile to owned plus unclaimed tickets, and kept Manager as the only full-ticket visibility role.
+- Sixteenth workflow pass: removed Team as a visible queue column/segment after merging Faculty and Content into one department, and clarified the Engineering escalation timeline entry after a claimed ticket is escalated.
 
 ## Notes
 

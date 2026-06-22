@@ -87,7 +87,6 @@ const columns = [
   ["subOption", "Sub Category"],
   ["subject", "Subject"],
   ["topic", "Topic"],
-  ["routedTo", "Team"],
   ["owner", "Assignee"],
   ["sla", "SLA"],
   ["priority", "Priority"],
@@ -688,8 +687,6 @@ function tabsForRole(base) {
       ["all", "Total", base.length],
       ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
       ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
-      ["facultyWork", "Faculty Work", base.filter((t) => t.routedTo === "faculty").length],
-      ["contentWork", "Content Work", base.filter((t) => t.routedTo === "content").length],
       ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
     ];
@@ -725,7 +722,6 @@ function tabsForRole(base) {
     ["all", "All", base.length],
     ["own", "My Resolver Queue", base.filter((t) => t.claimedBy === current.resolver).length],
     ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
-    ["facultyPool", "Faculty Pool", base.filter((t) => t.routedTo === "faculty" && !t.facultyAssigned).length],
     ["breaching", "Breaching Soon", base.filter((t) => t.status !== "Closed" && hoursLeft(t) <= 2).length],
     ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
   ];
@@ -741,8 +737,6 @@ function filteredTickets() {
     rows = rows.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed");
   }
   if (state.tab === "pool" || state.tab === "facultyPool") rows = rows.filter((t) => t.routedTo === "faculty" && !t.facultyAssigned);
-  if (state.tab === "facultyWork") rows = rows.filter((t) => t.routedTo === "faculty");
-  if (state.tab === "contentWork") rows = rows.filter((t) => t.routedTo === "content");
   if (state.tab === "unclaimed") rows = rows.filter((t) => owner(t) === "Unclaimed");
   if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "faculty") rows = rows.filter((t) => t.facultyAssigned);
@@ -2550,7 +2544,7 @@ document.addEventListener("click", (event) => {
       return;
     }
     ticket.technicalEscalation = true;
-    addHistory(ticket, resolverActorName(), "Escalated rendering issue to Engineering");
+    addHistory(ticket, resolverActorName(), "Escalated this ticket to Engineering");
     pushNotification("General", `Engineering escalation: #${ticket.id}`, ticket.id);
     persistAndRender(ticket.id);
   }
