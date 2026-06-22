@@ -27,6 +27,7 @@ final result: passed
 - Sixth workflow pass: restored Export CSV, added Raised From/Raised To date filters that scope the visible ticket table and tab counts, and verified the CSV download includes the selected date window with raised/resolved timestamps.
 - Seventh workflow pass: restricted statuses to Unclaimed, Raised, Being reviewed, Worked on, Faculty, Faculty resolved, Escalation, Escalation resolved, and Closed; removed the manual status dropdown/advance action; and verified status transitions are driven by claim, assignment, faculty resolution, escalation, and close/feedback actions.
 - Eighth workflow pass: made priority a one-time confirmed save after ticket ownership, moved the faculty resolution form below the student's query, and added a collapsible Student Device Detail card with app, device, location, network, renderer, API, and attachment context for engineering reference.
+- Ninth workflow pass: expanded Student Device Detail into an engineering handoff panel with nested mock JSON payloads for session context, device runtime, and render diagnostics.
 
 ## Notes
 

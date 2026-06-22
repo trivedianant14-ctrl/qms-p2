@@ -1075,7 +1075,87 @@ function sessionDetailPanel(ticket) {
       ["Attachments", `${session.attachmentCount} attached`],
       ["Engineering Note", session.engineeringSignal],
     ])}
+    <div class="json-section">
+      <div class="json-section-head"><h4>Mock JSON Views</h4><p>Expandable sample payloads for engineering handoff.</p></div>
+      ${jsonPayloadCards(ticket, session)}
+    </div>
   </details>`;
+}
+
+function jsonPayloadCards(ticket, session) {
+  return `<div class="json-payload-list">${sessionJsonPayloads(ticket, session).map((item, index) => `<details class="json-card" ${index === 0 ? "open" : ""}>
+    <summary><span><strong>${item.file}</strong><small>${item.help}</small></span><span class="json-tag">Mock JSON</span></summary>
+    <pre><code>${escapeHtml(JSON.stringify(item.payload, null, 2))}</code></pre>
+  </details>`).join("")}</div>`;
+}
+
+function sessionJsonPayloads(ticket, session) {
+  const technical = ticket.technicalEscalation || ticket.category === "Can't See Something";
+  const traceId = `trace-${ticket.id.toLowerCase()}-${String(ticket.questionId).slice(-4)}`;
+  return [
+    {
+      file: "session-context.json",
+      help: "Ticket, learner, app, and session snapshot",
+      payload: {
+        version: "mock-session-v1",
+        ticketId: ticket.id,
+        questionId: ticket.questionId,
+        studentAlias: ticket.student,
+        sessionId: session.sessionId,
+        appVersion: session.appVersion,
+        raisedAt: ticket.raisedAt,
+        lastActiveAt: session.lastActive,
+        route: ticket.routedTo,
+        status: ticket.status,
+      },
+    },
+    {
+      file: "device-runtime.json",
+      help: "Device, network, location, and runtime state",
+      payload: {
+        version: "mock-device-v1",
+        device: {
+          model: session.device,
+          osVersion: session.osVersion,
+          locale: "en-IN",
+          timezone: "Asia/Kolkata",
+          batteryPct: 72,
+          lowPowerMode: false,
+        },
+        network: {
+          type: session.network,
+          latencyMs: technical ? 840 : 132,
+          packetLossPct: technical ? 3.2 : 0,
+        },
+        location: {
+          cityCountry: session.location,
+          source: "coarse_ip",
+        },
+      },
+    },
+    {
+      file: "render-diagnostics.json",
+      help: "Question renderer, asset, and API trace",
+      payload: {
+        version: "mock-render-v2",
+        traceId,
+        renderer: session.questionRenderEngine,
+        apiTrace: session.apiTrace,
+        assetManifest: {
+          questionStemLoaded: true,
+          explanationLoaded: true,
+          imageLoaded: !technical,
+          voiceNoteAttached: Boolean(ticket.studentVoiceNote),
+          referenceAttached: Boolean(ticket.studentReference),
+        },
+        webview: {
+          engine: "Chromium WebView",
+          cacheHit: !technical,
+          lastErrorCode: technical ? "ASSET_TIMEOUT" : null,
+        },
+      },
+    },
+  ];
 }
 
 function assignmentSelect(id, selectId) {
@@ -1505,6 +1585,14 @@ function absoluteDate(date) {
 
 function escapeAttr(value) {
   return String(value).replaceAll('"', "&quot;");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function csvEscape(value) {

@@ -840,7 +840,7 @@ tbody tr:focus-within {
   min-height: 0;
 }
 
-.collapse-card summary {
+.collapse-card > summary {
   min-height: 56px;
   display: flex;
   align-items: center;
@@ -851,11 +851,11 @@ tbody tr:focus-within {
   list-style: none;
 }
 
-.collapse-card summary::-webkit-details-marker {
+.collapse-card > summary::-webkit-details-marker {
   display: none;
 }
 
-.collapse-card summary::after {
+.collapse-card > summary::after {
   content: "+";
   width: 24px;
   height: 24px;
@@ -868,26 +868,136 @@ tbody tr:focus-within {
   flex: 0 0 auto;
 }
 
-.collapse-card[open] summary::after {
+.collapse-card[open] > summary::after {
   content: "-";
 }
 
-.collapse-card summary span:first-child {
+.collapse-card > summary span:first-child {
   display: grid;
   gap: 3px;
 }
 
-.collapse-card summary strong {
+.collapse-card > summary strong {
   font-size: 14px;
 }
 
-.collapse-card summary small {
+.collapse-card > summary small {
   color: var(--muted);
   font-size: 12px;
 }
 
 .collapse-card .detail-grid {
   padding: 0 14px 14px;
+}
+
+.json-section {
+  border-top: 1px solid var(--line);
+  padding: 14px;
+}
+
+.json-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.json-section-head h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.json-section-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.json-payload-list {
+  display: grid;
+  gap: 8px;
+}
+
+.json-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  overflow: hidden;
+}
+
+.json-card summary {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.json-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.json-card summary::after {
+  content: "+";
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--blue);
+  background: var(--blue-soft);
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.json-card[open] summary::after {
+  content: "-";
+}
+
+.json-card summary span:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.json-card summary strong {
+  font-size: 13px;
+}
+
+.json-card summary small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.json-tag {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--purple);
+  background: var(--purple-soft);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.json-card pre {
+  max-height: 280px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+  background: #0f172a;
+  color: #dbeafe;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.json-card code {
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 }
 
 .drawer-actions:empty {
