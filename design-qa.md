@@ -11,7 +11,7 @@ final result: passed
 
 ## Prototype Coverage
 
-- Role switching: Faculty, Content Team, Manager, Product Team.
+- Role switching: Team Queue, Manager, Manager Report, Product Team.
 - Shared ticket state persisted in browser localStorage.
 - Faculty: subject pool, claim, resolution, reference, and voice note label.
 - Content: claim, status advance, internal note, assign to faculty, approve/revise faculty resolution, final student answer, engineering escalation, close ticket, mark escalation call resolved.
@@ -31,6 +31,7 @@ final result: passed
 - Twelfth workflow pass: moved reporting into a top-level Report nav item beside Learning, Assessment, and Ticket; removed Product Team from ticket-role queues; made Manager Report and Product Team separate full-width report dashboards; and replaced the Product Intake Tickets table with canvas-based pie, line, and bar charts plus analytical cards and report downloads.
 - Thirteenth workflow pass: gated Content ticket drawer actions so unclaimed tickets show only Assign to Me, then reveal internal note, student resolution, and engineering escalation after the resolver claims ownership; the engineering escalation action now becomes an Escalated to Engineering state chip after use.
 - Fourteenth workflow pass: replaced the faculty resolution voice-note text field with a mock voice recorder interface that supports record/stop, waveform feedback, duration, play mock, clear, and attaches the generated voice label on submit.
+- Fifteenth workflow pass: merged Faculty and Content Team into one Team Queue view, moved both faculty and content agents into the same profile selector, scoped each profile to owned plus unclaimed tickets, and kept Manager as the only full-ticket visibility role.
 
 ## Notes
 

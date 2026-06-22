@@ -50,6 +50,7 @@ const people = {
 
 const current = {
   student: "Riya Sharma",
+  operator: "Dr. Meera Joshi",
   faculty: "Dr. Meera Joshi",
   resolver: "Priya S.",
   manager: "Harshit",
@@ -97,7 +98,7 @@ const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "cate
 
 const state = {
   section: "ticket",
-  role: "faculty",
+  role: "team",
   reportView: "manager",
   tab: "all",
   status: "all",
@@ -553,6 +554,34 @@ function owner(ticket) {
   return ticket.facultyAssigned || ticket.claimedBy || "Unclaimed";
 }
 
+function allOperators() {
+  return [...people.faculty, ...people.resolvers];
+}
+
+function activeOperator() {
+  return allOperators().find((person) => person.name === current.operator) || people.faculty[0] || people.resolvers[0];
+}
+
+function activeOperatorName() {
+  return activeOperator()?.name || current.operator;
+}
+
+function isAssignedTo(ticket, name) {
+  return ticket.facultyAssigned === name || ticket.claimedBy === name;
+}
+
+function activeOwnsTicket(ticket) {
+  return isAssignedTo(ticket, activeOperatorName());
+}
+
+function resolverActorName() {
+  return state.role === "team" ? activeOperatorName() : current.resolver;
+}
+
+function facultyActorName() {
+  return state.role === "team" ? activeOperatorName() : current.faculty;
+}
+
 function ticketById(id) {
   return db.tickets.find((ticket) => ticket.id === id);
 }
@@ -628,12 +657,17 @@ function normalizeTimeline(targetDb) {
 
 function roleName() {
   if (state.section === "report") return state.reportView === "product" ? "Product Team" : "Manager Report";
+  if (state.role === "team") return activeOperatorName();
   if (state.role === "faculty") return current.faculty;
   if (state.role === "content") return current.resolver;
   return current.manager;
 }
 
 function roleTickets() {
+  if (state.role === "team") {
+    const activeName = activeOperatorName();
+    return db.tickets.filter((ticket) => owner(ticket) === "Unclaimed" || isAssignedTo(ticket, activeName));
+  }
   if (state.role === "faculty") {
     const subjects = people.faculty.find((person) => person.name === current.faculty).subjects;
     return db.tickets.filter((ticket) => ticket.routedTo === "faculty" && (ticket.facultyAssigned === current.faculty || (!ticket.facultyAssigned && subjects.includes(ticket.subject))));
@@ -648,6 +682,18 @@ function roleTickets() {
 }
 
 function tabsForRole(base) {
+  if (state.role === "team") {
+    const activeName = activeOperatorName();
+    return [
+      ["all", "Total", base.length],
+      ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
+      ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
+      ["facultyWork", "Faculty Work", base.filter((t) => t.routedTo === "faculty").length],
+      ["contentWork", "Content Work", base.filter((t) => t.routedTo === "content").length],
+      ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
+      ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
+    ];
+  }
   if (state.role === "faculty") {
     return [
       ["all", "Total", base.length],
@@ -690,8 +736,13 @@ function filteredTickets() {
   if (state.tab === "open") rows = rows.filter((t) => t.status !== "Closed");
   if (state.tab === "rating") rows = rows.filter((t) => t.escalationResolved && t.feedbackType === "escalation_resolved" && !t.escalationRating);
   if (state.tab === "closed") rows = rows.filter((t) => t.status === "Closed");
-  if (state.tab === "my") rows = rows.filter((t) => t.facultyAssigned === current.faculty && t.status !== "Closed");
+  if (state.tab === "my") {
+    const activeName = state.role === "team" ? activeOperatorName() : state.role === "content" ? current.resolver : current.faculty;
+    rows = rows.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed");
+  }
   if (state.tab === "pool" || state.tab === "facultyPool") rows = rows.filter((t) => t.routedTo === "faculty" && !t.facultyAssigned);
+  if (state.tab === "facultyWork") rows = rows.filter((t) => t.routedTo === "faculty");
+  if (state.tab === "contentWork") rows = rows.filter((t) => t.routedTo === "content");
   if (state.tab === "unclaimed") rows = rows.filter((t) => owner(t) === "Unclaimed");
   if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "faculty") rows = rows.filter((t) => t.facultyAssigned);
@@ -757,8 +808,7 @@ function renderModeControls() {
   }
   el.roleToggle.setAttribute("aria-label", "Login role");
   el.roleToggle.innerHTML = [
-    ["faculty", "Faculty"],
-    ["content", "Content Team"],
+    ["team", "Team Queue"],
     ["manager", "Manager"],
   ].map(([role, label]) => `<button class="${state.role === role ? "active" : ""}" data-role="${role}">${label}</button>`).join("");
 }
@@ -769,10 +819,10 @@ function renderProfileSelect() {
     el.profileSelect.innerHTML = "";
     return;
   }
-  const options = state.role === "faculty" ? people.faculty : people.resolvers;
-  const activeName = state.role === "faculty" ? current.faculty : current.resolver;
+  const options = state.role === "team" ? allOperators() : state.role === "faculty" ? people.faculty : people.resolvers;
+  const activeName = state.role === "team" ? activeOperatorName() : state.role === "faculty" ? current.faculty : current.resolver;
   el.profileSelect.hidden = false;
-  el.profileSelect.innerHTML = options.map((person) => `<option value="${person.name}" ${person.name === activeName ? "selected" : ""}>${person.name}</option>`).join("");
+  el.profileSelect.innerHTML = options.map((person) => `<option value="${person.name}" ${person.name === activeName ? "selected" : ""}>${person.name} - ${person.role}</option>`).join("");
 }
 
 function renderStats() {
@@ -790,7 +840,16 @@ function renderStats() {
   const activeFaculty = people.faculty.find((person) => person.name === current.faculty);
   const facultySubjects = activeFaculty?.subjects || [];
   const pool = db.tickets.filter((ticket) => ticket.routedTo === "faculty" && !ticket.facultyAssigned && inDateRange(ticket.raisedAt));
+  const activeName = activeOperatorName();
   const statSets = {
+    team: [
+      ["My Open", open.filter((t) => isAssignedTo(t, activeName)).length, `Assigned to ${activeName}`, ""],
+      ["Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length, "Available for team pickup", "amber"],
+      ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
+      ["Closed Today", closedToday.length, "Tickets closed today", "green"],
+      ["Overall Closed", closed.length, "All closed tickets in this view", "green"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
+    ],
     faculty: [
       ["My Open", open.filter((t) => t.facultyAssigned === current.faculty).length, `Assigned to ${current.faculty}`, ""],
       ["Subject Pool", pool.filter((t) => facultySubjects.includes(t.subject)).length, "Claim-first subject queries", "amber"],
@@ -937,7 +996,7 @@ function renderTabs() {
 function renderTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
-  el.tableTitle.textContent = state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : state.role === "product" ? "Product Intake Tickets" : "Team Ticket Queue";
+  el.tableTitle.textContent = state.role === "team" ? "Team Queries Queue" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map((ticket) => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
@@ -1082,7 +1141,7 @@ function productReportRows(rows) {
 }
 
 function csvFileName() {
-  const role = state.role === "content" ? "content-team" : state.role;
+  const role = state.role === "team" ? "team-queue" : state.role === "content" ? "content-team" : state.role;
   const from = state.dateFrom || "all";
   const to = state.dateTo || "all";
   return `qms-${role}-tickets-${from}-to-${to}.csv`;
@@ -1544,7 +1603,7 @@ function drawerHtml(ticket) {
       </section>
       ${drawerActions(ticket)}
       ${workflowPanel(ticket)}
-      ${state.role === "content" ? contentPanel(ticket) : ""}
+      ${state.role === "team" || state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
       <section class="drawer-card"><h3>Student's Query</h3>${detailGrid([
         ["Student", ticket.student],
@@ -1558,7 +1617,7 @@ function drawerHtml(ticket) {
         ["Reference", ticket.studentReference || "None"],
         ["Owner", owner(ticket)],
       ])}</section>
-      ${state.role === "faculty" ? facultyPanel(ticket) : ""}
+      ${state.role === "team" || state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${sessionDetailPanel(ticket)}
       ${escalationPanel(ticket)}
       ${resolutionPanel(ticket)}
@@ -1569,10 +1628,12 @@ function drawerHtml(ticket) {
 function drawerActions(ticket) {
   const actions = [];
   const unclaimed = owner(ticket) === "Unclaimed";
-  const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
+  const teamClaimedByMe = state.role === "team" && ticket.claimedBy === activeOperatorName();
+  const teamFacultyReadyForReview = state.role === "team" && ticket.facultyAssigned === activeOperatorName() && ticket.status !== "Faculty";
+  const contentOwnedByMe = (state.role === "content" && ticket.claimedBy === current.resolver) || teamClaimedByMe || teamFacultyReadyForReview;
   if (canAssignToMe(ticket)) {
     actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
-    if (unclaimed && state.role === "content") return `<div class="drawer-actions">${actions.join("")}</div>`;
+    if (unclaimed && (state.role === "content" || state.role === "team")) return `<div class="drawer-actions">${actions.join("")}</div>`;
   }
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
   if (contentOwnedByMe && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
@@ -1607,7 +1668,7 @@ function workflowPanel(ticket) {
 }
 
 function facultyPanel(ticket) {
-  if (ticket.facultyAssigned !== current.faculty || ticket.status !== "Faculty") return "";
+  if (ticket.facultyAssigned !== facultyActorName() || ticket.status !== "Faculty") return "";
   return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
 }
 
@@ -1875,10 +1936,7 @@ function openProfile(name) {
 }
 
 function profileTicketsFor(person) {
-  if (person.role === "Faculty") {
-    return db.tickets.filter((ticket) => ticket.routedTo === "faculty" && (ticket.facultyAssigned === person.name || (owner(ticket) === "Unclaimed" && person.subjects.includes(ticket.subject))));
-  }
-  return db.tickets.filter((ticket) => ticket.claimedBy === person.name || (owner(ticket) === "Unclaimed" && (ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved")));
+  return db.tickets.filter((ticket) => isAssignedTo(ticket, person.name) || owner(ticket) === "Unclaimed");
 }
 
 function openColumnModal() {
@@ -1906,7 +1964,7 @@ function persistAndRender(openId) {
   if (openId) openTicket(openId);
 }
 
-function claimTicket(id, assignee = current.resolver) {
+function claimTicket(id, assignee = resolverActorName()) {
   const ticket = ticketById(id);
   ticket.claimedBy = assignee;
   if (ticket.status === "Raised" || ticket.status === "Unclaimed") ticket.status = "Being reviewed";
@@ -1943,12 +2001,13 @@ function assignToFaculty(id) {
 
 function facultyClaim(id) {
   const ticket = ticketById(id);
-  ticket.facultyAssigned = current.faculty;
+  const actor = facultyActorName();
+  ticket.facultyAssigned = actor;
   ticket.facultyAssignedAt = new Date().toISOString();
   ticket.status = "Faculty";
   ticket.timelineStatus = "assigned";
-  addHistory(ticket, current.faculty, "Claimed from Subject Pool");
-  pushNotification("Content Queries", `${current.faculty} claimed #${ticket.id} from Subject Pool`, ticket.id);
+  addHistory(ticket, actor, "Claimed from Subject Pool");
+  pushNotification("Content Queries", `${actor} claimed #${ticket.id} from Subject Pool`, ticket.id);
   persistAndRender(id);
 }
 
@@ -1964,8 +2023,8 @@ function submitFacultyResolution(id) {
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.status = "Faculty resolved";
   ticket.timelineStatus = "faculty_resolved";
-  addHistory(ticket, current.faculty, "Submitted faculty resolution for content review");
-  pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${current.faculty}`, ticket.id);
+  addHistory(ticket, facultyActorName(), "Submitted faculty resolution for content review");
+  pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${facultyActorName()}`, ticket.id);
   persistAndRender(id);
 }
 
@@ -1974,7 +2033,7 @@ function approveFacultyResolution(id) {
   ticket.finalResolutionText = ticket.resolutionText;
   ticket.status = "Worked on";
   ticket.revisionRequested = false;
-  addHistory(ticket, current.resolver, "Approved faculty resolution and moved to finalization");
+  addHistory(ticket, resolverActorName(), "Approved faculty resolution and moved to finalization");
   persistAndRender(id);
 }
 
@@ -1982,7 +2041,7 @@ function sendRevision(id) {
   const ticket = ticketById(id);
   ticket.status = "Faculty";
   ticket.revisionRequested = true;
-  addHistory(ticket, current.resolver, "Sent faculty resolution back for revision");
+  addHistory(ticket, resolverActorName(), "Sent faculty resolution back for revision");
   pushNotification("Content Queries", `Revision requested for #${ticket.id}`, ticket.id);
   persistAndRender(id);
 }
@@ -2003,7 +2062,7 @@ function closeTicket(id) {
     ticket.feedbackType = "auto_closed";
     ticket.satisfactionScore = satisfactionScore("auto_closed");
   }
-  addHistory(ticket, current.resolver, `Closed ticket with code: ${ticket.resolutionCode}`);
+  addHistory(ticket, resolverActorName(), `Closed ticket with code: ${ticket.resolutionCode}`);
   persistAndRender(id);
 }
 
@@ -2046,7 +2105,7 @@ function markEscalationResolved(id) {
   ticket.escalationRating = null;
   ticket.satisfactionScore = null;
   ticket.status = "Escalation resolved";
-  addHistory(ticket, current.resolver, "Resolved escalation through outreach; waiting for student rating");
+  addHistory(ticket, resolverActorName(), "Resolved escalation through outreach; waiting for student rating");
   pushNotification("General", `Escalation ready for student rating: #${ticket.id}`, ticket.id);
   persistAndRender(id);
 }
@@ -2108,6 +2167,7 @@ function managerResolve(id) {
 function canAssignToMe(ticket) {
   if (ticket.status === "Closed") return false;
   if (owner(ticket) !== "Unclaimed") return false;
+  if (state.role === "team") return true;
   if (state.role === "faculty") return ticket.routedTo === "faculty" && people.faculty.find((person) => person.name === current.faculty).subjects.includes(ticket.subject);
   if (state.role === "content") return ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved";
   return false;
@@ -2115,6 +2175,25 @@ function canAssignToMe(ticket) {
 
 function assignToMe(id) {
   const ticket = ticketById(id);
+  if (state.role === "team") {
+    const actor = activeOperatorName();
+    const operator = activeOperator();
+    const claimAsFaculty = operator?.role === "Faculty" && ticket.routedTo === "faculty";
+    if (claimAsFaculty) {
+      ticket.facultyAssigned = actor;
+      ticket.facultyAssignedAt = new Date().toISOString();
+      ticket.status = "Faculty";
+      ticket.timelineStatus = "assigned";
+    } else {
+      ticket.claimedBy = actor;
+      ticket.status = ticket.status === "Raised" || ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
+      ticket.timelineStatus = "in_review";
+    }
+    addHistory(ticket, actor, "Claimed this ticket");
+    pushNotification("Content Queries", `${actor} assigned themselves to #${ticket.id}`, ticket.id);
+    persistAndRender(id);
+    return;
+  }
   if (state.role === "faculty") {
     ticket.facultyAssigned = current.faculty;
     ticket.facultyAssignedAt = new Date().toISOString();
@@ -2161,6 +2240,13 @@ function saveWorkflow(id) {
 function nextStepText(ticket) {
   if (ticket.status === "Closed") return "No action needed. Review the resolution history and satisfaction score if required.";
   if (owner(ticket) === "Unclaimed") return "Assign this ticket to yourself or route it to the right expert before doing resolution work.";
+  if (state.role === "team") {
+    if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
+    if (ticket.status === "Faculty") return "Write a faculty explanation, attach a reference if useful, then submit the resolution for final review.";
+    if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
+    if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the explanation, finalize the student-facing answer, then close the ticket when ready.";
+    return "Add context if needed, finalize the student-facing resolution, or escalate to Engineering for rendering or technical issues.";
+  }
   const ownedByAnotherFaculty = state.role === "faculty" && ticket.facultyAssigned && ticket.facultyAssigned !== current.faculty;
   const ownedByAnotherResolver = state.role === "content" && ticket.claimedBy && ticket.claimedBy !== current.resolver;
   if (ownedByAnotherFaculty || ownedByAnotherResolver) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
@@ -2332,6 +2418,11 @@ el.roleToggle.addEventListener("click", (event) => {
 });
 
 el.profileSelect.addEventListener("change", (event) => {
+  if (state.role === "team") {
+    current.operator = event.target.value;
+    if (people.faculty.some((person) => person.name === event.target.value)) current.faculty = event.target.value;
+    if (people.resolvers.some((person) => person.name === event.target.value)) current.resolver = event.target.value;
+  }
   if (state.role === "faculty") current.faculty = event.target.value;
   if (state.role === "content") current.resolver = event.target.value;
   state.tab = "all";
@@ -2433,8 +2524,8 @@ document.addEventListener("click", (event) => {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);
     const text = document.querySelector("#noteText")?.value.trim();
     if (text) {
-      ticket.internalNotes.unshift({ author: current.resolver, text, at: new Date().toISOString() });
-      addHistory(ticket, current.resolver, "Added internal note");
+      ticket.internalNotes.unshift({ author: resolverActorName(), text, at: new Date().toISOString() });
+      addHistory(ticket, resolverActorName(), "Added internal note");
       persistAndRender(ticket.id);
     }
   }
@@ -2442,7 +2533,7 @@ document.addEventListener("click", (event) => {
     const ticket = ticketById(target.closest("[data-recall]").dataset.recall);
     ticket.facultyAssigned = null;
     ticket.status = "Being reviewed";
-    addHistory(ticket, current.resolver, "Recalled from faculty");
+    addHistory(ticket, resolverActorName(), "Recalled from faculty");
     persistAndRender(ticket.id);
   }
   if (target.closest("[data-approve-resolution]")) approveFacultyResolution(target.closest("[data-approve-resolution]").dataset.approveResolution);
@@ -2450,7 +2541,7 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-close-ticket]")) closeTicket(target.closest("[data-close-ticket]").dataset.closeTicket);
   if (target.closest("[data-escalate-engineering]")) {
     const ticket = ticketById(target.closest("[data-escalate-engineering]").dataset.escalateEngineering);
-    if (ticket.claimedBy !== current.resolver) {
+    if (state.role === "team" ? !activeOwnsTicket(ticket) : ticket.claimedBy !== current.resolver) {
       toast("Claim this ticket before escalating it to Engineering.");
       return;
     }
@@ -2459,7 +2550,7 @@ document.addEventListener("click", (event) => {
       return;
     }
     ticket.technicalEscalation = true;
-    addHistory(ticket, current.resolver, "Escalated rendering issue to Engineering");
+    addHistory(ticket, resolverActorName(), "Escalated rendering issue to Engineering");
     pushNotification("General", `Engineering escalation: #${ticket.id}`, ticket.id);
     persistAndRender(ticket.id);
   }
