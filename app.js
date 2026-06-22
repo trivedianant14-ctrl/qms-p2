@@ -2275,6 +2275,7 @@ function managerAssign(id, assignee) {
   ticket.routedTo = "faculty";
   ticket.status = "Faculty";
   addHistory(ticket, current.manager, `Assigned to ${assignee} based on bandwidth`);
+  toast(`Successfully assigned #${ticket.id} to ${assignee}`, "success");
   persistAndRender(id);
 }
 
@@ -2528,9 +2529,9 @@ function csvEscape(value) {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-function toast(message) {
+function toast(message, tone = "") {
   const item = document.createElement("div");
-  item.className = "toast";
+  item.className = `toast ${tone}`.trim();
   item.textContent = message;
   el.toastStack.appendChild(item);
   setTimeout(() => item.remove(), 3400);

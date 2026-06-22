@@ -1687,6 +1687,10 @@ tbody tr:focus-within {
   font-size: 13px;
 }
 
+.toast.success {
+  background: #067647;
+}
+
 .score.good {
   color: var(--green);
 }
