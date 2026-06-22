@@ -140,19 +140,6 @@ button {
   font-weight: 700;
 }
 
-.notification-dot {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: #f04438;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 800;
-}
-
 .page-head {
   display: flex;
   justify-content: space-between;
@@ -456,6 +443,35 @@ th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0;
+}
+
+.sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.sort-header span {
+  min-width: 28px;
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.sort-header.active {
+  color: var(--blue);
+}
+
+.sort-header.active span {
+  color: var(--blue);
 }
 
 tbody tr {

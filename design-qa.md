@@ -23,6 +23,7 @@ final result: passed
 - Second workflow pass: Student role removed, Faculty and Content queues expanded, Content view limited to content-routed plus escalated work, Manager keeps full visibility, and ticket details now include assign-to-me, priority/status controls, and next-step guidance.
 - Third workflow pass: removed Teams Ping and Pin Columns controls, removed duplicate claim action, unclaimed tickets now start without priority, profile drawers are scoped to the selected person plus eligible unclaimed tickets, profile switching is available inside the drawer, and stale unclaimed tickets auto-assign after 24 hours using least-load with random tie break.
 - Fourth workflow pass: added a profile selector beside the active profile, scoped Faculty and Content views to the selected person plus eligible unclaimed work, expanded filters for ticket ID/status/category/subcategory/subject/assignee/SLA/priority/score, clarified claim timeline timestamps, and replaced the manager-only manual action with working reassignment plus manager resolution controls.
+- Fifth workflow pass: reduced visible filters to Ticket ID, Status, and Assignee, moved category/subcategory/subject/SLA/priority/score into two-state table sorting, removed visible notification cards/counts, and added Closed Today plus Overall Closed performance cards for Faculty, Content, and Manager views.
 
 ## Notes
 

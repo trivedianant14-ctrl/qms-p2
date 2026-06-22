@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v5";
+const STORE_KEY = "nprep-qms-phase2-prototype-v6";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -56,7 +56,7 @@ const current = {
 };
 
 const columns = [
-  ["id", "Ticket Id"],
+  ["id", "Ticket ID"],
   ["student", "Student"],
   ["status", "Current Status"],
   ["category", "Category"],
@@ -70,20 +70,18 @@ const columns = [
   ["channel", "Channel"],
 ];
 
+const sortableColumns = new Set(["id", "status", "category", "subOption", "subject", "owner", "sla", "priority", "score"]);
+
 const state = {
   role: "faculty",
   tab: "all",
   status: "all",
-  sla: "all",
-  subject: "all",
-  category: "all",
-  subOption: "all",
   assignee: "all",
-  priority: "all",
-  score: "all",
   search: "",
   period: "week",
   selectedId: "NP-00003",
+  sortKey: "sla",
+  sortDir: "asc",
   visibleColumns: columns.map(([key]) => key),
 };
 
@@ -97,13 +95,7 @@ const el = {
   searchInput: document.querySelector("#searchInput"),
   searchClear: document.querySelector("#searchClear"),
   statusFilter: document.querySelector("#statusFilter"),
-  categoryFilter: document.querySelector("#categoryFilter"),
-  subOptionFilter: document.querySelector("#subOptionFilter"),
-  slaFilter: document.querySelector("#slaFilter"),
-  subjectFilter: document.querySelector("#subjectFilter"),
   assigneeFilter: document.querySelector("#assigneeFilter"),
-  priorityFilter: document.querySelector("#priorityFilter"),
-  scoreFilter: document.querySelector("#scoreFilter"),
   ticketTabs: document.querySelector("#ticketTabs"),
   tableTitle: document.querySelector("#tableTitle"),
   tableSubtitle: document.querySelector("#tableSubtitle"),
@@ -478,10 +470,6 @@ function ticketById(id) {
   return db.tickets.find((ticket) => ticket.id === id);
 }
 
-function unreadCount() {
-  return db.notifications.filter((item) => !item.read).length;
-}
-
 function pushNotification(channel, message, ticketId) {
   db.notifications.unshift(note(channel, message, ticketId));
   toast(`${channel}: ${message}`);
@@ -609,31 +597,18 @@ function filteredTickets() {
   if (state.tab === "escalated") rows = rows.filter((t) => t.feedbackType === "thumbs_down" && !t.escalationResolved);
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.status !== "all") rows = rows.filter((t) => t.status === state.status);
-  if (state.subject !== "all") rows = rows.filter((t) => t.subject === state.subject);
-  if (state.category !== "all") rows = rows.filter((t) => t.category === state.category);
-  if (state.subOption !== "all") rows = rows.filter((t) => t.subOption === state.subOption);
   if (state.assignee !== "all") rows = rows.filter((t) => owner(t) === state.assignee);
-  if (state.priority !== "all") rows = rows.filter((t) => (state.priority === "none" ? !t.priority || owner(t) === "Unclaimed" : t.priority === state.priority));
-  if (state.score === "none") rows = rows.filter((t) => t.satisfactionScore == null);
-  if (state.score === "good") rows = rows.filter((t) => t.satisfactionScore >= 4);
-  if (state.score === "ok") rows = rows.filter((t) => t.satisfactionScore >= 3 && t.satisfactionScore < 4);
-  if (state.score === "bad") rows = rows.filter((t) => t.satisfactionScore != null && t.satisfactionScore < 3);
-  if (state.sla === "critical") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= 2);
-  if (state.sla === "warning") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) > 2 && hoursLeft(t) <= 12);
-  if (state.sla === "healthy") rows = rows.filter((t) => t.status === "Closed" || hoursLeft(t) > 12);
   if (state.search) {
     const needle = state.search.toLowerCase();
     rows = rows.filter((ticket) => ticket.id.toLowerCase().includes(needle));
   }
-  return rows.sort((a, b) => (a.status === "Closed") - (b.status === "Closed") || hoursLeft(a) - hoursLeft(b));
+  return sortTickets(rows);
 }
 
 function render() {
   applyAutoAssignments(db, false, true);
   renderProfileSelect();
   el.activeUser.textContent = roleName();
-  const dot = document.querySelector(".notification-dot");
-  if (dot) dot.textContent = unreadCount();
   document.querySelectorAll("#roleToggle button").forEach((button) => button.classList.toggle("active", button.dataset.role === state.role));
   document.querySelector(".main-grid")?.classList.toggle("no-side", state.role === "faculty" || state.role === "content");
   renderStats();
@@ -659,10 +634,10 @@ function renderStats() {
   const base = roleTickets();
   const open = base.filter((ticket) => ticket.status !== "Closed");
   const closed = base.filter((ticket) => ticket.status === "Closed");
+  const closedToday = closed.filter((ticket) => isToday(ticket.resolvedAt));
   const breaching = open.filter((ticket) => hoursLeft(ticket) <= 2);
   const scores = base.map((ticket) => ticket.satisfactionScore).filter((score) => score != null);
   const avgScore = scores.length ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1) : "--";
-  const escalated = base.filter((ticket) => ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved);
   const activeFaculty = people.faculty.find((person) => person.name === current.faculty);
   const facultySubjects = activeFaculty?.subjects || [];
   const pool = db.tickets.filter((ticket) => ticket.routedTo === "faculty" && !ticket.facultyAssigned);
@@ -671,25 +646,25 @@ function renderStats() {
       ["My Open", open.filter((t) => t.facultyAssigned === current.faculty).length, `Assigned to ${current.faculty}`, ""],
       ["Subject Pool", pool.filter((t) => facultySubjects.includes(t.subject)).length, "Claim-first subject queries", "amber"],
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
-      ["Resolved", closed.length, "Closed faculty queries", "green"],
+      ["Closed Today", closedToday.length, "Tickets closed today", "green"],
+      ["Overall Closed", closed.length, "All closed faculty tickets", "green"],
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
-      ["Notifications", db.notifications.filter((n) => n.channel === "Content Queries" && !n.read).length, "Content queue updates", ""],
     ],
     content: [
       ["Queue", base.length, "Content and faculty-routed tickets", ""],
       ["Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length, "Needs ownership", "amber"],
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
-      ["With Faculty", base.filter((t) => t.facultyAssigned && t.status !== "Closed").length, "Expert explanation pending", ""],
-      ["Resolved Today", closed.length, "Closed or auto-closed", "green"],
-      ["Escalated", escalated.length, "Student not satisfied", escalated.length ? "red" : ""],
+      ["Closed Today", closedToday.length, "Tickets closed today", "green"],
+      ["Overall Closed", closed.length, "All closed content tickets", "green"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
     ],
     manager: [
       ["Open", open.length, "Across content, support, faculty", ""],
       ["SLA Hit Rate", "78%", "Rolling team performance", "green"],
-      ["Breaching Soon", breaching.length, "Within two hours", breaching.length ? "red" : "green"],
-      ["Resolved Today", closed.length, "Team closure count", "green"],
-      ["Avg Sat.", avgScore, "This week", Number(avgScore) >= 4 ? "green" : "amber"],
-      ["Escalated Open", escalated.length, "Needs outreach", escalated.length ? "red" : ""],
+      ["SLA Risk", breaching.length, "Within two hours", breaching.length ? "red" : "green"],
+      ["Closed Today", closedToday.length, "Team closures today", "green"],
+      ["Overall Closed", closed.length, "All closed tickets", "green"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
     ],
   };
   el.statsRow.innerHTML = statSets[state.role].map(([label, value, help, tone]) => `<article class="stat-card ${tone}"><span class="label">${label}</span><strong>${value}</strong><span>${help}</span></article>`).join("");
@@ -700,20 +675,63 @@ function renderFilters() {
   const statuses = ["all", ...new Set(scoped.map((ticket) => ticket.status))];
   el.statusFilter.innerHTML = statuses.map((status) => `<option value="${status}">${status === "all" ? "All statuses" : status}</option>`).join("");
   el.statusFilter.value = statuses.includes(state.status) ? state.status : "all";
-  const subjectSource = state.role === "faculty" ? people.faculty.find((person) => person.name === current.faculty).subjects : [...new Set(scoped.map((ticket) => ticket.subject))];
-  const subjects = ["all", ...subjectSource];
-  el.subjectFilter.innerHTML = subjects.map((subject) => `<option value="${subject}">${subject === "all" ? "All subjects" : subject}</option>`).join("");
-  el.subjectFilter.value = subjects.includes(state.subject) ? state.subject : "all";
-  renderSelectFilter(el.categoryFilter, ["all", ...new Set(scoped.map((ticket) => ticket.category))], state.category, "All categories");
-  renderSelectFilter(el.subOptionFilter, ["all", ...new Set(scoped.map((ticket) => ticket.subOption))], state.subOption, "All subcategories");
   renderSelectFilter(el.assigneeFilter, ["all", ...new Set(scoped.map((ticket) => owner(ticket)))], state.assignee, "All assignees");
-  renderSelectFilter(el.priorityFilter, ["all", "none", "Highest", "High", "Medium", "Low"], state.priority, "All priorities", { none: "No priority" });
-  el.scoreFilter.value = ["all", "none", "good", "ok", "bad"].includes(state.score) ? state.score : "all";
 }
 
 function renderSelectFilter(select, options, selected, allLabel, labels = {}) {
   select.innerHTML = options.map((option) => `<option value="${option}">${option === "all" ? allLabel : labels[option] || option}</option>`).join("");
   select.value = options.includes(selected) ? selected : "all";
+}
+
+function sortTickets(rows) {
+  const direction = state.sortDir === "desc" ? -1 : 1;
+  return rows.sort((a, b) => {
+    const primary = compareValues(sortValue(a, state.sortKey), sortValue(b, state.sortKey));
+    if (primary !== 0) return primary * direction;
+    return compareValues(sortValue(a, "id"), sortValue(b, "id"));
+  });
+}
+
+function sortValue(ticket, key) {
+  const priorityRank = { Highest: 1, High: 2, Medium: 3, Low: 4 };
+  const statusRank = {
+    Raised: 1,
+    "In Review": 2,
+    "Being Worked On": 3,
+    "With Faculty": 4,
+    "Faculty Resolved": 5,
+    Escalated: 6,
+    "Escalation Resolved": 7,
+    Closed: 8,
+  };
+  const values = {
+    id: Number(ticket.id.replace(/\D/g, "")),
+    status: statusRank[ticket.status] || 99,
+    category: ticket.category,
+    subOption: ticket.subOption,
+    subject: ticket.subject,
+    owner: owner(ticket),
+    sla: ticket.status === "Closed" ? Number.POSITIVE_INFINITY : hoursLeft(ticket),
+    priority: owner(ticket) === "Unclaimed" || !ticket.priority ? 99 : priorityRank[ticket.priority] || 99,
+    score: ticket.satisfactionScore == null ? -1 : ticket.satisfactionScore,
+  };
+  return values[key] ?? "";
+}
+
+function compareValues(a, b) {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+}
+
+function toggleSort(key) {
+  if (!sortableColumns.has(key)) return;
+  if (state.sortKey === key) {
+    state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+  } else {
+    state.sortKey = key;
+    state.sortDir = "asc";
+  }
+  renderTable();
 }
 
 function renderTabs() {
@@ -727,8 +745,16 @@ function renderTable() {
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
   el.tableTitle.textContent = state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
-  el.tableHead.innerHTML = visible.map(([, label]) => `<th>${label}</th>`).join("");
+  el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map((ticket) => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
+}
+
+function headerCell(key, label) {
+  if (!sortableColumns.has(key)) return `<th>${label}</th>`;
+  const active = state.sortKey === key;
+  const direction = active ? state.sortDir : "none";
+  const marker = active ? state.sortDir.toUpperCase() : "";
+  return `<th aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><button class="sort-header ${active ? "active" : ""}" data-sort="${key}" title="Sort ${label}">${label}<span>${marker}</span></button></th>`;
 }
 
 function cell(ticket, key) {
@@ -765,8 +791,7 @@ function renderSidePanel() {
   if (state.role === "content") {
     const unclaimed = roleTickets().filter((ticket) => owner(ticket) === "Unclaimed");
     el.insightPanel.innerHTML = `<span class="label">Resolver Focus</span>
-      <div class="insight-card"><span class="label">Teams Channel</span><strong>Content Queries</strong><p>New query, faculty resolution, returned-by-faculty, and escalation pings land here.</p></div>
-      <button class="primary" data-open-notifications>View Teams Notifications</button>
+      <div class="insight-card"><span class="label">Content Queue</span><strong>${unclaimed.length} unclaimed</strong><p>Claim eligible content-routed issues or send expert cases to faculty.</p></div>
       <div class="mini-list">${unclaimed.slice(0, 5).map((ticket) => `<div class="mini-row"><div><strong>#${ticket.id}</strong><p class="muted">${ticket.category}</p></div><button class="ghost" data-claim="${ticket.id}">Claim</button></div>`).join("")}</div>`;
     return;
   }
@@ -912,13 +937,6 @@ function profileTicketsFor(person) {
     return db.tickets.filter((ticket) => ticket.routedTo === "faculty" && (ticket.facultyAssigned === person.name || (owner(ticket) === "Unclaimed" && person.subjects.includes(ticket.subject))));
   }
   return db.tickets.filter((ticket) => ticket.claimedBy === person.name || (owner(ticket) === "Unclaimed" && (ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation Resolved")));
-}
-
-function openNotifications() {
-  el.modalScrim.hidden = false;
-  el.configModal.setAttribute("open", "");
-  el.configModal.innerHTML = `<div class="modal-head"><strong>Teams Notifications</strong><button data-close-modal>x</button></div>
-    <div class="modal-body"><div class="mini-list">${db.notifications.map((n) => `<div class="mini-row"><div><strong>${n.channel}</strong><p class="muted">${n.message}</p></div><button class="ghost" data-open="${n.ticketId}">Open</button></div>`).join("")}</div><button class="primary" data-mark-notifications-read>Mark All Read</button></div>`;
 }
 
 function openColumnModal() {
@@ -1267,6 +1285,13 @@ function relativeTime(date) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+function isToday(date) {
+  if (!date) return false;
+  const target = new Date(date);
+  const now = new Date();
+  return target.getFullYear() === now.getFullYear() && target.getMonth() === now.getMonth() && target.getDate() === now.getDate();
+}
+
 function absoluteDate(date) {
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
@@ -1295,12 +1320,7 @@ el.roleToggle.addEventListener("click", (event) => {
   state.role = button.dataset.role;
   state.tab = "all";
   state.status = "all";
-  state.subject = "all";
-  state.category = "all";
-  state.subOption = "all";
   state.assignee = "all";
-  state.priority = "all";
-  state.score = "all";
   closeDrawer();
   render();
 });
@@ -1310,12 +1330,7 @@ el.profileSelect.addEventListener("change", (event) => {
   if (state.role === "content") current.resolver = event.target.value;
   state.tab = "all";
   state.status = "all";
-  state.subject = "all";
-  state.category = "all";
-  state.subOption = "all";
   state.assignee = "all";
-  state.priority = "all";
-  state.score = "all";
   closeDrawer();
   render();
 });
@@ -1343,38 +1358,8 @@ el.statusFilter.addEventListener("change", (event) => {
   renderTable();
 });
 
-el.categoryFilter.addEventListener("change", (event) => {
-  state.category = event.target.value;
-  renderTable();
-});
-
-el.subOptionFilter.addEventListener("change", (event) => {
-  state.subOption = event.target.value;
-  renderTable();
-});
-
-el.slaFilter.addEventListener("change", (event) => {
-  state.sla = event.target.value;
-  renderTable();
-});
-
-el.subjectFilter.addEventListener("change", (event) => {
-  state.subject = event.target.value;
-  renderTable();
-});
-
 el.assigneeFilter.addEventListener("change", (event) => {
   state.assignee = event.target.value;
-  renderTable();
-});
-
-el.priorityFilter.addEventListener("change", (event) => {
-  state.priority = event.target.value;
-  renderTable();
-});
-
-el.scoreFilter.addEventListener("change", (event) => {
-  state.score = event.target.value;
   renderTable();
 });
 
@@ -1389,6 +1374,11 @@ document.addEventListener("click", (event) => {
   const close = target.closest("[data-close-drawer]");
   const profile = target.closest("[data-profile]");
   const showPanel = target.closest("[data-show-panel]");
+  const sortButton = target.closest("[data-sort]");
+  if (sortButton) {
+    toggleSort(sortButton.dataset.sort);
+    return;
+  }
   if (open) openTicket(open.dataset.open);
   if (rowOpen && !target.closest("button, input, select, textarea, a, label")) openTicket(rowOpen.dataset.rowOpen);
   if (close) closeDrawer();
@@ -1443,7 +1433,6 @@ document.addEventListener("click", (event) => {
     if (ticketId) managerAssign(ticketId, assignee);
     openProfile(assignee);
   }
-  if (target.closest("[data-open-notifications]")) openNotifications();
   if (target.closest("[data-period]")) {
     state.period = target.closest("[data-period]").dataset.period;
     renderSidePanel();
@@ -1466,12 +1455,6 @@ el.modalScrim.addEventListener("click", (event) => {
     state.visibleColumns = [...el.configModal.querySelectorAll("input:checked")].map((input) => input.value);
     closeModal();
     renderTable();
-  }
-  if (event.target.closest("[data-mark-notifications-read]")) {
-    db.notifications.forEach((item) => (item.read = true));
-    saveDb();
-    closeModal();
-    render();
   }
 });
 
