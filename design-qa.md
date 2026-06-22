@@ -35,6 +35,7 @@ final result: passed
 - Sixteenth workflow pass: removed Team as a visible queue column/segment after merging Faculty and Content into one department, and clarified the Engineering escalation timeline entry after a claimed ticket is escalated.
 - Seventeenth workflow pass: applied the faculty-style claim and resolution flow to Team Queue so every claimed team ticket opens the explanation/reference/voice-note resolution path, with Engineering escalation still locked until after ownership.
 - Eighteenth workflow pass: normalized the mock people database into a single resolver pool, removing separate faculty/resolver collections while preserving subject expertise for routing and assignment.
+- Nineteenth workflow pass: added View Attachment for student screenshots/references and image upload with preview/clear/save behavior inside the resolver resolution reference area.
 
 ## Notes
 

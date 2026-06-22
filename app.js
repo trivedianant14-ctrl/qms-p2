@@ -244,6 +244,8 @@ function createTicket(input) {
     resolutionText: input.resolutionText || "",
     finalResolutionText: input.finalResolutionText || "",
     resolutionReference: input.resolutionReference || "",
+    resolutionImageName: input.resolutionImageName || "",
+    resolutionImageData: input.resolutionImageData || "",
     facultyVoiceNote: input.facultyVoiceNote || "",
     studentVoiceNote: input.studentVoiceNote || "",
     studentReference: input.studentReference || "",
@@ -1605,7 +1607,7 @@ function drawerHtml(ticket) {
         ["Age", relativeTime(ticket.raisedAt)],
         ["Doubt", ticket.studentDoubt],
         ["Voice Note", ticket.studentVoiceNote || "None"],
-        ["Reference", ticket.studentReference || "None"],
+        ["Reference", studentReferenceCell(ticket)],
         ["Owner", owner(ticket)],
       ])}</section>
       ${state.role === "team" || state.role === "faculty" ? facultyPanel(ticket) : ""}
@@ -1667,7 +1669,35 @@ function facultyPanel(ticket) {
     ? activeOwnsTicket(ticket) && ticket.status !== "Closed" && ticket.status !== "Faculty resolved"
     : ticket.facultyAssigned === facultyActorName() && ticket.status === "Faculty";
   if (!canUseFacultyFlow) return "";
-  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
+  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">Minimum 30 characters</span></div></div></section>`;
+}
+
+function studentReferenceCell(ticket) {
+  if (!ticket.studentReference) return "None";
+  const button = hasStudentAttachment(ticket) ? ` <button type="button" class="soft-button tiny" data-view-student-attachment="${ticket.id}">View Attachment</button>` : "";
+  return `<span class="attachment-inline">${escapeHtml(ticket.studentReference)}${button}</span>`;
+}
+
+function hasStudentAttachment(ticket) {
+  return /attached|screenshot|photo|image|diagram/i.test(ticket.studentReference || "");
+}
+
+function resolutionImageMarkup(ticket) {
+  const name = ticket.resolutionImageName || "";
+  const data = ticket.resolutionImageData || "";
+  return `<div class="image-attach" data-resolution-image>
+    <input id="resolutionImageFile" type="file" accept="image/*" hidden>
+    <input id="resolutionImageName" type="hidden" value="${escapeAttr(name)}">
+    <input id="resolutionImageData" type="hidden" value="${escapeAttr(data)}">
+    <div class="image-attach-head">
+      <div><strong>Attach image</strong><p data-resolution-image-status>${name ? escapeHtml(name) : "Optional diagram, screenshot, or textbook page"}</p></div>
+      <div class="image-attach-actions">
+        <button type="button" class="ghost" data-trigger-resolution-image>${name ? "Replace Image" : "Attach Image"}</button>
+        <button type="button" class="soft-button" data-clear-resolution-image ${name ? "" : "disabled"}>Clear</button>
+      </div>
+    </div>
+    <div class="image-preview ${data ? "has-image" : ""}" data-resolution-image-preview>${data ? `<img src="${escapeAttr(data)}" alt="${escapeAttr(name)}">` : `<span>No image attached</span>`}</div>
+  </div>`;
 }
 
 function voiceRecorderMarkup(ticket) {
@@ -1756,6 +1786,51 @@ function playVoiceNote() {
   }, 1800);
 }
 
+function triggerResolutionImagePicker() {
+  document.querySelector("#resolutionImageFile")?.click();
+}
+
+function handleResolutionImageChange(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    toast("Attach an image file only.");
+    input.value = "";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => setResolutionImage(file.name, String(reader.result || ""));
+  reader.readAsDataURL(file);
+}
+
+function setResolutionImage(name, data) {
+  const root = document.querySelector("[data-resolution-image]");
+  if (!root) return;
+  root.querySelector("#resolutionImageName").value = name;
+  root.querySelector("#resolutionImageData").value = data;
+  root.querySelector("[data-resolution-image-status]").textContent = name;
+  root.querySelector("[data-clear-resolution-image]").disabled = false;
+  root.querySelector("[data-trigger-resolution-image]").textContent = "Replace Image";
+  const preview = root.querySelector("[data-resolution-image-preview]");
+  preview.classList.add("has-image");
+  preview.innerHTML = `<img src="${escapeAttr(data)}" alt="${escapeAttr(name)}">`;
+  toast(`Attached image: ${name}`);
+}
+
+function clearResolutionImage() {
+  const root = document.querySelector("[data-resolution-image]");
+  if (!root) return;
+  root.querySelector("#resolutionImageFile").value = "";
+  root.querySelector("#resolutionImageName").value = "";
+  root.querySelector("#resolutionImageData").value = "";
+  root.querySelector("[data-resolution-image-status]").textContent = "Optional diagram, screenshot, or textbook page";
+  root.querySelector("[data-clear-resolution-image]").disabled = true;
+  root.querySelector("[data-trigger-resolution-image]").textContent = "Attach Image";
+  const preview = root.querySelector("[data-resolution-image-preview]");
+  preview.classList.remove("has-image");
+  preview.innerHTML = "<span>No image attached</span>";
+}
+
 function stopVoiceTimer() {
   if (voiceRecorderTimer) {
     window.clearInterval(voiceRecorderTimer);
@@ -1781,7 +1856,8 @@ function managerPanel(ticket) {
 
 function resolutionPanel(ticket) {
   if (!ticket.resolutionText && !ticket.finalResolutionText) return "";
-  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Faculty Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p><p class="muted">${ticket.resolutionReference || "No reference attached"}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}</p>${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
+  const image = ticket.resolutionImageName ? ` <button type="button" class="soft-button tiny" data-view-resolution-image="${ticket.id}">View Image</button>` : "";
+  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Faculty Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p><p class="muted">${ticket.resolutionReference || "No reference attached"}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
 }
 
 function escalationPanel(ticket) {
@@ -1907,6 +1983,32 @@ function detailGrid(rows) {
   return `<dl class="detail-grid">${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join("")}</dl>`;
 }
 
+function openAttachmentPreview(id, kind) {
+  const ticket = ticketById(id);
+  if (!ticket) return;
+  const isResolution = kind === "resolution";
+  const title = isResolution ? "Resolution Image" : "Student Attachment";
+  const label = isResolution ? ticket.resolutionImageName || "Attached resolution image" : ticket.studentReference || "Student attachment";
+  const body = isResolution && ticket.resolutionImageData
+    ? `<div class="attachment-preview-frame"><img src="${escapeAttr(ticket.resolutionImageData)}" alt="${escapeAttr(label)}"></div>`
+    : mockStudentAttachment(ticket);
+  el.modalScrim.hidden = false;
+  el.configModal.setAttribute("open", "");
+  el.configModal.innerHTML = `<div class="modal-head"><strong>${title}</strong><button data-close-modal>x</button></div>
+    <div class="modal-body">
+      <div class="attachment-modal-meta"><span class="badge review">#${ticket.id}</span><strong>${escapeHtml(label)}</strong><p>${escapeHtml(ticket.category)} - ${escapeHtml(ticket.subOption)}</p></div>
+      ${body}
+    </div>`;
+}
+
+function mockStudentAttachment(ticket) {
+  return `<div class="mock-attachment">
+    <div class="mock-phone-bar"><span></span><strong>NPrep Question</strong><em>${escapeHtml(ticket.subject)}</em></div>
+    <div class="mock-question-card"><p>${escapeHtml(ticket.studentDoubt)}</p><div class="mock-render-error">${ticket.technicalEscalation ? "Renderer issue visible in student screenshot" : "Student marked this area in screenshot"}</div></div>
+    <div class="mock-caption">Mock preview for ${escapeHtml(ticket.studentReference || "student attachment")}</div>
+  </div>`;
+}
+
 function openProfile(name) {
   const allPeople = allOperators();
   const person = allPeople.find((item) => item.name === name);
@@ -2018,6 +2120,8 @@ function submitFacultyResolution(id) {
   }
   ticket.resolutionText = text;
   ticket.resolutionReference = document.querySelector("#resolutionRef")?.value.trim() || "";
+  ticket.resolutionImageName = document.querySelector("#resolutionImageName")?.value.trim() || "";
+  ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.status = "Faculty resolved";
   ticket.timelineStatus = "faculty_resolved";
@@ -2463,6 +2567,10 @@ el.dateToFilter.addEventListener("change", (event) => {
 el.exportCsvButton.addEventListener("click", exportCsv);
 
 document.addEventListener("change", (event) => {
+  if (event.target?.id === "resolutionImageFile") {
+    handleResolutionImageChange(event.target);
+    return;
+  }
   const reportDate = event.target.closest?.("[data-report-date]");
   if (reportDate) {
     if (reportDate.dataset.reportDate === "from") state.dateFrom = reportDate.value;
@@ -2482,6 +2590,16 @@ document.addEventListener("click", (event) => {
   const showPanel = target.closest("[data-show-panel]");
   const sortButton = target.closest("[data-sort]");
   const reportButton = target.closest("[data-download-report]");
+  const studentAttachment = target.closest("[data-view-student-attachment]");
+  const resolutionAttachment = target.closest("[data-view-resolution-image]");
+  if (studentAttachment) {
+    openAttachmentPreview(studentAttachment.dataset.viewStudentAttachment, "student");
+    return;
+  }
+  if (resolutionAttachment) {
+    openAttachmentPreview(resolutionAttachment.dataset.viewResolutionImage, "resolution");
+    return;
+  }
   if (reportButton) {
     downloadReport(reportButton.dataset.downloadReport);
     return;
@@ -2500,6 +2618,8 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-save-workflow]")) saveWorkflow(target.closest("[data-save-workflow]").dataset.saveWorkflow);
   if (target.closest("[data-faculty-claim]")) facultyClaim(target.closest("[data-faculty-claim]").dataset.facultyClaim);
   if (target.closest("[data-assign-faculty]")) assignToFaculty(target.closest("[data-assign-faculty]").dataset.assignFaculty);
+  if (target.closest("[data-trigger-resolution-image]")) triggerResolutionImagePicker();
+  if (target.closest("[data-clear-resolution-image]")) clearResolutionImage();
   if (target.closest("[data-toggle-voice-recording]")) toggleVoiceRecording();
   if (target.closest("[data-play-voice-note]")) playVoiceNote();
   if (target.closest("[data-clear-voice-note]")) clearVoiceNote();
