@@ -1702,11 +1702,11 @@ function facultyPanel(ticket) {
     ? activeOwnsTicket(ticket) && ticket.status !== "Closed"
     : ticket.facultyAssigned === facultyActorName() && ticket.status === "Faculty";
   if (!canUseFacultyFlow) return "";
-  const submitted = Boolean(ticket.resolutionText);
-  const title = state.role === "team" && submitted ? "Edit Resolution" : "Submit Resolution";
-  const button = state.role === "team" && submitted ? "Update Resolution" : "Submit Resolution";
-  const helper = state.role === "team" && submitted ? "Updates the student-facing answer" : "Minimum 30 characters";
-  return `<section class="drawer-card" id="facultyResolution"><h3>${title}</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here...">${ticket.resolutionText || ""}</textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="${escapeAttr(ticket.resolutionReference || "")}">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">${button}</button><span class="muted">${helper}</span></div></div></section>`;
+  const submitted = Boolean(ticket.resolutionText || ticket.finalResolutionText);
+  if (submitted) {
+    return `<section class="drawer-card"><h3>Resolution Locked</h3><div class="next-step"><span class="label">Submitted once</span><p>This resolution has already been submitted and cannot be edited or submitted again.</p></div></section>`;
+  }
+  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">One-time submission. Minimum 30 characters.</span></div></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -1887,8 +1887,13 @@ function contentPanel(ticket) {
 }
 
 function managerPanel(ticket) {
+  const resolutionLocked = ticket.status === "Closed" || Boolean(ticket.finalResolutionText || ticket.resolutionText);
+  const lockedResolution = ticket.finalResolutionText || ticket.resolutionText || "This ticket is already closed. No editable resolution is available.";
+  const resolutionControls = resolutionLocked
+    ? `<section class="drawer-card"><h3>Manager Resolution</h3><div class="next-step"><span class="label">Resolution locked</span><p>A submitted or closed resolution cannot be edited, replaced, or submitted again.</p></div><p>${escapeHtml(lockedResolution)}</p></section>`
+    : `<section class="drawer-card"><h3>Manager Resolution</h3><p class="muted">If nobody claims the ticket, the manager can take ownership and close it with a student-facing resolution.</p><div class="resolution-form"><textarea id="managerResolutionText" placeholder="Write the resolution the learner will see..."></textarea><select id="managerResolutionCode"><option>Manager resolved</option><option>Content corrected</option><option>Explanation clarified</option><option>Technical issue fixed</option></select><button class="primary" data-manager-resolve="${ticket.id}">Claim and Resolve</button></div></section>`;
   return `<section class="drawer-card"><h3>Manager Controls</h3><p class="muted">Use this to reassign unclaimed or stalled work. The selected person becomes the ticket owner immediately and the change is written to the timeline.</p>${assignmentSelect(ticket.id, "managerAssignee")}</section>
-    <section class="drawer-card"><h3>Manager Resolution</h3><p class="muted">If nobody claims the ticket, the manager can take ownership and close it with a student-facing resolution.</p><div class="resolution-form"><textarea id="managerResolutionText" placeholder="Write the resolution the learner will see...">${ticket.finalResolutionText || ticket.resolutionText || ""}</textarea><select id="managerResolutionCode"><option>Manager resolved</option><option>Content corrected</option><option>Explanation clarified</option><option>Technical issue fixed</option></select><button class="primary" data-manager-resolve="${ticket.id}">Claim and Resolve</button></div></section>`;
+    ${resolutionControls}`;
 }
 
 function resolutionPanel(ticket) {
@@ -2150,7 +2155,10 @@ function facultyClaim(id) {
 
 function submitFacultyResolution(id) {
   const ticket = ticketById(id);
-  const alreadySubmitted = Boolean(ticket.resolutionText);
+  if (ticket.resolutionText || ticket.finalResolutionText) {
+    toast("Resolution has already been submitted and is locked.");
+    return;
+  }
   const text = document.querySelector("#resolutionText")?.value.trim() || "";
   if (text.length < 30) {
     toast("Resolution needs at least 30 characters.");
@@ -2166,10 +2174,10 @@ function submitFacultyResolution(id) {
   if (state.role === "team") {
     ticket.finalResolutionText = text;
     ticket.resolutionCode = ticket.resolutionCode || "Student doubt resolved";
-    addHistory(ticket, facultyActorName(), alreadySubmitted ? "Updated student-facing resolution" : "Submitted student-facing resolution");
+    addHistory(ticket, facultyActorName(), "Submitted student-facing resolution; resolution is now locked");
     pushNotification("Content Queries", `Resolution ready for student: #${ticket.id} - ${facultyActorName()}`, ticket.id);
   } else {
-    addHistory(ticket, facultyActorName(), "Submitted faculty resolution for content review");
+    addHistory(ticket, facultyActorName(), "Submitted faculty resolution for content review; resolution is now locked");
     pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${facultyActorName()}`, ticket.id);
   }
   persistAndRender(id);
@@ -2195,6 +2203,10 @@ function sendRevision(id) {
 
 function closeTicket(id) {
   const ticket = ticketById(id);
+  if (ticket.status === "Closed") {
+    toast("Ticket is already closed and locked.");
+    return;
+  }
   const finalText = document.querySelector("#finalText")?.value.trim() || ticket.resolutionText;
   if (!finalText || finalText.length < 20) {
     toast("Add a student-facing resolution before closing.");
@@ -2294,6 +2306,10 @@ function managerClaim(id) {
 
 function managerResolve(id) {
   const ticket = ticketById(id);
+  if (ticket.status === "Closed" || ticket.finalResolutionText || ticket.resolutionText) {
+    toast("Resolution has already been submitted and is locked.");
+    return;
+  }
   const text = document.querySelector("#managerResolutionText")?.value.trim() || "";
   if (text.length < 20) {
     toast("Add a resolution of at least 20 characters.");
@@ -2382,7 +2398,7 @@ function nextStepText(ticket) {
     if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
     if (!ticket.resolutionText) return "Write an explanation, attach a reference or voice note if useful, then submit the resolution.";
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
-    return "Resolution is now the student-facing answer. You can edit it from the resolution form below until the ticket is closed.";
+    return "Resolution is submitted and locked. Wait for student confirmation or close after the allowed window.";
   }
   const ownedByAnotherFaculty = state.role === "faculty" && ticket.facultyAssigned && ticket.facultyAssigned !== current.faculty;
   const ownedByAnotherResolver = state.role === "content" && ticket.claimedBy && ticket.claimedBy !== current.resolver;

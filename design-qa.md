@@ -38,6 +38,7 @@ final result: passed
 - Nineteenth workflow pass: added View Attachment for student screenshots/references and image upload with preview/clear/save behavior inside the resolver resolution reference area.
 - Twentieth workflow pass: removed the extra Team Queue finalize step after resolution submission; submitted team resolutions now become the student-facing answer immediately and remain editable from the same resolution form until closure.
 - Twenty-first workflow pass: added resolved date/time and total resolution time to Student's Query, plus escalation raised/resolved timestamps and escalation resolution time when a ticket has escalation history.
+- Twenty-second workflow pass: locked resolver and manager resolution submission as one-time actions; submitted or closed tickets now show read-only resolution states and reject repeat submissions.
 
 ## Notes
 
