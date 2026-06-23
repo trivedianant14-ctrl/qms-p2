@@ -1655,11 +1655,16 @@ function studentQueryRows(ticket) {
   }
   rows.push(
     ["Doubt", ticket.studentDoubt],
-    ["Voice Note", ticket.studentVoiceNote || "None"],
+    ["Voice Note", studentVoiceNoteCell(ticket)],
     ["Reference", studentReferenceCell(ticket)],
     ["Owner", owner(ticket)],
   );
   return rows;
+}
+
+function studentVoiceNoteCell(ticket) {
+  if (!ticket.studentVoiceNote) return "None";
+  return `<span class="attachment-inline"><span>${escapeHtml(ticket.studentVoiceNote)}</span><button type="button" class="soft-button tiny" data-play-student-voice="${ticket.id}">Play Voice Note</button></span>`;
 }
 
 function hasEscalation(ticket) {
@@ -1822,6 +1827,22 @@ function playVoiceNote() {
     if (!document.body.contains(recorder)) return;
     recorder.classList.remove("playing");
     recorder.querySelector("[data-voice-status]").textContent = recorder.querySelector("#resolutionVoice").value;
+  }, 1800);
+}
+
+function playStudentVoiceNote(id, button) {
+  const ticket = ticketById(id);
+  if (!ticket?.studentVoiceNote) return;
+  const originalLabel = button?.textContent || "Play Voice Note";
+  if (button) {
+    button.textContent = "Playing...";
+    button.disabled = true;
+  }
+  toast(`Playing student voice note (${ticket.studentVoiceNote}).`, "success");
+  window.setTimeout(() => {
+    if (!button || !document.body.contains(button)) return;
+    button.textContent = originalLabel;
+    button.disabled = false;
   }, 1800);
 }
 
@@ -2744,6 +2765,7 @@ document.addEventListener("click", (event) => {
   const resolutionAttachment = target.closest("[data-view-resolution-image]");
   const studentAttachmentDownload = target.closest("[data-download-student-attachment]");
   const resolutionAttachmentDownload = target.closest("[data-download-resolution-image]");
+  const studentVoice = target.closest("[data-play-student-voice]");
   if (studentAttachment) {
     openAttachmentPreview(studentAttachment.dataset.viewStudentAttachment, "student");
     return;
@@ -2758,6 +2780,10 @@ document.addEventListener("click", (event) => {
   }
   if (resolutionAttachmentDownload) {
     downloadAttachment(resolutionAttachmentDownload.dataset.downloadResolutionImage, "resolution");
+    return;
+  }
+  if (studentVoice) {
+    playStudentVoiceNote(studentVoice.dataset.playStudentVoice, studentVoice);
     return;
   }
   if (reportButton) {
