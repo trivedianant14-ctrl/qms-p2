@@ -46,6 +46,7 @@ final result: passed
 - Twenty-seventh workflow pass: made Student Device Detail an always-open fixed-position card directly below Student's Query, while keeping only the JSON payload rows collapsible.
 - Twenty-eighth workflow pass: backfilled closed-ticket timelines with resolution submission, finalization, feedback/auto-close, and closure events, and normalized created/routed timestamps.
 - Twenty-ninth workflow pass: reduced duplicate Engineering Escalation labels in ticket details to one drawer-level escalation notice while preserving table current-status visibility.
+- Thirtieth workflow pass: expanded the seed dataset with 24 additional unclaimed team tickets across faculty-style subject doubts and content/technical triage, and bumped local storage so the refreshed queue loads by default.
 
 ## Notes
 

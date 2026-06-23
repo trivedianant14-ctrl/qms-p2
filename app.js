@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v13";
+const STORE_KEY = "nprep-qms-phase2-prototype-v14";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -501,6 +501,61 @@ function seedDb() {
       feedbackType: isClosed ? "thumbs_up" : null,
       satisfactionScore: isClosed ? 4.5 : null,
       technicalEscalation: index % 8 === 0,
+    }));
+  }
+
+  const unclaimedFacultySubjects = [
+    "Anatomy",
+    "Medical Surgical Nursing",
+    "Pharmacology",
+    "Community Health Nursing",
+    "Anatomy",
+    "Medical Surgical Nursing",
+    "Pharmacology",
+    "Community Health Nursing",
+    "Anatomy",
+    "Medical Surgical Nursing",
+    "Pharmacology",
+    "Community Health Nursing",
+  ];
+  for (let index = 0; index < unclaimedFacultySubjects.length; index += 1) {
+    const subject = unclaimedFacultySubjects[index];
+    const [category, subOption] = facultySubOptions[(index + 1) % facultySubOptions.length];
+    tickets.push(createTicket({
+      id: `NUF-${String(index + 1).padStart(4, "0")}`,
+      questionId: 87001 + index,
+      student: studentNames[(index + 3) % studentNames.length],
+      category,
+      subOption,
+      subject,
+      routedTo: "faculty",
+      status: "Unclaimed",
+      timelineStatus: "raised",
+      ageHours: 0.75 + index * 1.65,
+      queryText: `Unclaimed faculty-routed doubt ${index + 1}: ${subOption}.`,
+      studentDoubt: `Please review this ${subject} doubt. I need a clear expert explanation before moving ahead.`,
+      studentVoiceNote: index % 5 === 0 ? "0:21 voice note" : "",
+      studentReference: index % 4 === 0 ? "Screenshot attached" : "",
+    }));
+  }
+
+  for (let index = 0; index < 12; index += 1) {
+    const [category, subOption] = contentCategories[(index + 2) % contentCategories.length];
+    tickets.push(createTicket({
+      id: `NUC-${String(index + 1).padStart(4, "0")}`,
+      questionId: 88001 + index,
+      student: studentNames[(index + 5) % studentNames.length],
+      category,
+      subOption,
+      subject: facultySubjects[(index + 2) % facultySubjects.length],
+      routedTo: "content",
+      status: "Unclaimed",
+      timelineStatus: "raised",
+      ageHours: 1.1 + index * 1.5,
+      queryText: `Unclaimed content-routed issue ${index + 1}: ${subOption}.`,
+      studentDoubt: `The student reported: ${subOption}. Please triage and resolve from the team queue.`,
+      studentReference: index % 3 === 0 ? "Screenshot attached" : "",
+      technicalEscalation: category === "Can't See Something" && index % 2 === 0,
     }));
   }
 
