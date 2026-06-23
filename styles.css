@@ -445,7 +445,8 @@ textarea {
 }
 
 .table-wrap {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   max-height: calc(100vh - 305px);
   min-height: 390px;
   scrollbar-gutter: stable both-edges;
@@ -476,7 +477,8 @@ textarea {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1520px;
+  min-width: 100%;
+  table-layout: fixed;
 }
 
 th,
@@ -486,6 +488,10 @@ td {
   text-align: left;
   font-size: 13px;
   vertical-align: middle;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 th {
@@ -497,12 +503,32 @@ th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.table-header-cell {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding-right: 12px;
+}
+
+.header-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sort-header {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  min-width: 0;
+  max-width: 100%;
   border: 0;
   background: transparent;
   color: inherit;
@@ -513,7 +539,8 @@ th {
   letter-spacing: 0;
 }
 
-.sort-header span {
+.sort-marker {
+  flex: 0 0 auto;
   min-width: 14px;
   color: var(--soft);
   font-size: 12px;
@@ -524,8 +551,43 @@ th {
   color: var(--blue);
 }
 
-.sort-header.active span {
+.sort-header.active .sort-marker {
   color: var(--blue);
+}
+
+.column-resizer {
+  position: absolute;
+  display: block;
+  top: -10px;
+  right: -9px;
+  z-index: 3;
+  width: 16px;
+  height: calc(100% + 20px);
+  cursor: col-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.column-resizer::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 7px;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+th:hover .column-resizer::after,
+.column-resizer:hover::after,
+body.is-resizing-column .column-resizer::after {
+  background: var(--blue);
+}
+
+body.is-resizing-column {
+  cursor: col-resize;
+  user-select: none;
 }
 
 tbody tr {

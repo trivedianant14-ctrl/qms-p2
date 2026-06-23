@@ -47,6 +47,7 @@ final result: passed
 - Twenty-eighth workflow pass: backfilled closed-ticket timelines with resolution submission, finalization, feedback/auto-close, and closure events, and normalized created/routed timestamps.
 - Twenty-ninth workflow pass: reduced duplicate Engineering Escalation labels in ticket details to one drawer-level escalation notice while preserving table current-status visibility.
 - Thirtieth workflow pass: expanded the seed dataset with 24 additional unclaimed team tickets across faculty-style subject doubts and content/technical triage, and bumped local storage so the refreshed queue loads by default.
+- Thirty-first workflow pass: added Excel-like table column resizing with drag handles, double-click auto-fit, persisted column widths, and a horizontal scrollbar for wide queues.
 
 ## Notes
 

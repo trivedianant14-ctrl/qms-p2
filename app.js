@@ -1,4 +1,5 @@
 const STORE_KEY = "nprep-qms-phase2-prototype-v14";
+const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
   "Problem with the Answer": [
@@ -94,6 +95,21 @@ const columns = [
 ];
 
 const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score"]);
+const DEFAULT_COLUMN_WIDTHS = {
+  id: 122,
+  questionId: 118,
+  raisedAt: 190,
+  student: 150,
+  status: 190,
+  category: 220,
+  subOption: 300,
+  subject: 230,
+  topic: 220,
+  owner: 170,
+  sla: 120,
+  priority: 130,
+  score: 92,
+};
 
 const state = {
   section: "ticket",
@@ -111,10 +127,12 @@ const state = {
   sortKey: "raisedAt",
   sortDir: "desc",
   visibleColumns: columns.map(([key]) => key),
+  columnWidths: loadColumnWidths(),
 };
 
 let db = loadDb();
 let voiceRecorderTimer = null;
+let columnResize = null;
 
 const el = {
   activeUser: document.querySelector("#activeUser"),
@@ -136,6 +154,7 @@ const el = {
   mainGrid: document.querySelector(".main-grid"),
   tableTitle: document.querySelector("#tableTitle"),
   tableSubtitle: document.querySelector("#tableSubtitle"),
+  tableCols: document.querySelector("#tableCols"),
   tableHead: document.querySelector("#tableHead"),
   ticketTable: document.querySelector("#ticketTable"),
   insightPanel: document.querySelector("#insightPanel"),
@@ -1116,6 +1135,7 @@ function renderTabs() {
 function renderTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
+  applyTableColumnWidths(visible.map(([key]) => key));
   el.tableTitle.textContent = state.role === "team" ? "Team Queries Queue" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
@@ -1123,11 +1143,89 @@ function renderTable() {
 }
 
 function headerCell(key, label) {
-  if (!sortableColumns.has(key)) return `<th>${label}</th>`;
+  const width = columnWidth(key);
+  const resizer = `<span class="column-resizer" data-resize-column="${key}" title="Drag to resize. Double-click to auto-fit." aria-hidden="true"></span>`;
+  if (!sortableColumns.has(key)) return `<th data-column="${key}" style="width:${width}px"><div class="table-header-cell"><span class="header-text">${label}</span>${resizer}</div></th>`;
   const active = state.sortKey === key;
   const direction = active ? state.sortDir : "none";
   const markerEntity = active ? (state.sortDir === "asc" ? "&#8593;" : "&#8595;") : "&#8597;";
-  return `<th aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><button class="sort-header ${active ? "active" : ""}" data-sort="${key}" title="Sort ${label}">${label}<span>${markerEntity}</span></button></th>`;
+  return `<th data-column="${key}" style="width:${width}px" aria-sort="${direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none"}"><div class="table-header-cell"><button class="sort-header ${active ? "active" : ""}" data-sort="${key}" title="Sort ${label}"><span class="header-text">${label}</span><span class="sort-marker">${markerEntity}</span></button>${resizer}</div></th>`;
+}
+
+function loadColumnWidths() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLUMN_WIDTH_KEY) || "{}");
+    return { ...DEFAULT_COLUMN_WIDTHS, ...saved };
+  } catch {
+    return { ...DEFAULT_COLUMN_WIDTHS };
+  }
+}
+
+function columnWidth(key) {
+  return Math.max(82, Math.min(560, Number(state.columnWidths[key] || DEFAULT_COLUMN_WIDTHS[key] || 150)));
+}
+
+function visibleColumnKeys() {
+  return columns.filter(([key]) => state.visibleColumns.includes(key)).map(([key]) => key);
+}
+
+function applyTableColumnWidths(keys = visibleColumnKeys()) {
+  const widths = keys.map((key) => columnWidth(key));
+  const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+  el.tableCols.innerHTML = keys.map((key, index) => `<col data-column="${key}" style="width:${widths[index]}px">`).join("");
+  const table = el.ticketTable.closest("table");
+  table.style.width = `${totalWidth}px`;
+}
+
+function saveColumnWidths() {
+  localStorage.setItem(COLUMN_WIDTH_KEY, JSON.stringify(state.columnWidths));
+}
+
+function startColumnResize(event) {
+  const handle = event.target.closest("[data-resize-column]");
+  if (!handle) return;
+  event.preventDefault();
+  event.stopPropagation();
+  columnResize = {
+    key: handle.dataset.resizeColumn,
+    startX: event.clientX,
+    startWidth: columnWidth(handle.dataset.resizeColumn),
+  };
+  document.body.classList.add("is-resizing-column");
+  window.addEventListener("pointermove", resizeColumn);
+  window.addEventListener("pointerup", stopColumnResize, { once: true });
+}
+
+function resizeColumn(event) {
+  if (!columnResize) return;
+  const nextWidth = Math.max(82, Math.min(560, Math.round(columnResize.startWidth + event.clientX - columnResize.startX)));
+  state.columnWidths[columnResize.key] = nextWidth;
+  applyTableColumnWidths();
+  const header = el.tableHead.querySelector(`[data-column="${columnResize.key}"]`);
+  if (header) header.style.width = `${nextWidth}px`;
+}
+
+function stopColumnResize() {
+  if (!columnResize) return;
+  saveColumnWidths();
+  columnResize = null;
+  document.body.classList.remove("is-resizing-column");
+  window.removeEventListener("pointermove", resizeColumn);
+  renderTable();
+}
+
+function autoFitColumn(key) {
+  const keys = visibleColumnKeys();
+  const index = keys.indexOf(key);
+  if (index < 0) return;
+  const selectorIndex = index + 1;
+  const cells = [
+    ...document.querySelectorAll(`#tableHead th:nth-child(${selectorIndex}), #ticketTable tr td:nth-child(${selectorIndex})`),
+  ];
+  const measured = cells.reduce((max, cell) => Math.max(max, cell.scrollWidth + 34), DEFAULT_COLUMN_WIDTHS[key] || 150);
+  state.columnWidths[key] = Math.max(82, Math.min(560, Math.ceil(measured)));
+  saveColumnWidths();
+  renderTable();
 }
 
 function cell(ticket, key) {
@@ -2859,6 +2957,16 @@ el.statusFilter.addEventListener("change", (event) => {
 el.assigneeFilter.addEventListener("change", (event) => {
   state.assignee = event.target.value;
   renderTable();
+});
+
+el.tableHead.addEventListener("pointerdown", startColumnResize);
+
+el.tableHead.addEventListener("dblclick", (event) => {
+  const handle = event.target.closest("[data-resize-column]");
+  if (!handle) return;
+  event.preventDefault();
+  event.stopPropagation();
+  autoFitColumn(handle.dataset.resizeColumn);
 });
 
 el.dateFromFilter.addEventListener("change", (event) => {
