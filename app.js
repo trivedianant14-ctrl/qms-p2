@@ -1711,8 +1711,10 @@ function facultyPanel(ticket) {
 
 function studentReferenceCell(ticket) {
   if (!ticket.studentReference) return "None";
-  const button = hasStudentAttachment(ticket) ? ` <button type="button" class="soft-button tiny" data-view-student-attachment="${ticket.id}">View Attachment</button>` : "";
-  return `<span class="attachment-inline">${escapeHtml(ticket.studentReference)}${button}</span>`;
+  const actions = hasStudentAttachment(ticket)
+    ? ` <button type="button" class="soft-button tiny" data-view-student-attachment="${ticket.id}">View Attachment</button><button type="button" class="soft-button tiny" data-download-student-attachment="${ticket.id}">Download Attachment</button>`
+    : "";
+  return `<span class="attachment-inline">${escapeHtml(ticket.studentReference)}${actions}</span>`;
 }
 
 function hasStudentAttachment(ticket) {
@@ -1898,7 +1900,7 @@ function managerPanel(ticket) {
 
 function resolutionPanel(ticket) {
   if (!ticket.resolutionText && !ticket.finalResolutionText) return "";
-  const image = ticket.resolutionImageName ? ` <button type="button" class="soft-button tiny" data-view-resolution-image="${ticket.id}">View Image</button>` : "";
+  const image = ticket.resolutionImageName ? ` <button type="button" class="soft-button tiny" data-view-resolution-image="${ticket.id}">View Image</button><button type="button" class="soft-button tiny" data-download-resolution-image="${ticket.id}">Download Image</button>` : "";
   return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Faculty Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p><p class="muted">${ticket.resolutionReference || "No reference attached"}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
 }
 
@@ -2031,6 +2033,9 @@ function openAttachmentPreview(id, kind) {
   const isResolution = kind === "resolution";
   const title = isResolution ? "Resolution Image" : "Student Attachment";
   const label = isResolution ? ticket.resolutionImageName || "Attached resolution image" : ticket.studentReference || "Student attachment";
+  const downloadAction = isResolution
+    ? `<button type="button" class="primary tiny" data-download-resolution-image="${ticket.id}">Download Image</button>`
+    : `<button type="button" class="primary tiny" data-download-student-attachment="${ticket.id}">Download Attachment</button>`;
   const body = isResolution && ticket.resolutionImageData
     ? `<div class="attachment-preview-frame"><img src="${escapeAttr(ticket.resolutionImageData)}" alt="${escapeAttr(label)}"></div>`
     : mockStudentAttachment(ticket);
@@ -2040,6 +2045,7 @@ function openAttachmentPreview(id, kind) {
     <div class="modal-body">
       <div class="attachment-modal-meta"><span class="badge review">#${ticket.id}</span><strong>${escapeHtml(label)}</strong><p>${escapeHtml(ticket.category)} - ${escapeHtml(ticket.subOption)}</p></div>
       ${body}
+      <div class="form-actions">${downloadAction}</div>
     </div>`;
 }
 
@@ -2049,6 +2055,70 @@ function mockStudentAttachment(ticket) {
     <div class="mock-question-card"><p>${escapeHtml(ticket.studentDoubt)}</p><div class="mock-render-error">${ticket.technicalEscalation ? "Renderer issue visible in student screenshot" : "Student marked this area in screenshot"}</div></div>
     <div class="mock-caption">Mock preview for ${escapeHtml(ticket.studentReference || "student attachment")}</div>
   </div>`;
+}
+
+function downloadAttachment(id, kind) {
+  const ticket = ticketById(id);
+  if (!ticket) return;
+  if (kind === "resolution") {
+    if (!ticket.resolutionImageData) {
+      toast("No resolution image is available to download.");
+      return;
+    }
+    triggerDownload(ticket.resolutionImageName || `${ticket.id}-resolution-image.png`, ticket.resolutionImageData);
+    toast(`Downloaded ${ticket.resolutionImageName || "resolution image"}.`, "success");
+    return;
+  }
+  const fileName = `${ticket.id}-student-attachment.svg`;
+  const blob = new Blob([mockStudentAttachmentSvg(ticket)], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  triggerDownload(fileName, url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`Downloaded ${fileName}.`, "success");
+}
+
+function triggerDownload(fileName, href) {
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = safeFileName(fileName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function safeFileName(name) {
+  return String(name || "attachment").replace(/[\\/:*?"<>|]+/g, "-");
+}
+
+function mockStudentAttachmentSvg(ticket) {
+  const rows = [
+    ["Ticket", `#${ticket.id}`],
+    ["Question ID", `#${ticket.questionId}`],
+    ["Subject", ticket.subject],
+    ["Topic", ticket.topic],
+    ["Reference", ticket.studentReference || "Student attachment"],
+  ];
+  const rowSvg = rows.map(([label, value], index) => {
+    const y = 106 + index * 30;
+    return `<text x="42" y="${y}" class="label">${escapeXml(label)}</text><text x="178" y="${y}" class="value">${escapeXml(value)}</text>`;
+  }).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">
+  <style>
+    .bg{fill:#f8fafc}.card{fill:#fff;stroke:#cbd5e1;stroke-width:2}.title{font:700 24px Arial,sans-serif;fill:#0f172a}.label{font:600 14px Arial,sans-serif;fill:#64748b}.value{font:700 14px Arial,sans-serif;fill:#0f172a}.body{font:600 16px Arial,sans-serif;fill:#0f172a}.note{font:700 15px Arial,sans-serif;fill:#9a3412}.pill{fill:#fff7ed;stroke:#fed7aa}
+  </style>
+  <rect width="720" height="420" rx="18" class="bg"/>
+  <rect x="24" y="24" width="672" height="372" rx="14" class="card"/>
+  <text x="42" y="66" class="title">NPrep Student Attachment</text>
+  ${rowSvg}
+  <rect x="42" y="276" width="636" height="82" rx="12" class="pill"/>
+  <text x="62" y="312" class="body">${escapeXml(truncateForSvg(ticket.studentDoubt, 72))}</text>
+  <text x="62" y="340" class="note">${escapeXml(ticket.technicalEscalation ? "Renderer issue visible in student screenshot" : "Student marked this area in screenshot")}</text>
+</svg>`;
+}
+
+function truncateForSvg(value, maxLength) {
+  const text = String(value || "");
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
 }
 
 function openProfile(name) {
@@ -2540,6 +2610,10 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function escapeXml(value) {
+  return escapeHtml(value).replaceAll("'", "&apos;");
+}
+
 function csvEscape(value) {
   const text = String(value ?? "");
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
@@ -2668,12 +2742,22 @@ document.addEventListener("click", (event) => {
   const reportButton = target.closest("[data-download-report]");
   const studentAttachment = target.closest("[data-view-student-attachment]");
   const resolutionAttachment = target.closest("[data-view-resolution-image]");
+  const studentAttachmentDownload = target.closest("[data-download-student-attachment]");
+  const resolutionAttachmentDownload = target.closest("[data-download-resolution-image]");
   if (studentAttachment) {
     openAttachmentPreview(studentAttachment.dataset.viewStudentAttachment, "student");
     return;
   }
   if (resolutionAttachment) {
     openAttachmentPreview(resolutionAttachment.dataset.viewResolutionImage, "resolution");
+    return;
+  }
+  if (studentAttachmentDownload) {
+    downloadAttachment(studentAttachmentDownload.dataset.downloadStudentAttachment, "student");
+    return;
+  }
+  if (resolutionAttachmentDownload) {
+    downloadAttachment(resolutionAttachmentDownload.dataset.downloadResolutionImage, "resolution");
     return;
   }
   if (reportButton) {

@@ -40,6 +40,7 @@ final result: passed
 - Twenty-first workflow pass: added resolved date/time and total resolution time to Student's Query, plus escalation raised/resolved timestamps and escalation resolution time when a ticket has escalation history.
 - Twenty-second workflow pass: locked resolver and manager resolution submission as one-time actions; submitted or closed tickets now show read-only resolution states and reject repeat submissions.
 - Twenty-third workflow pass: changed Team Queries Queue to default-sort by Raised On date-time and show the time directly in the Raised On column.
+- Twenty-fourth workflow pass: fixed drawer detail-grid wrapping so device/session rows do not overlap adjacent cards, and added download actions for student attachments plus resolver image attachments.
 
 ## Notes
 
