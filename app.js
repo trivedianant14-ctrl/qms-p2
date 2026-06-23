@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v15";
+const STORE_KEY = "nprep-qms-phase2-prototype-v16";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -62,8 +62,7 @@ const STATUSES = [
   "Raised",
   "Being reviewed",
   "Worked on",
-  "Faculty",
-  "Faculty resolved",
+  "Resolution submitted",
   "Escalation",
   "Escalation resolved",
   "Closed",
@@ -72,8 +71,10 @@ const STATUSES = [
 const STATUS_ALIASES = {
   "In Review": "Being reviewed",
   "Being Worked On": "Worked on",
-  "With Faculty": "Faculty",
-  "Faculty Resolved": "Faculty resolved",
+  "With Faculty": "Being reviewed",
+  Faculty: "Being reviewed",
+  "Faculty Resolved": "Resolution submitted",
+  "Faculty resolved": "Resolution submitted",
   Escalated: "Escalation",
   "Escalation Resolved": "Escalation resolved",
 };
@@ -171,6 +172,12 @@ function deriveRouting(category, subOption) {
   if (CONTENT_ROUTED[category]?.includes(subOption)) return "content";
   if (category === "Others") return "support";
   return "content";
+}
+
+function routeLabel(route) {
+  if (route === "faculty") return "subject resolver queue";
+  if (route === "support") return "support queue";
+  return "content queue";
 }
 
 function deriveSubject(questionId) {
@@ -286,7 +293,7 @@ function createTicket(input) {
     sessionDetails: input.sessionDetails || buildSessionDetails(input, raisedAt),
     history: input.history || [
       eventLine("SYSTEM", "Ticket created from student query"),
-      eventLine(routedTo === "faculty" ? "Content Queries" : "Content Queries", `Routed to ${routedTo}`),
+      eventLine("Content Queries", `Routed to ${routeLabel(routedTo)}`),
     ],
   };
 }
@@ -334,8 +341,8 @@ function seedDb() {
       queryText: "The rationale says B is correct but I thought it should be C because both mention autonomic activity.",
       priority: "High",
       ageHours: 6,
-      status: "Faculty",
-      timelineStatus: "assigned",
+      status: "Being reviewed",
+      timelineStatus: "in_review",
       facultyAssigned: "Meera Joshi",
       studentVoiceNote: "0:24 voice note",
       history: [eventLine("SYSTEM", "Ticket created from student query"), eventLine("Content Queries", "Auto-assigned to Meera Joshi")],
@@ -470,16 +477,16 @@ function seedDb() {
       subject,
       routedTo: "faculty",
       facultyAssigned: isClosed ? allOperators()[index % allOperators().length].name : ownerName,
-      status: isClosed ? "Closed" : ownerName ? "Faculty" : "Unclaimed",
-      timelineStatus: isClosed ? "resolved" : ownerName ? "assigned" : "raised",
+      status: isClosed ? "Closed" : ownerName ? "Being reviewed" : "Unclaimed",
+      timelineStatus: isClosed ? "resolved" : ownerName ? "in_review" : "raised",
       priority: index % 5 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
       ageHours: 2 + ((index * 2.25) % 46),
-      queryText: `Faculty-routed doubt ${index + 1}: student needs expert explanation for ${subject}.`,
+      queryText: `Subject-routed doubt ${index + 1}: student needs expert explanation for ${subject}.`,
       studentDoubt: `Please explain the reasoning for this ${subject} question in simple steps.`,
       studentVoiceNote: index % 4 === 0 ? "0:18 voice note" : "",
       studentReference: index % 6 === 0 ? "Textbook page photo attached" : "",
       resolvedAt: isClosed ? new Date(Date.now() - (index + 1) * 1800000).toISOString() : null,
-      resolutionText: isClosed ? "Faculty clarified the concept and added a supporting reference." : "",
+      resolutionText: isClosed ? "Resolver clarified the concept and added a supporting reference." : "",
       feedbackType: isClosed ? (index % 2 === 0 ? "thumbs_up" : "auto_closed") : null,
       satisfactionScore: isClosed ? (index % 2 === 0 ? 4.5 : 3.5) : null,
     }));
@@ -551,7 +558,7 @@ function seedDb() {
       status: "Unclaimed",
       timelineStatus: "raised",
       ageHours: 0.75 + index * 1.65,
-      queryText: `Unclaimed faculty-routed doubt ${index + 1}: ${subOption}.`,
+      queryText: `Unclaimed subject-routed doubt ${index + 1}: ${subOption}.`,
       studentDoubt: `Please review this ${subject} doubt. I need a clear expert explanation before moving ahead.`,
       studentVoiceNote: index % 5 === 0 ? "0:21 voice note" : "",
       studentReference: index % 4 === 0 ? "Screenshot attached" : "",
@@ -684,8 +691,8 @@ function applyAutoAssignments(targetDb = db, shouldNotify = true, shouldPersist 
     ticket.facultyAssigned = assignee;
     ticket.claimedBy = null;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Faculty";
-    ticket.timelineStatus = "assigned";
+    ticket.status = "Being reviewed";
+    ticket.timelineStatus = "in_review";
     ticket.history.unshift(eventLine("SYSTEM", `Auto-assigned after 24h unclaimed SLA to ${assignee}`));
     targetDb.notifications.unshift(note("General", `Auto-assigned after 24h: #${ticket.id} to ${assignee}`, ticket.id));
     changed = true;
@@ -727,14 +734,14 @@ function normalizeTimeline(targetDb) {
   targetDb.tickets.forEach((ticket) => {
     ticket.history = ticket.history || [];
     upsertTimelineEvent(ticket, "SYSTEM", "Ticket created from student query", ticket.raisedAt, (item) => /ticket created from student query/i.test(item.text || ""));
-    upsertTimelineEvent(ticket, "Content Queries", `Routed to ${ticket.routedTo}`, timelineOffset(ticket, 5), (item) => /^routed to /i.test(item.text || ""));
+    upsertTimelineEvent(ticket, "Content Queries", `Routed to ${routeLabel(ticket.routedTo)}`, timelineOffset(ticket, 5), (item) => /^routed to /i.test(item.text || ""));
     const hasOwnerEvent = ticket.history.some((item) => /claimed|assigned|auto-assigned/i.test(item.text || "") && (item.actor === ticket.facultyAssigned || item.actor === ticket.claimedBy || item.text.includes(ticket.facultyAssigned || ticket.claimedBy || "__none__")));
     const claimAt = ticket.facultyAssignedAt || timelineBeforeResolved(ticket, 75, 30);
     if (ticket.facultyAssigned && !hasOwnerEvent) {
-      ticket.history.push(eventLine(ticket.facultyAssigned, `Claimed this ticket as faculty owner`, claimAt));
+      ticket.history.push(eventLine(ticket.facultyAssigned, "Claimed this ticket as owner", claimAt));
     }
     if (ticket.claimedBy && !hasOwnerEvent) {
-      ticket.history.push(eventLine(ticket.claimedBy, `Claimed this ticket as resolver owner`, claimAt));
+      ticket.history.push(eventLine(ticket.claimedBy, "Claimed this ticket as owner", claimAt));
     }
     normalizeResolutionTimeline(ticket);
     ticket.history.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
@@ -747,7 +754,7 @@ function normalizeResolutionTimeline(ticket) {
   if (ticket.resolutionText) {
     const resolutionText = ticket.routedTo === "content" && !ticket.facultyAssigned
       ? "Submitted student-facing resolution; resolution is now locked"
-      : "Submitted faculty resolution for content review; resolution is now locked";
+      : "Submitted resolution for review; resolution is now locked";
     ensureTimelineEvent(ticket, ownerName, resolutionText, timelineBeforeResolved(ticket, 45, 90), (item) => /submitted .*resolution/i.test(item.text || ""));
   }
   if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
@@ -857,7 +864,6 @@ function tabsForRole(base) {
       ["all", "Total", base.length],
       ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
       ["review", "Being reviewed", base.filter((t) => t.status === "Being reviewed").length],
-      ["faculty", "Faculty", base.filter((t) => t.facultyAssigned).length],
       ["returned", "Returned", base.filter((t) => t.returnedByFaculty).length],
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
     ];
@@ -892,7 +898,6 @@ function filteredTickets() {
   if (state.tab === "pool" || state.tab === "facultyPool") rows = rows.filter((t) => t.routedTo === "faculty" && !t.facultyAssigned);
   if (state.tab === "unclaimed") rows = rows.filter((t) => owner(t) === "Unclaimed");
   if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
-  if (state.tab === "faculty") rows = rows.filter((t) => t.facultyAssigned);
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
   if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= (state.role === "product" ? 12 : 2));
   if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation");
@@ -1002,11 +1007,11 @@ function renderStats() {
       ["Subject Pool", pool.filter((t) => facultySubjects.includes(t.subject)).length, "Claim-first subject queries", "amber"],
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Tickets closed today", "green"],
-      ["Overall Closed", closed.length, "All closed faculty tickets", "green"],
+      ["Overall Closed", closed.length, "All closed tickets in this view", "green"],
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
     ],
     content: [
-      ["Queue", base.length, "Content and faculty-routed tickets", ""],
+      ["Queue", base.length, "Content and subject-routed tickets", ""],
       ["Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length, "Needs ownership", "amber"],
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Tickets closed today", "green"],
@@ -1014,7 +1019,7 @@ function renderStats() {
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
     ],
     manager: [
-      ["Open", open.length, "Across content, support, faculty", ""],
+      ["Open", open.length, "Across content, support, and subject experts", ""],
       ["SLA Hit Rate", "78%", "Rolling team performance", "green"],
       ["SLA Risk", breaching.length, "Within two hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Team closures today", "green"],
@@ -1044,7 +1049,7 @@ function renderReportStats() {
   const suboptionTop = topCount(rows, "subOption");
   const statSets = {
     manager: [
-      ["Open Tickets", open.length, "Across content and faculty", ""],
+      ["Open Tickets", open.length, "Across content and resolver queues", ""],
       ["SLA Risk", open.filter((ticket) => hoursLeft(ticket) <= 2).length, "Breaching within 2 hours", "red"],
       ["Top Subject", subjectTop?.label || "--", `${subjectTop?.count || 0} queries`, "amber"],
       ["Top Topic", topicTop?.label || "--", `${topicTop?.count || 0} doubts`, ""],
@@ -1095,11 +1100,10 @@ function sortValue(ticket, key) {
     Raised: 2,
     "Being reviewed": 3,
     "Worked on": 4,
-    Faculty: 5,
-    "Faculty resolved": 6,
-    Escalation: 7,
-    "Escalation resolved": 8,
-    Closed: 9,
+    "Resolution submitted": 5,
+    Escalation: 6,
+    "Escalation resolved": 7,
+    Closed: 8,
   };
   const values = {
     id: Number(ticket.id.replace(/\D/g, "")),
@@ -1336,7 +1340,7 @@ function managerReportRows(rows) {
   const agents = allOperators();
   return [
     ["Summary", "Total tickets", rows.length, dateRangeLabel() || "All raised dates"],
-    ["Summary", "Open tickets", rows.filter((ticket) => ticket.status !== "Closed").length, "Across content and faculty"],
+    ["Summary", "Open tickets", rows.filter((ticket) => ticket.status !== "Closed").length, "Across team queues"],
     ["Summary", "SLA risk", rows.filter((ticket) => ticket.status !== "Closed" && hoursLeft(ticket) <= 2).length, "Breaching within 2 hours"],
     ["Summary", "Average resolution", avgResolutionHours(rows), "Closed tickets"],
     ...topCounts(rows, "subject", 8).map((item) => ["Subject volume", item.label, item.count, "Most queries by subject"]),
@@ -1856,9 +1860,9 @@ function drawerActions(ticket) {
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   }
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
-  if (contentOwnedByMe && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign to Faculty</button>`);
-  if (contentOwnedByMe && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Faculty</button>`);
-  if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Faculty resolved") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Faculty Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
+  if (contentOwnedByMe && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign Resolver</button>`);
+  if (contentOwnedByMe && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Resolver</button>`);
+  if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Resolution submitted") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
   if (contentOwnedByMe && ticket.status !== "Closed") {
     actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
     if (!ticket.technicalEscalation) actions.push(`<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
@@ -1946,7 +1950,7 @@ function workflowPanel(ticket) {
 function facultyPanel(ticket) {
   const canUseFacultyFlow = state.role === "team"
     ? activeOwnsTicket(ticket) && ticket.status !== "Closed"
-    : ticket.facultyAssigned === facultyActorName() && ticket.status === "Faculty";
+    : ticket.facultyAssigned === facultyActorName() && ticket.status !== "Closed";
   if (!canUseFacultyFlow) return "";
   const submitted = Boolean(ticket.resolutionText || ticket.finalResolutionText);
   if (submitted) {
@@ -2166,7 +2170,7 @@ function managerPanel(ticket) {
 function resolutionPanel(ticket) {
   if (!ticket.resolutionText && !ticket.finalResolutionText) return "";
   const image = ticket.resolutionImageName ? ` <button type="button" class="soft-button tiny" data-view-resolution-image="${ticket.id}">View Image</button><button type="button" class="soft-button tiny" data-download-resolution-image="${ticket.id}">Download Image</button>` : "";
-  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Faculty Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p><p class="muted">${ticket.resolutionReference || "No reference attached"}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
+  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p><p class="muted">${ticket.resolutionReference || "No reference attached"}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
 }
 
 function escalationPanel(ticket) {
@@ -2463,12 +2467,12 @@ function assignToFaculty(id) {
   const ticket = ticketById(id);
   const result = assignFacultyForQuery(ticket);
   if (result.reason === "NO_FACULTY_FOR_SUBJECT") {
-    pushNotification("General", `No faculty for ${ticket.subject}: #${ticket.id} - Manager action needed`, ticket.id);
+    pushNotification("General", `No resolver for ${ticket.subject}: #${ticket.id} - Manager action needed`, ticket.id);
   } else {
     ticket.facultyAssigned = result.assigned;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Faculty";
-    ticket.timelineStatus = "assigned";
+    ticket.status = "Being reviewed";
+    ticket.timelineStatus = "in_review";
     addHistory(ticket, "Content Queries", `${result.reason === "RANDOM_TIE_BREAK" ? "Random tie-break assigned" : "Auto-assigned"} to ${result.assigned}`);
     pushNotification("Content Queries", `Assigned to ${result.assigned}: #${ticket.id} - ${ticket.subject}`, ticket.id);
   }
@@ -2480,8 +2484,8 @@ function facultyClaim(id) {
   const actor = facultyActorName();
   ticket.facultyAssigned = actor;
   ticket.facultyAssignedAt = new Date().toISOString();
-  ticket.status = "Faculty";
-  ticket.timelineStatus = "assigned";
+  ticket.status = "Being reviewed";
+  ticket.timelineStatus = "in_review";
   addHistory(ticket, actor, "Claimed from Subject Pool");
   pushNotification("Content Queries", `${actor} claimed #${ticket.id} from Subject Pool`, ticket.id);
   persistAndRender(id);
@@ -2503,16 +2507,16 @@ function submitFacultyResolution(id) {
   ticket.resolutionImageName = document.querySelector("#resolutionImageName")?.value.trim() || "";
   ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
-  ticket.status = "Faculty resolved";
-  ticket.timelineStatus = "faculty_resolved";
+  ticket.status = "Resolution submitted";
+  ticket.timelineStatus = "resolution_submitted";
   if (state.role === "team") {
     ticket.finalResolutionText = text;
     ticket.resolutionCode = ticket.resolutionCode || "Student doubt resolved";
     addHistory(ticket, facultyActorName(), "Submitted student-facing resolution; resolution is now locked");
     pushNotification("Content Queries", `Resolution ready for student: #${ticket.id} - ${facultyActorName()}`, ticket.id);
   } else {
-    addHistory(ticket, facultyActorName(), "Submitted faculty resolution for content review; resolution is now locked");
-    pushNotification("Content Queries", `Faculty resolved #${ticket.id} - ${facultyActorName()}`, ticket.id);
+    addHistory(ticket, facultyActorName(), "Submitted resolution for review; resolution is now locked");
+    pushNotification("Content Queries", `Resolution submitted #${ticket.id} - ${facultyActorName()}`, ticket.id);
   }
   persistAndRender(id);
 }
@@ -2522,15 +2526,15 @@ function approveFacultyResolution(id) {
   ticket.finalResolutionText = ticket.resolutionText;
   ticket.status = "Worked on";
   ticket.revisionRequested = false;
-  addHistory(ticket, resolverActorName(), "Approved faculty resolution and moved to finalization");
+  addHistory(ticket, resolverActorName(), "Approved submitted resolution and moved to finalization");
   persistAndRender(id);
 }
 
 function sendRevision(id) {
   const ticket = ticketById(id);
-  ticket.status = "Faculty";
+  ticket.status = "Being reviewed";
   ticket.revisionRequested = true;
-  addHistory(ticket, resolverActorName(), "Sent faculty resolution back for revision");
+  addHistory(ticket, resolverActorName(), "Sent resolution back for revision");
   pushNotification("Content Queries", `Revision requested for #${ticket.id}`, ticket.id);
   persistAndRender(id);
 }
@@ -2619,7 +2623,7 @@ function managerAssign(id, assignee) {
   ticket.facultyAssigned = assignee;
   ticket.claimedBy = null;
   ticket.routedTo = "faculty";
-  ticket.status = "Faculty";
+  ticket.status = "Being reviewed";
   addHistory(ticket, current.manager, `Assigned to ${assignee} based on bandwidth`);
   toast(`Successfully assigned #${ticket.id} to ${assignee}`, "success");
   persistAndRender(id);
@@ -2675,8 +2679,8 @@ function assignToMe(id) {
     ticket.facultyAssigned = actor;
     ticket.claimedBy = null;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Faculty";
-    ticket.timelineStatus = "assigned";
+    ticket.status = "Being reviewed";
+    ticket.timelineStatus = "in_review";
     addHistory(ticket, actor, "Claimed this ticket");
     pushNotification("Content Queries", `${actor} assigned themselves to #${ticket.id}`, ticket.id);
     persistAndRender(id);
@@ -2685,8 +2689,8 @@ function assignToMe(id) {
   if (state.role === "faculty") {
     ticket.facultyAssigned = current.faculty;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Faculty";
-    ticket.timelineStatus = "assigned";
+    ticket.status = "Being reviewed";
+    ticket.timelineStatus = "in_review";
     addHistory(ticket, current.faculty, "Claimed this ticket");
     pushNotification("Content Queries", `${current.faculty} assigned themselves to #${ticket.id}`, ticket.id);
   }
@@ -2738,14 +2742,14 @@ function nextStepText(ticket) {
   const ownedByAnotherResolver = state.role === "content" && ticket.claimedBy && ticket.claimedBy !== current.resolver;
   if (ownedByAnotherFaculty || ownedByAnotherResolver) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
   if (state.role === "faculty") {
-    if (!ticket.resolutionText) return "Write a faculty explanation, attach a reference if useful, then submit the resolution to the content team.";
+    if (!ticket.resolutionText) return "Write an explanation, attach a reference if useful, then submit the resolution.";
     return "Resolution is available. Wait for content review or revise if content sends it back.";
   }
   if (state.role === "content") {
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the call resolved so the student can rate it.";
     if (ticket.routedTo === "content" && !ticket.claimedBy) return "Assign it to yourself, add an internal note if needed, then move it into review.";
-    if (ticket.routedTo === "faculty" && !ticket.facultyAssigned) return "Assign it to an eligible faculty member. If it remains unclaimed for 24 hours, it will auto-assign by least load.";
-    if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the faculty resolution, approve or send back, then finalize the student-facing answer.";
+    if (ticket.routedTo === "faculty" && !ticket.facultyAssigned) return "Assign it to an eligible resolver. If it remains unclaimed for 24 hours, it will auto-assign by least load.";
+    if (ticket.resolutionText && !ticket.finalResolutionText) return "Review the submitted resolution, approve or send back, then finalize the student-facing answer.";
     return "Work the ticket through the available actions. The status updates automatically when the next workflow step is completed.";
   }
   return "Manager can reassign this ticket based on bandwidth or SLA risk.";
@@ -2780,7 +2784,7 @@ function isEngineeringEscalated(ticket) {
 
 function statusClass(status) {
   if (status === "Closed") return "closed";
-  if (status === "Faculty" || status === "Faculty resolved") return "faculty";
+  if (status === "Resolution submitted") return "faculty";
   if (status === "Worked on") return "work";
   if (status === "Escalation") return "escalated";
   if (status === "Escalation resolved") return "review";
@@ -3081,7 +3085,7 @@ document.addEventListener("click", (event) => {
     const ticket = ticketById(target.closest("[data-recall]").dataset.recall);
     ticket.facultyAssigned = null;
     ticket.status = "Being reviewed";
-    addHistory(ticket, resolverActorName(), "Recalled from faculty");
+    addHistory(ticket, resolverActorName(), "Recalled from resolver");
     persistAndRender(ticket.id);
   }
   if (target.closest("[data-approve-resolution]")) approveFacultyResolution(target.closest("[data-approve-resolution]").dataset.approveResolution);

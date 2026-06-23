@@ -50,6 +50,7 @@ final result: passed
 - Thirty-first workflow pass: added Excel-like table column resizing with drag handles, double-click auto-fit, persisted column widths, and a horizontal scrollbar for wide queues.
 - Thirty-second workflow pass: removed doctor prefixes from resolver names, prevented unclaimed tickets from displaying Engineering Escalation, and made Student Device Detail collapsed by default without the Engineering Note row.
 - Thirty-third workflow pass: hid Manager Controls on closed tickets while preserving the read-only Manager Resolution review.
+- Thirty-fourth workflow pass: removed the Faculty status chip from the active lifecycle, moved claimed/assigned tickets to Being reviewed, renamed submitted-answer state to Resolution submitted, and normalized timeline route copy to subject resolver queue.
 
 ## Notes
 
