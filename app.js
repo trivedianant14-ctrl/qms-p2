@@ -1664,9 +1664,10 @@ function drawerHtml(ticket) {
   return `<div class="drawer-head"><strong>Ticket Details</strong><button data-close-drawer>x</button></div>
     <div class="drawer-body">
       <section>
-        <div class="drawer-title"><h2>#${ticket.id}</h2>${statusCell(ticket)}${drawerSla}</div>
+        <div class="drawer-title"><h2>#${ticket.id}</h2>${statusCell(ticket, { showEngineering: false })}${drawerSla}</div>
         <p class="muted">${ticket.category} - ${ticket.subOption}</p>
       </section>
+      ${engineeringNotice(ticket)}
       ${drawerActions(ticket)}
       ${workflowPanel(ticket)}
       ${state.role === "team" || state.role === "content" ? contentPanel(ticket) : ""}
@@ -1690,7 +1691,7 @@ function drawerActions(ticket) {
     if (unclaimed && (state.role === "content" || state.role === "team")) return `<div class="drawer-actions">${actions.join("")}</div>`;
   }
   if (teamOwnedByMe && ticket.status !== "Closed") {
-    actions.push(ticket.technicalEscalation ? `<span class="workflow-chip escalated">Escalated to Engineering</span>` : `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
+    if (!ticket.technicalEscalation) actions.push(`<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   }
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
@@ -1699,11 +1700,16 @@ function drawerActions(ticket) {
   if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Faculty resolved") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Faculty Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
   if (contentOwnedByMe && ticket.status !== "Closed") {
     actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
-    actions.push(ticket.technicalEscalation ? `<span class="workflow-chip escalated">Escalated to Engineering</span>` : `<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
+    if (!ticket.technicalEscalation) actions.push(`<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
   }
   if (contentOwnedByMe && ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   if (state.role === "manager" && ticket.status !== "Closed" && owner(ticket) === "Unclaimed") actions.push(`<button class="primary" data-manager-claim="${ticket.id}">Claim as Manager</button>`);
   return `<div class="drawer-actions">${actions.join("") || `<span class="muted">No primary action available in this state.</span>`}</div>`;
+}
+
+function engineeringNotice(ticket) {
+  if (!ticket.technicalEscalation) return "";
+  return `<div class="drawer-actions"><span class="workflow-chip escalated">Escalated to Engineering</span></div>`;
 }
 
 function studentQueryRows(ticket) {
@@ -1759,7 +1765,7 @@ function workflowPanel(ticket) {
   const unclaimed = owner(ticket) === "Unclaimed";
   const statusControl = ticket.status === "Closed"
     ? `<div class="readonly-status"><span class="label">Status</span><span class="muted">Final state</span><small>Updated automatically by workflow actions.</small></div>`
-    : `<div class="readonly-status"><span class="label">Status</span>${statusCell(ticket)}<small>Updated automatically by workflow actions.</small></div>`;
+    : `<div class="readonly-status"><span class="label">Status</span>${statusCell(ticket, { showEngineering: false })}<small>Updated automatically by workflow actions.</small></div>`;
   const priorityControl = priorityLocked
     ? `<div class="readonly-status"><span class="label">Priority</span><span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span><small>Locked after first save. It cannot be changed later.</small></div>`
     : unclaimed
@@ -2599,8 +2605,9 @@ function createStudentQuery() {
   persistAndRender(ticket.id);
 }
 
-function statusCell(ticket) {
-  const engineering = ticket.technicalEscalation ? `<span class="badge engineering">Engineering Escalation</span>` : "";
+function statusCell(ticket, options = {}) {
+  const showEngineering = options.showEngineering !== false;
+  const engineering = showEngineering && ticket.technicalEscalation ? `<span class="badge engineering">Engineering Escalation</span>` : "";
   return `<span class="status-stack"><span class="badge ${statusClass(ticket.status)}">${ticket.status}</span>${engineering}</span>`;
 }
 

@@ -45,6 +45,7 @@ final result: passed
 - Twenty-sixth workflow pass: reduced duplicate Closed labels in ticket details so closed tickets show the status once in the drawer title.
 - Twenty-seventh workflow pass: made Student Device Detail an always-open fixed-position card directly below Student's Query, while keeping only the JSON payload rows collapsible.
 - Twenty-eighth workflow pass: backfilled closed-ticket timelines with resolution submission, finalization, feedback/auto-close, and closure events, and normalized created/routed timestamps.
+- Twenty-ninth workflow pass: reduced duplicate Engineering Escalation labels in ticket details to one drawer-level escalation notice while preserving table current-status visibility.
 
 ## Notes
 
