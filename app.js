@@ -108,8 +108,8 @@ const state = {
   questionIdSearch: "",
   period: "week",
   selectedId: "NP-00003",
-  sortKey: "sla",
-  sortDir: "asc",
+  sortKey: "raisedAt",
+  sortDir: "desc",
   visibleColumns: columns.map(([key]) => key),
 };
 
@@ -1009,7 +1009,7 @@ function cell(ticket, key) {
   const value = {
     id: `<button class="ticket-link" data-open="${ticket.id}">#${ticket.id}</button>`,
     questionId: `#${ticket.questionId}`,
-    raisedAt: shortDate(ticket.raisedAt),
+    raisedAt: absoluteDate(ticket.raisedAt),
     student: ticket.student,
     status: statusCell(ticket),
     category: ticket.category,
