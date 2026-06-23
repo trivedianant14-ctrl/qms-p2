@@ -1590,10 +1590,11 @@ function openTicket(id) {
 }
 
 function drawerHtml(ticket) {
+  const drawerSla = ticket.status === "Closed" ? "" : `<span class="badge ${slaClass(ticket)}">${hoursLeft(ticket).toFixed(1)}h left</span>`;
   return `<div class="drawer-head"><strong>Ticket Details</strong><button data-close-drawer>x</button></div>
     <div class="drawer-body">
       <section>
-        <div class="drawer-title"><h2>#${ticket.id}</h2>${statusCell(ticket)}<span class="badge ${slaClass(ticket)}">${ticket.status === "Closed" ? "Closed" : `${hoursLeft(ticket).toFixed(1)}h left`}</span></div>
+        <div class="drawer-title"><h2>#${ticket.id}</h2>${statusCell(ticket)}${drawerSla}</div>
         <p class="muted">${ticket.category} - ${ticket.subOption}</p>
       </section>
       ${drawerActions(ticket)}
@@ -1686,6 +1687,9 @@ function historyDate(ticket, patterns) {
 function workflowPanel(ticket) {
   const priorityLocked = Boolean(ticket.priority);
   const unclaimed = owner(ticket) === "Unclaimed";
+  const statusControl = ticket.status === "Closed"
+    ? `<div class="readonly-status"><span class="label">Status</span><span class="muted">Final state</span><small>Updated automatically by workflow actions.</small></div>`
+    : `<div class="readonly-status"><span class="label">Status</span>${statusCell(ticket)}<small>Updated automatically by workflow actions.</small></div>`;
   const priorityControl = priorityLocked
     ? `<div class="readonly-status"><span class="label">Priority</span><span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span><small>Locked after first save. It cannot be changed later.</small></div>`
     : unclaimed
@@ -1695,7 +1699,7 @@ function workflowPanel(ticket) {
     <h3>Workflow Control</h3>
     <div class="workflow-grid">
       ${priorityControl}
-      <div class="readonly-status"><span class="label">Status</span>${statusCell(ticket)}<small>Updated automatically by workflow actions.</small></div>
+      ${statusControl}
     </div>
     ${priorityLocked || unclaimed ? "" : `<div class="form-actions"><button class="primary" data-save-workflow="${ticket.id}">Save Priority</button></div>`}
     <div class="next-step"><span class="label">Next Step</span><p>${nextStepText(ticket)}</p></div>
