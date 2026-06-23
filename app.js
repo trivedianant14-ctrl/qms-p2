@@ -2151,13 +2151,16 @@ function contentPanel(ticket) {
 }
 
 function managerPanel(ticket) {
+  const canReassign = ticket.status !== "Closed";
   const resolutionLocked = ticket.status === "Closed" || Boolean(ticket.finalResolutionText || ticket.resolutionText);
   const lockedResolution = ticket.finalResolutionText || ticket.resolutionText || "This ticket is already closed. No editable resolution is available.";
+  const reassignmentControls = canReassign
+    ? `<section class="drawer-card"><h3>Manager Controls</h3><p class="muted">Use this to reassign unclaimed or stalled work. The selected person becomes the ticket owner immediately and the change is written to the timeline.</p>${assignmentSelect(ticket.id, "managerAssignee")}</section>`
+    : "";
   const resolutionControls = resolutionLocked
     ? `<section class="drawer-card"><h3>Manager Resolution</h3><div class="next-step"><span class="label">Resolution locked</span><p>A submitted or closed resolution cannot be edited, replaced, or submitted again.</p></div><p>${escapeHtml(lockedResolution)}</p></section>`
     : `<section class="drawer-card"><h3>Manager Resolution</h3><p class="muted">If nobody claims the ticket, the manager can take ownership and close it with a student-facing resolution.</p><div class="resolution-form"><textarea id="managerResolutionText" placeholder="Write the resolution the learner will see..."></textarea><select id="managerResolutionCode"><option>Manager resolved</option><option>Content corrected</option><option>Explanation clarified</option><option>Technical issue fixed</option></select><button class="primary" data-manager-resolve="${ticket.id}">Claim and Resolve</button></div></section>`;
-  return `<section class="drawer-card"><h3>Manager Controls</h3><p class="muted">Use this to reassign unclaimed or stalled work. The selected person becomes the ticket owner immediately and the change is written to the timeline.</p>${assignmentSelect(ticket.id, "managerAssignee")}</section>
-    ${resolutionControls}`;
+  return `${reassignmentControls}${resolutionControls}`;
 }
 
 function resolutionPanel(ticket) {

@@ -49,6 +49,7 @@ final result: passed
 - Thirtieth workflow pass: expanded the seed dataset with 24 additional unclaimed team tickets across faculty-style subject doubts and content/technical triage, and bumped local storage so the refreshed queue loads by default.
 - Thirty-first workflow pass: added Excel-like table column resizing with drag handles, double-click auto-fit, persisted column widths, and a horizontal scrollbar for wide queues.
 - Thirty-second workflow pass: removed doctor prefixes from resolver names, prevented unclaimed tickets from displaying Engineering Escalation, and made Student Device Detail collapsed by default without the Engineering Note row.
+- Thirty-third workflow pass: hid Manager Controls on closed tickets while preserving the read-only Manager Resolution review.
 
 ## Notes
 
