@@ -1602,8 +1602,8 @@ function drawerHtml(ticket) {
       ${state.role === "team" || state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
       <section class="drawer-card"><h3>Student's Query</h3>${detailGrid(studentQueryRows(ticket))}</section>
-      ${state.role === "team" || state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${sessionDetailPanel(ticket)}
+      ${state.role === "team" || state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${escalationPanel(ticket)}
       ${resolutionPanel(ticket)}
       <section class="drawer-card"><h3>Timeline</h3><div class="timeline">${ticket.history.map((item) => `<div class="timeline-item"><span class="timeline-dot">${item.actor.slice(0, 1)}</span><div><strong>${item.actor}</strong><p class="timeline-text">${item.text}</p><p class="timeline-meta">${absoluteDate(item.at)} - ${relativeTime(item.at)}</p></div></div>`).join("")}</div></section>
@@ -1944,8 +1944,8 @@ function escalationPanel(ticket) {
 function sessionDetailPanel(ticket) {
   const session = ticket.sessionDetails || buildSessionDetails(ticket, ticket.raisedAt);
   const technical = ticket.technicalEscalation || ticket.category === "Can't See Something";
-  return `<details class="drawer-card collapse-card" ${technical ? "open" : ""}>
-    <summary><span><strong>Student Device Detail</strong><small>Session context for engineering reference</small></span><span class="badge ${technical ? "critical" : "review"}">${technical ? "Technical signal" : "Session detail"}</span></summary>
+  return `<section class="drawer-card session-detail-card">
+    <div class="session-detail-head"><div><h3>Student Device Detail</h3><p class="muted">Session context for engineering reference</p></div><span class="badge ${technical ? "critical" : "review"}">${technical ? "Technical signal" : "Session detail"}</span></div>
     ${detailGrid([
       ["Session ID", session.sessionId],
       ["App Version", session.appVersion],
@@ -1963,7 +1963,7 @@ function sessionDetailPanel(ticket) {
       <div class="json-section-head"><h4>Mock JSON Views</h4><p>Expandable sample payloads for engineering handoff.</p></div>
       ${jsonPayloadCards(ticket, session)}
     </div>
-  </details>`;
+  </section>`;
 }
 
 function jsonPayloadCards(ticket, session) {
