@@ -44,6 +44,7 @@ final result: passed
 - Twenty-fifth workflow pass: added a Play Voice Note button to student voice notes in the Student's Query panel with mock playback feedback.
 - Twenty-sixth workflow pass: reduced duplicate Closed labels in ticket details so closed tickets show the status once in the drawer title.
 - Twenty-seventh workflow pass: made Student Device Detail an always-open fixed-position card directly below Student's Query, while keeping only the JSON payload rows collapsible.
+- Twenty-eighth workflow pass: backfilled closed-ticket timelines with resolution submission, finalization, feedback/auto-close, and closure events, and normalized created/routed timestamps.
 
 ## Notes
 
