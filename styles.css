@@ -1459,26 +1459,6 @@ tbody tr:focus-within {
   padding: 0 14px 14px;
 }
 
-.session-detail-card {
-  display: grid;
-  gap: 14px;
-}
-
-.session-detail-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.session-detail-head h3 {
-  margin-bottom: 3px;
-}
-
-.session-detail-head .badge {
-  flex: 0 0 auto;
-}
-
 .json-section {
   border-top: 1px solid var(--line);
   padding: 14px;

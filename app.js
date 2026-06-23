@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v14";
+const STORE_KEY = "nprep-qms-phase2-prototype-v15";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -39,9 +39,9 @@ const ALL_SUBJECTS = ["Anatomy", "Pharmacology", "Medical Surgical Nursing", "Co
 
 const people = {
   operators: [
-    { name: "Dr. Meera Joshi", initials: "MJ", color: "#7c3aed", role: "Resolver", team: "Anatomy, Medical Surgical Nursing", subjects: ["Anatomy", "Medical Surgical Nursing"] },
-    { name: "Dr. Arjun Rao", initials: "AR", color: "#2563eb", role: "Resolver", team: "Pharmacology", subjects: ["Pharmacology"] },
-    { name: "Dr. Sunita Verma", initials: "SV", color: "#059669", role: "Resolver", team: "Anatomy, Pharmacology, Community Health Nursing", subjects: ["Anatomy", "Pharmacology", "Community Health Nursing"] },
+    { name: "Meera Joshi", initials: "MJ", color: "#7c3aed", role: "Resolver", team: "Anatomy, Medical Surgical Nursing", subjects: ["Anatomy", "Medical Surgical Nursing"] },
+    { name: "Arjun Rao", initials: "AR", color: "#2563eb", role: "Resolver", team: "Pharmacology", subjects: ["Pharmacology"] },
+    { name: "Sunita Verma", initials: "SV", color: "#059669", role: "Resolver", team: "Anatomy, Pharmacology, Community Health Nursing", subjects: ["Anatomy", "Pharmacology", "Community Health Nursing"] },
     { name: "Priya S.", initials: "PS", color: "#7c3aed", role: "Resolver", team: "Content QA", subjects: ALL_SUBJECTS },
     { name: "Rahul M.", initials: "RM", color: "#2563eb", role: "Resolver", team: "Engineering", subjects: ALL_SUBJECTS },
     { name: "Sneha T.", initials: "ST", color: "#059669", role: "Resolver", team: "Support", subjects: ALL_SUBJECTS },
@@ -51,8 +51,8 @@ const people = {
 
 const current = {
   student: "Riya Sharma",
-  operator: "Dr. Meera Joshi",
-  faculty: "Dr. Meera Joshi",
+  operator: "Meera Joshi",
+  faculty: "Meera Joshi",
   resolver: "Priya S.",
   manager: "Harshit",
 };
@@ -336,9 +336,9 @@ function seedDb() {
       ageHours: 6,
       status: "Faculty",
       timelineStatus: "assigned",
-      facultyAssigned: "Dr. Meera Joshi",
+      facultyAssigned: "Meera Joshi",
       studentVoiceNote: "0:24 voice note",
-      history: [eventLine("SYSTEM", "Ticket created from student query"), eventLine("Content Queries", "Auto-assigned to Dr. Meera Joshi")],
+      history: [eventLine("SYSTEM", "Ticket created from student query"), eventLine("Content Queries", "Auto-assigned to Meera Joshi")],
     }),
     createTicket({
       id: "NP-00004",
@@ -370,7 +370,7 @@ function seedDb() {
       ageHours: 20,
       status: "Escalation",
       timelineStatus: "assigned",
-      facultyAssigned: "Dr. Arjun Rao",
+      facultyAssigned: "Arjun Rao",
       resolvedAt: new Date(Date.now() - 4 * 3600000).toISOString(),
       resolutionText: "Option C is incorrect because it describes an adverse-effect management step, not the priority intervention.",
       feedbackType: "thumbs_down",
@@ -390,7 +390,7 @@ function seedDb() {
       ageHours: 18,
       status: "Closed",
       timelineStatus: "resolved",
-      facultyAssigned: "Dr. Sunita Verma",
+      facultyAssigned: "Sunita Verma",
       resolvedAt: new Date(Date.now() - 8 * 3600000).toISOString(),
       resolutionText: "Both sources use different wording, but the NPrep answer follows the exam-specific nursing context.",
       resolutionReference: "Textbook reference page 119",
@@ -408,7 +408,7 @@ function seedDb() {
       ageHours: 22,
       status: "Closed",
       timelineStatus: "resolved",
-      facultyAssigned: "Dr. Meera Joshi",
+      facultyAssigned: "Meera Joshi",
       resolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
       resolutionText: "Priority is decided by airway and immediate risk. Option A is correct because it prevents deterioration first.",
       feedbackType: "escalation_resolved",
@@ -455,7 +455,7 @@ function seedDb() {
     ["I Have a Doubt", "I didn't understand the explanation"],
     ["I Have a Doubt", "Why is this option wrong?"],
   ];
-  const facultyOwners = [current.faculty, null, "Dr. Arjun Rao", "Dr. Sunita Verma", null];
+  const facultyOwners = [current.faculty, null, "Arjun Rao", "Sunita Verma", null];
   for (let index = 0; index < 20; index += 1) {
     const [category, subOption] = facultySubOptions[index % facultySubOptions.length];
     const ownerName = facultyOwners[index % facultyOwners.length];
@@ -519,7 +519,7 @@ function seedDb() {
       finalResolutionText: isClosed ? "This has been checked and corrected. Please reload the question." : "",
       feedbackType: isClosed ? "thumbs_up" : null,
       satisfactionScore: isClosed ? 4.5 : null,
-      technicalEscalation: index % 8 === 0,
+      technicalEscalation: Boolean(ownerName || isClosed) && index % 8 === 0,
     }));
   }
 
@@ -574,14 +574,14 @@ function seedDb() {
       queryText: `Unclaimed content-routed issue ${index + 1}: ${subOption}.`,
       studentDoubt: `The student reported: ${subOption}. Please triage and resolve from the team queue.`,
       studentReference: index % 3 === 0 ? "Screenshot attached" : "",
-      technicalEscalation: category === "Can't See Something" && index % 2 === 0,
+      technicalEscalation: false,
     }));
   }
 
   return {
     tickets,
     notifications: [
-      note("Content Queries", "Auto-assigned to Dr. Meera Joshi: #NP-00003 - Anatomy", "NP-00003"),
+      note("Content Queries", "Auto-assigned to Meera Joshi: #NP-00003 - Anatomy", "NP-00003"),
       note("General", "Escalation needed: #NP-00005 - Student not satisfied", "NP-00005"),
       note("Content Queries", "New query landed: #NP-00001 - The answer shown is wrong", "NP-00001"),
       note("General", "Ticket unclaimed for 4 hours: #NP-00008", "NP-00008"),
@@ -599,6 +599,7 @@ function loadDb() {
     if (saved) {
       const parsed = JSON.parse(saved);
       normalizeTicketStatuses(parsed);
+      normalizeEngineeringEscalations(parsed);
       normalizeTimeline(parsed);
       applyAutoAssignments(parsed, false, false);
       return parsed;
@@ -608,6 +609,7 @@ function loadDb() {
   }
   const seeded = seedDb();
   normalizeTicketStatuses(seeded);
+  normalizeEngineeringEscalations(seeded);
   normalizeTimeline(seeded);
   applyAutoAssignments(seeded, false, false);
   localStorage.setItem(STORE_KEY, JSON.stringify(seeded));
@@ -715,6 +717,12 @@ function normalizeTicketStatuses(targetDb) {
   });
 }
 
+function normalizeEngineeringEscalations(targetDb) {
+  targetDb.tickets.forEach((ticket) => {
+    if (owner(ticket) === "Unclaimed") ticket.technicalEscalation = false;
+  });
+}
+
 function normalizeTimeline(targetDb) {
   targetDb.tickets.forEach((ticket) => {
     ticket.history = ticket.history || [];
@@ -745,7 +753,7 @@ function normalizeResolutionTimeline(ticket) {
   if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
     ensureTimelineEvent(ticket, ticket.claimedBy || "Content Queries", "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 110), (item) => /finalized student-facing resolution|closed ticket with code/i.test(item.text || ""));
   }
-  if (ticket.technicalEscalation) {
+  if (isEngineeringEscalated(ticket)) {
     ensureTimelineEvent(ticket, ownerName, "Escalated this ticket to Engineering", timelineBeforeResolved(ticket, 35, 70), (item) => /escalated this ticket to engineering/i.test(item.text || ""));
   }
   if (ticket.feedbackType === "thumbs_down") {
@@ -1254,7 +1262,7 @@ function rawCell(ticket, key) {
     questionId: ticket.questionId,
     raisedAt: absoluteDate(ticket.raisedAt),
     student: ticket.student,
-    status: ticket.technicalEscalation ? `${ticket.status} - Engineering Escalation` : ticket.status,
+    status: isEngineeringEscalated(ticket) ? `${ticket.status} - Engineering Escalation` : ticket.status,
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
@@ -1861,7 +1869,7 @@ function drawerActions(ticket) {
 }
 
 function engineeringNotice(ticket) {
-  if (!ticket.technicalEscalation) return "";
+  if (!isEngineeringEscalated(ticket)) return "";
   return `<div class="drawer-actions"><span class="workflow-chip escalated">Escalated to Engineering</span></div>`;
 }
 
@@ -2173,8 +2181,8 @@ function escalationPanel(ticket) {
 function sessionDetailPanel(ticket) {
   const session = ticket.sessionDetails || buildSessionDetails(ticket, ticket.raisedAt);
   const technical = ticket.technicalEscalation || ticket.category === "Can't See Something";
-  return `<section class="drawer-card session-detail-card">
-    <div class="session-detail-head"><div><h3>Student Device Detail</h3><p class="muted">Session context for engineering reference</p></div><span class="badge ${technical ? "critical" : "review"}">${technical ? "Technical signal" : "Session detail"}</span></div>
+  return `<details class="drawer-card collapse-card session-detail-card">
+    <summary><span><strong>Student Device Detail</strong><small>Session context for engineering reference</small></span><span class="badge ${technical ? "critical" : "review"}">${technical ? "Technical signal" : "Session detail"}</span></summary>
     ${detailGrid([
       ["Session ID", session.sessionId],
       ["App Version", session.appVersion],
@@ -2186,13 +2194,12 @@ function sessionDetailPanel(ticket) {
       ["Question Renderer", session.questionRenderEngine],
       ["API Trace", session.apiTrace],
       ["Attachments", `${session.attachmentCount} attached`],
-      ["Engineering Note", session.engineeringSignal],
     ])}
     <div class="json-section">
       <div class="json-section-head"><h4>Mock JSON Views</h4><p>Expandable sample payloads for engineering handoff.</p></div>
       ${jsonPayloadCards(ticket, session)}
     </div>
-  </section>`;
+  </details>`;
 }
 
 function jsonPayloadCards(ticket, session) {
@@ -2760,8 +2767,12 @@ function createStudentQuery() {
 
 function statusCell(ticket, options = {}) {
   const showEngineering = options.showEngineering !== false;
-  const engineering = showEngineering && ticket.technicalEscalation ? `<span class="badge engineering">Engineering Escalation</span>` : "";
+  const engineering = showEngineering && isEngineeringEscalated(ticket) ? `<span class="badge engineering">Engineering Escalation</span>` : "";
   return `<span class="status-stack"><span class="badge ${statusClass(ticket.status)}">${ticket.status}</span>${engineering}</span>`;
+}
+
+function isEngineeringEscalated(ticket) {
+  return Boolean(ticket.technicalEscalation && owner(ticket) !== "Unclaimed");
 }
 
 function statusClass(status) {
