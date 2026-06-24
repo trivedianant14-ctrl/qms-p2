@@ -1399,7 +1399,6 @@ tbody tr:focus-within {
   display: block;
   padding: 0;
   min-height: 68px;
-  overflow: hidden;
 }
 
 .collapse-card[open] {
@@ -1836,6 +1835,9 @@ tbody tr:focus-within {
 .fire-dot.red { background: var(--red); }
 .fire-dot.amber { background: var(--amber); }
 .fire-dot.orange { background: #ea580c; }
+.fire-dot.blue { background: var(--blue); }
+.fire-dot.purple { background: #7c3aed; }
+.fire-dot.green { background: #16a34a; }
 
 .person-cell {
   display: flex;

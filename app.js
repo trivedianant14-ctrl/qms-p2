@@ -672,6 +672,20 @@ function stuckTickets() {
   });
 }
 
+function inReviewTickets() {
+  return db.tickets.filter(t =>
+    (t.status === "Being reviewed" || t.status === "Worked on") && ticketAgeHours(t) < 4
+  );
+}
+
+function closedTodayTickets() {
+  return db.tickets.filter(t => t.status === "Closed" && isToday(t.resolvedAt));
+}
+
+function awaitingReviewTickets() {
+  return db.tickets.filter(t => t.status === "Resolution submitted");
+}
+
 function owner(ticket) {
   return ticket.facultyAssigned || ticket.claimedBy || "Unclaimed";
 }
@@ -934,6 +948,9 @@ function filteredTickets() {
       if (!t.history?.length) return false;
       return (Date.now() - Math.max(...t.history.map(h => new Date(h.at).getTime()))) > 6 * 3600000;
     });
+    else if (mf.type === "alert_in_review") rows = rows.filter(t => (t.status === "Being reviewed" || t.status === "Worked on") && ticketAgeHours(t) < 4);
+    else if (mf.type === "alert_awaiting_review") rows = rows.filter(t => t.status === "Resolution submitted");
+    else if (mf.type === "alert_closed_today") rows = rows.filter(t => t.status === "Closed" && isToday(t.resolvedAt));
     else if (mf.type === "question") rows = rows.filter(t => t.questionId === mf.value);
   }
   if (state.tab === "open") rows = rows.filter((t) => t.status !== "Closed");
@@ -972,6 +989,9 @@ function renderFireAlerts() {
   const breaching = breachingTickets();
   const unclaimed = oldUnclaimedTickets();
   const stuck = stuckTickets();
+  const inReview = inReviewTickets();
+  const closedToday = closedTodayTickets();
+  const awaitingReview = awaitingReviewTickets();
   const mk = (type, count, label, sub, dotClass) => {
     const active = state.managerFilter?.type === type;
     return `<button class="fire-card${active ? " active" : ""}" data-manager-alert="${type}">
@@ -983,6 +1003,9 @@ function renderFireAlerts() {
   if (breaching.length) alerts.push(mk("alert_sla", breaching.length, "SLA breaching", "within 2 hours", "red"));
   if (unclaimed.length) alerts.push(mk("alert_unclaimed", unclaimed.length, "unclaimed", "older than 4 hours", "amber"));
   if (stuck.length) alerts.push(mk("alert_stuck", stuck.length, "stuck", "no update in 6+ hours", "orange"));
+  if (inReview.length) alerts.push(mk("alert_in_review", inReview.length, "in review", "fresh — under 4 hours", "blue"));
+  if (awaitingReview.length) alerts.push(mk("alert_awaiting_review", awaitingReview.length, "awaiting review", "resolution submitted", "purple"));
+  if (closedToday.length) alerts.push(mk("alert_closed_today", closedToday.length, "closed today", "resolved & confirmed", "green"));
   const backBtn = state.managerFilter
     ? `<button class="back-btn fire-back" data-manager-filter-clear>← Overview</button>`
     : "";
@@ -1049,6 +1072,9 @@ function renderManagerTicketTable() {
     alert_sla: "SLA breaching — within 2 hours",
     alert_unclaimed: "Unclaimed — older than 4 hours",
     alert_stuck: "Stuck — no update in 6+ hours",
+    alert_in_review: "In review — fresh under 4 hours",
+    alert_awaiting_review: "Awaiting review — resolution submitted",
+    alert_closed_today: "Closed today",
     question: `All tickets for question #${mf.value}`,
   };
   const rows = filteredTickets();
