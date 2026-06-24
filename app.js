@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v16";
+const STORE_KEY = "nprep-qms-phase2-prototype-v17";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
