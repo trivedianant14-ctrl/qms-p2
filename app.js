@@ -1010,8 +1010,11 @@ function renderFireAlerts() {
   const backBtn = state.managerFilter
     ? `<button class="back-btn fire-back" data-manager-filter-clear>← Overview</button>`
     : "";
+  const createBtn = !state.managerFilter
+    ? `<button class="primary fire-create-btn" data-create-ticket-modal>+ Create Ticket</button>`
+    : "";
   el.fireAlerts.hidden = false;
-  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}</div>`;
+  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}${createBtn}</div>`;
 }
 
 function renderManagerOverview() {
@@ -1089,6 +1092,7 @@ function renderManagerTicketTable() {
   _dtbl.style.minWidth = "0";
   _dtbl.closest(".table-wrap").style.overflowX = "hidden";
   el.managerBackBtn.hidden = false;
+  el.createTicketButton.hidden = true;
   el.tableTitle.textContent = labels[mf.type] || "Filtered";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");

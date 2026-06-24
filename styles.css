@@ -1789,6 +1789,12 @@ tbody tr:focus-within {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.fire-create-btn {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .fire-card {
