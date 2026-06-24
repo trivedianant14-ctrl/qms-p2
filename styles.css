@@ -1780,6 +1780,34 @@ tbody tr:focus-within {
   font-size: 13px;
 }
 
+.no-ref {
+  color: var(--soft);
+  font-size: 13px;
+}
+
+.priority-lock-warn {
+  color: var(--amber);
+}
+
+.source-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.source-qbank {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.source-tests {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
 .engg-escalation-panel {
   border-left: 3px solid var(--red);
   background: var(--red-soft);

@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v17";
+const STORE_KEY = "nprep-qms-phase2-prototype-v18";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -85,6 +85,7 @@ const columns = [
   ["raisedAt", "Raised On"],
   ["student", "Student"],
   ["status", "Current Status"],
+  ["source", "Source"],
   ["category", "Category"],
   ["subOption", "Sub Category"],
   ["subject", "Subject"],
@@ -95,7 +96,7 @@ const columns = [
   ["score", "Score"],
 ];
 
-const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score"]);
+const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "source", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score"]);
 const DEFAULT_COLUMN_WIDTHS = {
   id: 122,
   questionId: 118,
@@ -106,6 +107,7 @@ const DEFAULT_COLUMN_WIDTHS = {
   subOption: 300,
   subject: 230,
   topic: 220,
+  source: 90,
   owner: 170,
   sla: 120,
   priority: 130,
@@ -129,7 +131,6 @@ const state = {
   sortDir: "desc",
   visibleColumns: columns.map(([key]) => key),
   columnWidths: loadColumnWidths(),
-  source: "all",
 };
 
 let db = loadDb();
@@ -167,8 +168,6 @@ const el = {
   configModal: document.querySelector("#configModal"),
   toastStack: document.querySelector("#toastStack"),
   createTicketButton: document.querySelector("#createTicketButton"),
-  sourceFilter: document.querySelector("#sourceFilter"),
-  sourceFilterLabel: document.querySelector("#sourceFilterLabel"),
 };
 
 function deriveRouting(category, subOption) {
@@ -303,7 +302,7 @@ function createTicket(input) {
     sessionDetails: input.sessionDetails || buildSessionDetails(input, raisedAt),
     history: input.history || [
       eventLine("SYSTEM", "Ticket created from student query"),
-      eventLine("Content Queries", `Routed to ${routeLabel(routedTo)}`),
+      eventLine("Auto-router", `Routed to ${routeLabel(routedTo)}`),
     ],
   };
 }
@@ -355,7 +354,7 @@ function seedDb() {
       timelineStatus: "in_review",
       facultyAssigned: "Meera Joshi",
       studentVoiceNote: "0:24 voice note",
-      history: [eventLine("SYSTEM", "Ticket created from student query"), eventLine("Content Queries", "Auto-assigned to Meera Joshi")],
+      history: [eventLine("SYSTEM", "Ticket created from student query"), eventLine("Auto-router", "Auto-assigned to Meera Joshi")],
     }),
     createTicket({
       id: "NP-00004",
@@ -479,7 +478,7 @@ function seedDb() {
     const subject = facultySubjects[index % facultySubjects.length];
     const isClosed = index % 9 === 0;
     tickets.push(createTicket({
-      id: `NF-${String(index + 1).padStart(4, "0")}`,
+      id: `NP-${String(index + 10).padStart(5, "0")}`,
       questionId: 85001 + index,
       student: studentNames[index % studentNames.length],
       category,
@@ -516,7 +515,7 @@ function seedDb() {
     const ownerName = contentOwners[index % contentOwners.length];
     const isClosed = index % 10 === 0;
     tickets.push(createTicket({
-      id: `NC-${String(index + 1).padStart(4, "0")}`,
+      id: `NP-${String(index + 30).padStart(5, "0")}`,
       questionId: 86001 + index,
       student: studentNames[(index + 2) % studentNames.length],
       category,
@@ -558,7 +557,7 @@ function seedDb() {
     const subject = unclaimedFacultySubjects[index];
     const [category, subOption] = facultySubOptions[(index + 1) % facultySubOptions.length];
     tickets.push(createTicket({
-      id: `NUF-${String(index + 1).padStart(4, "0")}`,
+      id: `NP-${String(index + 50).padStart(5, "0")}`,
       questionId: 87001 + index,
       student: studentNames[(index + 3) % studentNames.length],
       category,
@@ -578,7 +577,7 @@ function seedDb() {
   for (let index = 0; index < 12; index += 1) {
     const [category, subOption] = contentCategories[(index + 2) % contentCategories.length];
     tickets.push(createTicket({
-      id: `NUC-${String(index + 1).padStart(4, "0")}`,
+      id: `NP-${String(index + 62).padStart(5, "0")}`,
       questionId: 88001 + index,
       student: studentNames[(index + 5) % studentNames.length],
       category,
@@ -744,7 +743,7 @@ function normalizeTimeline(targetDb) {
   targetDb.tickets.forEach((ticket) => {
     ticket.history = ticket.history || [];
     upsertTimelineEvent(ticket, "SYSTEM", "Ticket created from student query", ticket.raisedAt, (item) => /ticket created from student query/i.test(item.text || ""));
-    upsertTimelineEvent(ticket, "Content Queries", `Routed to ${routeLabel(ticket.routedTo)}`, timelineOffset(ticket, 5), (item) => /^routed to /i.test(item.text || ""));
+    upsertTimelineEvent(ticket, "Auto-router", `Routed to ${routeLabel(ticket.routedTo)}`, timelineOffset(ticket, 5), (item) => /^routed to /i.test(item.text || ""));
     const hasOwnerEvent = ticket.history.some((item) => /claimed|assigned|auto-assigned/i.test(item.text || "") && (item.actor === ticket.facultyAssigned || item.actor === ticket.claimedBy || item.text.includes(ticket.facultyAssigned || ticket.claimedBy || "__none__")));
     const claimAt = ticket.facultyAssignedAt || timelineBeforeResolved(ticket, 75, 30);
     if (ticket.facultyAssigned && !hasOwnerEvent) {
@@ -768,7 +767,7 @@ function normalizeResolutionTimeline(ticket) {
     ensureTimelineEvent(ticket, ownerName, resolutionText, timelineBeforeResolved(ticket, 45, 90), (item) => /submitted .*resolution/i.test(item.text || ""));
   }
   if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
-    ensureTimelineEvent(ticket, ticket.claimedBy || "Content Queries", "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 110), (item) => /finalized student-facing resolution|closed ticket with code/i.test(item.text || ""));
+    ensureTimelineEvent(ticket, ticket.claimedBy || "Auto-router", "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 110), (item) => /finalized student-facing resolution|closed ticket with code/i.test(item.text || ""));
   }
   if (isEngineeringEscalated(ticket)) {
     ensureTimelineEvent(ticket, ownerName, "Escalated this ticket to Engineering", timelineBeforeResolved(ticket, 35, 70), (item) => /escalated this ticket to engineering/i.test(item.text || ""));
@@ -915,7 +914,6 @@ function filteredTickets() {
   if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
   if (state.tab === "technical") rows = rows.filter((t) => t.technicalEscalation || t.category === "Can't See Something");
   if (state.tab === "lowCsat") rows = rows.filter((t) => t.satisfactionScore != null && t.satisfactionScore < 3);
-  if (state.source !== "all") rows = rows.filter((t) => t.source === state.source);
   if (state.status !== "all") rows = rows.filter((t) => t.status === state.status);
   if (state.assignee !== "all") rows = rows.filter((t) => owner(t) === state.assignee);
   rows = rows.filter((ticket) => inDateRange(ticket.raisedAt));
@@ -1089,9 +1087,6 @@ function renderFilters() {
   el.dateFromFilter.value = state.dateFrom;
   el.dateToFilter.value = state.dateTo;
   el.createTicketButton.hidden = state.role !== "manager";
-  const showSource = state.role === "team";
-  el.sourceFilterLabel.hidden = !showSource;
-  el.sourceFilter.value = state.source;
 }
 
 function renderSelectFilter(select, options, selected, allLabel, labels = {}) {
@@ -1262,6 +1257,7 @@ function cell(ticket, key) {
     raisedAt: absoluteDate(ticket.raisedAt),
     student: ticket.student,
     status: statusCell(ticket),
+    source: `<span class="source-chip source-${(ticket.source || "qbank").toLowerCase()}">${ticket.source || "QBank"}</span>`,
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
@@ -1282,6 +1278,7 @@ function rawCell(ticket, key) {
     raisedAt: absoluteDate(ticket.raisedAt),
     student: ticket.student,
     status: isEngineeringEscalated(ticket) ? `${ticket.status} - Engineering Escalation` : ticket.status,
+    source: ticket.source || "QBank",
     category: ticket.category,
     subOption: ticket.subOption,
     subject: ticket.subject,
@@ -1915,7 +1912,7 @@ function studentQueryRows(ticket) {
     ["Topic", ticket.topic],
     ["Question ID", `#${ticket.questionId}`],
     ["Raised At", absoluteDate(ticket.raisedAt)],
-    ["Age", relativeTime(ticket.raisedAt)],
+    ["Open for", relativeTime(ticket.raisedAt)],
     ["Resolved At", ticket.resolvedAt ? absoluteDate(ticket.resolvedAt) : "Not resolved yet"],
   ];
   if (ticket.resolvedAt) rows.push(["Resolution Time", durationBetween(ticket.raisedAt, ticket.resolvedAt)]);
@@ -1963,7 +1960,7 @@ function workflowPanel(ticket) {
     ? `<div class="readonly-status"><span class="label">Status</span><span class="muted">Final state</span><small>Updated automatically by workflow actions.</small></div>`
     : `<div class="readonly-status"><span class="label">Status</span>${statusCell(ticket, { showEngineering: false })}<small>Updated automatically by workflow actions.</small></div>`;
   const priorityControl = priorityLocked
-    ? `<div class="readonly-status"><span class="label">Priority</span><span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span><small>Locked after first save. It cannot be changed later.</small></div>`
+    ? `<div class="readonly-status"><span class="label">Priority</span><span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span><small class="priority-lock-warn">⚠️ Locked after first save. It cannot be changed later.</small></div>`
     : unclaimed
       ? `<div class="readonly-status"><span class="label">Priority</span><span class="muted">Not set</span><small>Claim or assign the ticket before setting priority.</small></div>`
     : `<label>Priority<select id="prioritySelect"><option value="">Set priority</option>${["Highest", "High", "Medium", "Low"].map((priority) => `<option value="${priority}">${priority}</option>`).join("")}</select><small class="field-warning">One-time save. Confirm carefully.</small></label>`;
@@ -1987,7 +1984,7 @@ function facultyPanel(ticket) {
   if (submitted) {
     return `<section class="drawer-card"><h3>Resolution Locked</h3><div class="next-step"><span class="label">Submitted once</span><p>This resolution has already been submitted and cannot be edited or submitted again.</p></div></section>`;
   }
-  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Textbook page, diagram, or link" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">One-time submission. Minimum 30 characters.</span></div></div></section>`;
+  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">One-time submission. Minimum 30 characters.</span></div></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -2010,7 +2007,7 @@ function resolutionImageMarkup(ticket) {
     <input id="resolutionImageName" type="hidden" value="${escapeAttr(name)}">
     <input id="resolutionImageData" type="hidden" value="${escapeAttr(data)}">
     <div class="image-attach-head">
-      <div><strong>Attach image</strong><p data-resolution-image-status>${name ? escapeHtml(name) : "Optional diagram, screenshot, or textbook page"}</p></div>
+      <div><strong>Attach image</strong><p data-resolution-image-status>${name ? escapeHtml(name) : "Attach a diagram or screenshot"}</p></div>
       <div class="image-attach-actions">
         <button type="button" class="ghost" data-trigger-resolution-image>${name ? "Replace Image" : "Attach Image"}</button>
         <button type="button" class="soft-button" data-clear-resolution-image ${name ? "" : "disabled"}>Clear</button>
@@ -2159,7 +2156,7 @@ function clearResolutionImage() {
   root.querySelector("#resolutionImageFile").value = "";
   root.querySelector("#resolutionImageName").value = "";
   root.querySelector("#resolutionImageData").value = "";
-  root.querySelector("[data-resolution-image-status]").textContent = "Optional diagram, screenshot, or textbook page";
+  root.querySelector("[data-resolution-image-status]").textContent = "Attach a diagram or screenshot";
   root.querySelector("[data-clear-resolution-image]").disabled = true;
   root.querySelector("[data-trigger-resolution-image]").textContent = "Attach Image";
   const preview = root.querySelector("[data-resolution-image-preview]");
@@ -2201,7 +2198,10 @@ function managerPanel(ticket) {
 function resolutionPanel(ticket) {
   if (!ticket.resolutionText && !ticket.finalResolutionText) return "";
   const image = ticket.resolutionImageName ? ` <button type="button" class="soft-button tiny" data-view-resolution-image="${ticket.id}">View Image</button><button type="button" class="soft-button tiny" data-download-resolution-image="${ticket.id}">Download Image</button>` : "";
-  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p><p class="muted">${ticket.resolutionReference || "No reference attached"}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
+  const refLine = ticket.resolutionReference
+    ? `<p class="muted">${ticket.resolutionReference}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>`
+    : `<p><span class="no-ref">No reference attached</span>${ticket.resolutionImageName ? `<span class="muted"> - Image: ${escapeHtml(ticket.resolutionImageName)}</span>` : ""}${ticket.facultyVoiceNote ? `<span class="muted"> - Voice: ${ticket.facultyVoiceNote}</span>` : ""}${image}</p>`;
+  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p>${refLine}${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
 }
 
 function escalationPanel(ticket) {
@@ -3115,10 +3115,6 @@ el.assigneeFilter.addEventListener("change", (event) => {
   renderTable();
 });
 
-el.sourceFilter.addEventListener("change", (event) => {
-  state.source = event.target.value;
-  renderTable();
-});
 
 el.tableHead.addEventListener("pointerdown", startColumnResize);
 
