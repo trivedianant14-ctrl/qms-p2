@@ -1068,7 +1068,7 @@ function render() {
   el.mainGrid.hidden = isReport;
   el.toolbar.hidden = isReport || isManagerOverview;
   el.ticketTabs.hidden = isReport || isManagerView;
-  el.mainGrid?.classList.toggle("no-side", !isManagerView);
+  el.mainGrid?.classList.toggle("no-side", true);
   renderStats();
   renderFireAlerts();
   if (isReport) {
@@ -1077,13 +1077,13 @@ function render() {
   }
   if (isManagerOverview) {
     renderManagerOverview();
-    renderSignalsPanel();
+    el.insightPanel.innerHTML = "";
     return;
   }
   renderFilters();
   if (isManagerView) {
     renderManagerTicketTable();
-    renderSignalsPanel();
+    el.insightPanel.innerHTML = "";
   } else {
     renderTabs();
     renderTable();
@@ -1612,7 +1612,11 @@ function reportControlBar(type) {
 function managerReportDashboard(rows) {
   const subjectLeaders = topCounts(rows, "subject", 6);
   const topicLeaders = topCounts(rows, "topic", 6);
+  const categoryLeaders = topCounts(rows, "category", 5);
   const questionLeaders = topQuestionRows(rows, 8);
+  const qList = questionLeaders.length
+    ? `<div class="mini-list">${questionLeaders.map(q => `<div class="mini-row"><div><strong>#${q.questionId}</strong><p class="muted">${q.topic} · ${q.subject}</p></div><span class="badge review">${q.count}</span></div>`).join("")}</div>`
+    : `<p class="muted">No repeated questions yet.</p>`;
   return `${reportControlBar("manager")}
     <section class="report-hero">
       <div><span class="label">Manager Report</span><h2>Team Health and Query Load</h2><p>Subject, topic, question, SLA, and bandwidth signals across the full QMS queue.</p></div>
@@ -1625,6 +1629,9 @@ function managerReportDashboard(rows) {
       <article class="chart-card chart-wide"><div class="chart-head"><div><span class="label">Question ID Analysis</span><h3>Most Doubtful Questions</h3></div></div>${questionHotspotTable(questionLeaders)}</article>
       <article class="chart-card"><div class="chart-head"><div><span class="label">Bar Graph</span><h3>Agent Open Load</h3></div></div><canvas data-chart="manager-agent-bar"></canvas></article>
       <article class="chart-card"><div class="chart-head"><div><span class="label">Topic Analytics</span><h3>Top Doubt Topics</h3></div></div>${barList(topicLeaders, rows.length)}</article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Systemic Signal</span><h3>Repeated Questions</h3></div></div>${qList}</article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Systemic Signal</span><h3>Subject Breakdown</h3></div></div>${barList(subjectLeaders, rows.length)}</article>
+      <article class="chart-card"><div class="chart-head"><div><span class="label">Systemic Signal</span><h3>Category Breakdown</h3></div></div>${barList(categoryLeaders, rows.length)}</article>
     </section>`;
 }
 
