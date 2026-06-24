@@ -1005,7 +1005,7 @@ function renderManagerOverview() {
   const th = (k, label) => `<th><button class="sort-header${state.resolverSort.key === k ? " active" : ""}" data-resolver-sort="${k}">${label}${arrow(k)}</button></th>`;
   el.tableTitle.textContent = "Resolver Load";
   el.tableSubtitle.textContent = `${resolvers.length} resolvers — tap a row to see their tickets`;
-  el.tableCols.innerHTML = `<col style="width:200px"><col style="width:100px"><col style="width:140px"><col style="width:170px"><col style="width:110px">`;
+  el.tableCols.innerHTML = `<col style="width:28%"><col style="width:15%"><col style="width:20%"><col style="width:22%"><col style="width:15%">`;
   el.tableHead.innerHTML = `${th("name", "Name")}${th("openLoad", "Open load")}${th("resolvedToday", "Resolved today")}${th("avgTimeHours", "Avg resolution time")}${th("avgScore", "Avg score")}`;
   el.ticketTable.innerHTML = resolvers.map(s => {
     const scoreHtml = s.avgScore != null
