@@ -1006,6 +1006,10 @@ function renderManagerOverview() {
   el.tableTitle.textContent = "Resolver Load";
   el.tableSubtitle.textContent = `${resolvers.length} resolvers — tap a row to see their tickets`;
   el.tableCols.innerHTML = `<col style="width:28%"><col style="width:15%"><col style="width:20%"><col style="width:22%"><col style="width:15%">`;
+  const _rtbl = el.ticketTable.closest("table");
+  _rtbl.style.width = "100%";
+  _rtbl.style.minWidth = "0";
+  _rtbl.closest(".table-wrap").style.overflowX = "hidden";
   el.tableHead.innerHTML = `${th("name", "Name")}${th("openLoad", "Open load")}${th("resolvedToday", "Resolved today")}${th("avgTimeHours", "Avg resolution time")}${th("avgScore", "Avg score")}`;
   el.ticketTable.innerHTML = resolvers.map(s => {
     const scoreHtml = s.avgScore != null
@@ -1048,7 +1052,11 @@ function renderManagerTicketTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
   applyTableColumnWidths(visible.map(([key]) => key));
-  el.tableTitle.textContent = labels[mf.type] || "Filtered";
+  const _dtbl = el.ticketTable.closest("table");
+  _dtbl.style.width = "";
+  _dtbl.style.minWidth = "";
+  _dtbl.closest(".table-wrap").style.overflowX = "";
+  el.tableTitle.innerHTML = `<button class="back-btn" data-manager-filter-clear>← Overview</button>&ensp;${labels[mf.type] || "Filtered"}`;
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map(ticket => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
@@ -1297,6 +1305,10 @@ function renderTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
   applyTableColumnWidths(visible.map(([key]) => key));
+  const _ntbl = el.ticketTable.closest("table");
+  _ntbl.style.width = "";
+  _ntbl.style.minWidth = "";
+  _ntbl.closest(".table-wrap").style.overflowX = "";
   el.tableTitle.textContent = state.role === "team" ? "Team Queries Queue" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
