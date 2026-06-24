@@ -157,6 +157,7 @@ const el = {
   exportCsvButton: document.querySelector("#exportCsvButton"),
   ticketTabs: document.querySelector("#ticketTabs"),
   mainGrid: document.querySelector(".main-grid"),
+  managerBackBtn: document.querySelector("#managerBackBtn"),
   tableTitle: document.querySelector("#tableTitle"),
   tableSubtitle: document.querySelector("#tableSubtitle"),
   tableCols: document.querySelector("#tableCols"),
@@ -1003,6 +1004,7 @@ function renderManagerOverview() {
   });
   const arrow = k => state.resolverSort.key === k ? (state.resolverSort.dir === "asc" ? " ↑" : " ↓") : "";
   const th = (k, label) => `<th><button class="sort-header${state.resolverSort.key === k ? " active" : ""}" data-resolver-sort="${k}">${label}${arrow(k)}</button></th>`;
+  el.managerBackBtn.hidden = true;
   el.tableTitle.textContent = "Resolver Load";
   el.tableSubtitle.textContent = `${resolvers.length} resolvers — tap a row to see their tickets`;
   el.tableCols.innerHTML = `<col style="width:28%"><col style="width:15%"><col style="width:20%"><col style="width:22%"><col style="width:15%">`;
@@ -1050,13 +1052,17 @@ function renderManagerTicketTable() {
     question: `All tickets for question #${mf.value}`,
   };
   const rows = filteredTickets();
-  const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
-  applyTableColumnWidths(visible.map(([key]) => key));
+  // Fixed curated columns for manager drilled view — avoids horizontal overflow
+  const MGR_KEYS = ["id", "raisedAt", "student", "status", "source", "category", "subject", "sla", "score"];
+  const MGR_PCTS = ["10%", "14%", "12%", "14%", "7%", "17%", "16%", "6%", "4%"];
+  const visible = MGR_KEYS.map(key => columns.find(([k]) => k === key)).filter(Boolean);
+  el.tableCols.innerHTML = MGR_PCTS.map(w => `<col style="width:${w}">`).join("");
   const _dtbl = el.ticketTable.closest("table");
-  _dtbl.style.width = "";
-  _dtbl.style.minWidth = "";
-  _dtbl.closest(".table-wrap").style.overflowX = "";
-  el.tableTitle.innerHTML = `<button class="back-btn" data-manager-filter-clear>← Overview</button>&ensp;${labels[mf.type] || "Filtered"}`;
+  _dtbl.style.width = "100%";
+  _dtbl.style.minWidth = "0";
+  _dtbl.closest(".table-wrap").style.overflowX = "hidden";
+  el.managerBackBtn.hidden = false;
+  el.tableTitle.textContent = labels[mf.type] || "Filtered";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map(ticket => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
@@ -1309,6 +1315,7 @@ function renderTable() {
   _ntbl.style.width = "";
   _ntbl.style.minWidth = "";
   _ntbl.closest(".table-wrap").style.overflowX = "";
+  el.managerBackBtn.hidden = true;
   el.tableTitle.textContent = state.role === "team" ? "Team Queries Queue" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");

@@ -1856,6 +1856,12 @@ tbody tr:focus-within {
 
 .back-btn:hover { text-decoration: underline; }
 
+.manager-back-btn {
+  margin-right: 10px;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
 .fire-back {
   padding: 10px 14px;
   border-radius: 8px;
