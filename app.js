@@ -165,6 +165,7 @@ const el = {
   modalScrim: document.querySelector("#modalScrim"),
   configModal: document.querySelector("#configModal"),
   toastStack: document.querySelector("#toastStack"),
+  createTicketButton: document.querySelector("#createTicketButton"),
 };
 
 function deriveRouting(category, subOption) {
@@ -1077,6 +1078,7 @@ function renderFilters() {
   el.questionIdFilter.value = state.questionIdSearch;
   el.dateFromFilter.value = state.dateFrom;
   el.dateToFilter.value = state.dateTo;
+  el.createTicketButton.hidden = state.role !== "manager";
 }
 
 function renderSelectFilter(select, options, selected, allLabel, labels = {}) {
@@ -2772,6 +2774,113 @@ function createStudentQuery() {
   persistAndRender(ticket.id);
 }
 
+function nextSupportTicketId() {
+  const existing = db.tickets.filter((t) => t.id.startsWith("NS-")).length;
+  return `NS-${String(existing + 1).padStart(4, "0")}`;
+}
+
+function categorySuboptions(category) {
+  const combined = [...(FACULTY_ROUTED[category] || []), ...(CONTENT_ROUTED[category] || [])];
+  return [...new Set(combined)];
+}
+
+function openCreateTicketModal() {
+  const categories = ["Problem with the Answer", "I Have a Doubt", "Can't See Something", "Problem with this Question", "Others"];
+  el.modalScrim.hidden = false;
+  el.configModal.setAttribute("open", "");
+  el.configModal.innerHTML = `<div class="modal-head"><strong>Create Support Ticket</strong><button data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <p class="create-ticket-intro">For queries received via WhatsApp or call. Ticket ID is auto-generated.</p>
+      <div class="resolution-form create-ticket-form">
+        <div class="create-form-row">
+          <label>Student Name <span class="field-required">*</span>
+            <input class="text-input" id="ctStudentName" type="text" placeholder="Student's full name...">
+          </label>
+          <label>Question Number
+            <input class="text-input" id="ctQuestionId" type="text" placeholder="e.g. 84291 (optional)">
+          </label>
+        </div>
+        <label>Category <span class="field-required">*</span>
+          <select id="ctCategory">
+            <option value="">Choose category...</option>
+            ${categories.map((cat) => `<option value="${escapeAttr(cat)}">${escapeHtml(cat)}</option>`).join("")}
+          </select>
+        </label>
+        <label id="ctSubOptionWrap" hidden>Sub-option
+          <select id="ctSubOption"><option value="">Choose sub-option...</option></select>
+        </label>
+        <label>Student's Query <span class="field-required">*</span>
+          <textarea id="ctQuery" placeholder="Describe what the student shared via WhatsApp or call..."></textarea>
+        </label>
+        <label>Priority <span class="field-required">*</span>
+          <select id="ctPriority">
+            <option value="">Set priority...</option>
+            ${["Highest", "High", "Medium", "Low"].map((p) => `<option>${p}</option>`).join("")}
+          </select>
+        </label>
+        <label>Internal Remarks
+          <textarea id="ctRemarks" placeholder="Notes for the resolver team — not shown to the student..."></textarea>
+        </label>
+      </div>
+      <div class="form-actions create-ticket-actions">
+        <button class="primary" data-submit-new-ticket>Create Ticket</button>
+        <button class="ghost" data-close-modal>Cancel</button>
+      </div>
+    </div>`;
+}
+
+function updateCreateModalSuboptions(category) {
+  const suboptions = categorySuboptions(category);
+  const select = document.querySelector("#ctSubOption");
+  const wrap = document.querySelector("#ctSubOptionWrap");
+  if (!select || !wrap) return;
+  if (!suboptions.length) {
+    wrap.hidden = true;
+    select.value = "";
+    return;
+  }
+  wrap.hidden = false;
+  select.innerHTML = `<option value="">Choose sub-option...</option>${suboptions.map((sub) => `<option value="${escapeAttr(sub)}">${escapeHtml(sub)}</option>`).join("")}`;
+}
+
+function submitNewTicket() {
+  const studentName = document.querySelector("#ctStudentName")?.value.trim() || "";
+  const questionIdRaw = document.querySelector("#ctQuestionId")?.value.trim() || "";
+  const category = document.querySelector("#ctCategory")?.value || "";
+  const subOption = document.querySelector("#ctSubOption")?.value || "";
+  const queryText = document.querySelector("#ctQuery")?.value.trim() || "";
+  const priority = document.querySelector("#ctPriority")?.value || "";
+  const remarks = document.querySelector("#ctRemarks")?.value.trim() || "";
+  if (!studentName) { toast("Student name is required."); return; }
+  if (!category) { toast("Choose a category before creating the ticket."); return; }
+  if (!queryText || queryText.length < 10) { toast("Query needs at least 10 characters."); return; }
+  if (!priority) { toast("Set a priority before creating the ticket."); return; }
+  const questionId = questionIdRaw ? (Number(questionIdRaw.replace(/\D/g, "")) || 0) : Math.floor(90000 + Math.random() * 9000);
+  const id = nextSupportTicketId();
+  const ticket = createTicket({
+    id,
+    questionId,
+    student: studentName,
+    category,
+    subOption: subOption || "General support query",
+    queryText,
+    studentDoubt: queryText,
+    priority,
+    ageHours: 0,
+    status: "Raised",
+    timelineStatus: "raised",
+  });
+  if (remarks) {
+    ticket.internalNotes = [{ author: current.manager, text: remarks, at: new Date().toISOString() }];
+  }
+  ticket.history.unshift(eventLine(current.manager, "Ticket created by support team from WhatsApp/call"));
+  db.tickets.unshift(ticket);
+  pushNotification("Support", `Support ticket created: #${id} — ${studentName}`, id);
+  closeModal();
+  persistAndRender(id);
+  toast(`Ticket #${id} created for ${studentName}.`, "success");
+}
+
 function statusCell(ticket, options = {}) {
   const showEngineering = options.showEngineering !== false;
   const engineering = showEngineering && isEngineeringEscalated(ticket) ? `<span class="badge engineering">Engineering Escalation</span>` : "";
@@ -3012,6 +3121,7 @@ document.addEventListener("change", (event) => {
     return;
   }
   if (event.target?.id === "profileSwitcher") openProfile(event.target.value);
+  if (event.target?.id === "ctCategory") updateCreateModalSuboptions(event.target.value);
 });
 
 document.addEventListener("click", (event) => {
@@ -3116,6 +3226,8 @@ document.addEventListener("click", (event) => {
     if (ticketId) managerAssign(ticketId, assignee);
     openProfile(assignee);
   }
+  if (target.closest("[data-create-ticket-modal]")) { openCreateTicketModal(); return; }
+  if (target.closest("[data-submit-new-ticket]")) { submitNewTicket(); return; }
   if (target.closest("[data-period]")) {
     state.period = target.closest("[data-period]").dataset.period;
     renderSidePanel();

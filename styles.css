@@ -1617,7 +1617,7 @@ tbody tr:focus-within {
 }
 
 .config-modal {
-  width: min(560px, calc(100vw - 32px));
+  width: min(680px, calc(100vw - 32px));
   max-height: calc(100vh - 56px);
   overflow: auto;
   border: 0;
@@ -1729,6 +1729,42 @@ tbody tr:focus-within {
   background: #fff7ed;
   font-size: 13px;
   font-weight: 800;
+}
+
+.create-ticket-intro {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.create-ticket-form {
+  gap: 14px;
+}
+
+.create-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.create-ticket-actions {
+  margin-top: 4px;
+  gap: 8px;
+}
+
+.field-required {
+  color: var(--red);
+  font-weight: 800;
+}
+
+.config-modal .resolution-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .column-picker {
