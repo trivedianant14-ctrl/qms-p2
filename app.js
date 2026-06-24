@@ -202,10 +202,10 @@ function deriveTopic(subject, questionId) {
 }
 
 function satisfactionScore(feedbackType, rating) {
-  if (feedbackType === "thumbs_up") return 4.5;
-  if (feedbackType === "auto_closed") return 3.5;
-  if (feedbackType === "thumbs_down") return 1.5;
-  if (feedbackType === "escalation_resolved") return rating || 3.5;
+  if (feedbackType === "thumbs_up") return 3.0;
+  if (feedbackType === "auto_closed") return 2.0;
+  if (feedbackType === "thumbs_down") return 1.0;
+  if (feedbackType === "escalation_resolved") return Math.min(3, rating || 2.0);
   return null;
 }
 
@@ -365,7 +365,7 @@ function seedDb() {
       finalResolutionText: "Thanks for flagging this. The item has been reviewed and the explanation has been clarified.",
       resolutionCode: "Content corrected",
       feedbackType: "thumbs_up",
-      satisfactionScore: 4.5,
+      satisfactionScore: 3.0,
     }),
     createTicket({
       id: "NP-00005",
@@ -382,7 +382,7 @@ function seedDb() {
       resolvedAt: new Date(Date.now() - 4 * 3600000).toISOString(),
       resolutionText: "Option C is incorrect because it describes an adverse-effect management step, not the priority intervention.",
       feedbackType: "thumbs_down",
-      satisfactionScore: 1.5,
+      satisfactionScore: 1.0,
       escalationResolved: false,
       callRequested: true,
       followupText: "I still do not understand why priority changes here.",
@@ -403,7 +403,7 @@ function seedDb() {
       resolutionText: "Both sources use different wording, but the NPrep answer follows the exam-specific nursing context.",
       resolutionReference: "Textbook reference page 119",
       feedbackType: "auto_closed",
-      satisfactionScore: 3.5,
+      satisfactionScore: 2.0,
     }),
     createTicket({
       id: "NP-00007",
@@ -420,10 +420,10 @@ function seedDb() {
       resolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
       resolutionText: "Priority is decided by airway and immediate risk. Option A is correct because it prevents deterioration first.",
       feedbackType: "escalation_resolved",
-      escalationRating: 4,
+      escalationRating: 3,
       escalationReview: "Sir explained it very clearly on the call.",
       escalationResolved: true,
-      satisfactionScore: 4,
+      satisfactionScore: 3,
     }),
     createTicket({
       id: "NP-00008",
@@ -489,7 +489,7 @@ function seedDb() {
       resolvedAt: isClosed ? new Date(Date.now() - (index + 1) * 1800000).toISOString() : null,
       resolutionText: isClosed ? "Resolver clarified the concept and added a supporting reference." : "",
       feedbackType: isClosed ? (index % 2 === 0 ? "thumbs_up" : "auto_closed") : null,
-      satisfactionScore: isClosed ? (index % 2 === 0 ? 4.5 : 3.5) : null,
+      satisfactionScore: isClosed ? (index % 2 === 0 ? 3.0 : 2.0) : null,
     }));
   }
 
@@ -526,7 +526,7 @@ function seedDb() {
       resolutionText: isClosed ? "Content team reviewed and corrected the visible issue." : "",
       finalResolutionText: isClosed ? "This has been checked and corrected. Please reload the question." : "",
       feedbackType: isClosed ? "thumbs_up" : null,
-      satisfactionScore: isClosed ? 4.5 : null,
+      satisfactionScore: isClosed ? 3.0 : null,
       technicalEscalation: Boolean(ownerName || isClosed) && index % 8 === 0,
     }));
   }
@@ -770,7 +770,7 @@ function normalizeResolutionTimeline(ticket) {
   if (ticket.feedbackType === "escalation_resolved" || ticket.escalationResolved) {
     ensureTimelineEvent(ticket, ticket.student, "Marked resolution as unclear", ticket.escalationRaisedAt || timelineBeforeResolved(ticket, 60, 120), (item) => /marked resolution as unclear/i.test(item.text || ""));
     ensureTimelineEvent(ticket, ownerName, "Resolved escalation through outreach", ticket.escalationResolvedAt || timelineBeforeResolved(ticket, 12, 150), (item) => /resolved escalation/i.test(item.text || ""));
-    ensureTimelineEvent(ticket, ticket.student, ticket.escalationRating ? `Rated escalation ${ticket.escalationRating}/5` : "Confirmed escalation resolved", ticket.resolvedAt || timelineOffset(ticket, 180), (item) => /rated escalation|confirmed escalation resolved/i.test(item.text || ""));
+    ensureTimelineEvent(ticket, ticket.student, ticket.escalationRating ? `Rated escalation ${ticket.escalationRating}/3` : "Confirmed escalation resolved", ticket.resolvedAt || timelineOffset(ticket, 180), (item) => /rated escalation|confirmed escalation resolved/i.test(item.text || ""));
   }
   if (ticket.status === "Closed" && ticket.resolvedAt) {
     if (ticket.feedbackType === "thumbs_up") {
@@ -1001,7 +1001,7 @@ function renderStats() {
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Tickets closed today", "green"],
       ["Overall Closed", closed.length, "All closed tickets in this view", "green"],
-      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 2.5 ? "green" : "amber"],
     ],
     faculty: [
       ["My Open", open.filter((t) => t.facultyAssigned === current.faculty).length, `Assigned to ${current.faculty}`, ""],
@@ -1009,7 +1009,7 @@ function renderStats() {
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Tickets closed today", "green"],
       ["Overall Closed", closed.length, "All closed tickets in this view", "green"],
-      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 2.5 ? "green" : "amber"],
     ],
     content: [
       ["Queue", base.length, "Content and subject-routed tickets", ""],
@@ -1017,7 +1017,7 @@ function renderStats() {
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Tickets closed today", "green"],
       ["Overall Closed", closed.length, "All closed content tickets", "green"],
-      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 2.5 ? "green" : "amber"],
     ],
     manager: [
       ["Open", open.length, "Across content, support, and subject experts", ""],
@@ -1025,13 +1025,13 @@ function renderStats() {
       ["SLA Risk", breaching.length, "Within two hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Team closures today", "green"],
       ["Overall Closed", closed.length, "All closed tickets", "green"],
-      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 4 ? "green" : "amber"],
+      ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 2.5 ? "green" : "amber"],
     ],
     product: [
       ["Top Category", topCount(base, "category")?.label || "--", `${topCount(base, "category")?.count || 0} tickets`, ""],
       ["Top Suboption", topCount(base, "subOption")?.label || "--", `${topCount(base, "subOption")?.count || 0} tickets`, "amber"],
       ["Avg SLA Left", avgOpenSla(base), "Open ticket runway", ""],
-      ["CSAT", avgScore, "Across resolved feedback", Number(avgScore) >= 4 ? "green" : "amber"],
+      ["CSAT", avgScore, "Across resolved feedback", Number(avgScore) >= 2.5 ? "green" : "amber"],
       ["Engineering", base.filter((t) => t.technicalEscalation || t.category === "Can't See Something").length, "Technical/render signals", "red"],
       ["Low CSAT", base.filter((t) => t.satisfactionScore != null && t.satisfactionScore < 3).length, "Needs intake review", "amber"],
     ],
@@ -1042,7 +1042,7 @@ function renderStats() {
 function renderReportStats() {
   const rows = db.tickets.filter((ticket) => inDateRange(ticket.raisedAt));
   const open = rows.filter((ticket) => ticket.status !== "Closed");
-  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3);
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 2);
   const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something");
   const subjectTop = topCount(rows, "subject");
   const topicTop = topCount(rows, "topic");
@@ -1061,7 +1061,7 @@ function renderReportStats() {
       ["Top Category", categoryTop?.label || "--", `${categoryTop?.count || 0} picks`, ""],
       ["Top Suboption", suboptionTop?.label || "--", `${suboptionTop?.count || 0} picks`, "amber"],
       ["Avg SLA Left", avgOpenSla(rows), "Open ticket runway", ""],
-      ["CSAT", averageScore(rows), `${lowCsat.length} low scores`, Number(averageScore(rows)) >= 4 ? "green" : "amber"],
+      ["CSAT", averageScore(rows), `${lowCsat.length} low scores`, Number(averageScore(rows)) >= 2.5 ? "green" : "amber"],
       ["Engineering", technical.length, "Technical/render signals", "red"],
       ["Intake Friction", rows.filter((ticket) => ticket.category !== "I Have a Doubt").length, "Non-doubt categories", "amber"],
     ],
@@ -1356,7 +1356,7 @@ function managerReportRows(rows) {
 }
 
 function productReportRows(rows) {
-  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length;
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 2).length;
   const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something").length;
   return [
     ["Summary", "Total intake tickets", rows.length, dateRangeLabel() || "All raised dates"],
@@ -1416,7 +1416,7 @@ function productDashboardPanel() {
   const rows = db.tickets.filter((ticket) => inDateRange(ticket.raisedAt));
   const categoryLeaders = topCounts(rows, "category", 5);
   const suboptionLeaders = topCounts(rows, "subOption", 5);
-  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length;
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 2).length;
   const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something").length;
   return `<div class="report-head"><div><span class="label">Product Dashboard</span><h3>Intake Quality</h3></div><button class="primary tiny" data-download-report="product">Download Report</button></div>
     <div class="report-metrics">
@@ -1483,7 +1483,7 @@ function productReportDashboard(rows) {
   const categoryLeaders = topCounts(rows, "category", 6);
   const suboptionLeaders = topCounts(rows, "subOption", 7);
   const technical = rows.filter((ticket) => ticket.technicalEscalation || ticket.category === "Can't See Something").length;
-  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length;
+  const lowCsat = rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 2).length;
   return `${reportControlBar("product")}
     <section class="report-hero">
       <div><span class="label">Product Team Dashboard</span><h2>Student Intake and Experience Signals</h2><p>Visual readout of what students choose, where intake creates friction, and which issues need product or engineering attention.</p></div>
@@ -1714,7 +1714,7 @@ function productSignalItems(rows) {
     { label: "Render / visibility", count: rows.filter((ticket) => ticket.category === "Can't See Something").length },
     { label: "Engineering escalation", count: rows.filter((ticket) => ticket.technicalEscalation).length },
     { label: "Escalation", count: rows.filter((ticket) => ticket.status === "Escalation" || ticket.feedbackType === "thumbs_down").length },
-    { label: "Low CSAT", count: rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 3).length },
+    { label: "Low CSAT", count: rows.filter((ticket) => ticket.satisfactionScore != null && ticket.satisfactionScore < 2).length },
     { label: "Unclaimed backlog", count: rows.filter((ticket) => owner(ticket) === "Unclaimed").length },
   ];
 }
@@ -2182,7 +2182,7 @@ function escalationPanel(ticket) {
     ["Student response", ticket.followupText || "No written follow-up captured"],
     ["Call requested", ticket.callRequested ? "Yes" : "No"],
     ["Escalation output", ticket.escalationResolved ? "Escalation resolved" : "Needs outreach"],
-    ["Student understood", ticket.escalationRating ? `${ticket.escalationRating}/5 rating` : "Pending"],
+    ["Student understood", ticket.escalationRating ? `${ticket.escalationRating}/3 rating` : "Pending"],
     ["Student review", ticket.escalationReview || "None"],
   ])}</section>`;
 }
@@ -2914,8 +2914,8 @@ function priorityClass(priority) {
 }
 
 function scoreClass(score) {
-  if (score >= 4) return "good";
-  if (score >= 3) return "ok";
+  if (score >= 2.5) return "good";
+  if (score >= 1.5) return "ok";
   return "bad";
 }
 
