@@ -982,8 +982,11 @@ function renderFireAlerts() {
   if (breaching.length) alerts.push(mk("alert_sla", breaching.length, "SLA breaching", "within 2 hours", "red"));
   if (unclaimed.length) alerts.push(mk("alert_unclaimed", unclaimed.length, "unclaimed", "older than 4 hours", "amber"));
   if (stuck.length) alerts.push(mk("alert_stuck", stuck.length, "stuck", "no update in 6+ hours", "orange"));
-  el.fireAlerts.hidden = alerts.length === 0;
-  el.fireAlerts.innerHTML = alerts.length ? `<div class="fire-alerts-row">${alerts.join("")}</div>` : "";
+  const backBtn = state.managerFilter
+    ? `<button class="back-btn fire-back" data-manager-filter-clear>← Overview</button>`
+    : "";
+  el.fireAlerts.hidden = alerts.length === 0 && !state.managerFilter;
+  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}</div>`;
 }
 
 function renderManagerOverview() {
@@ -1045,8 +1048,8 @@ function renderManagerTicketTable() {
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
   applyTableColumnWidths(visible.map(([key]) => key));
-  el.tableTitle.innerHTML = `<button class="back-btn" data-manager-filter-clear>← Overview</button>`;
-  el.tableSubtitle.textContent = `${labels[mf.type] || "Filtered"} — ${rows.length} ticket${rows.length === 1 ? "" : "s"}`;
+  el.tableTitle.textContent = labels[mf.type] || "Filtered";
+  el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map(ticket => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
 }

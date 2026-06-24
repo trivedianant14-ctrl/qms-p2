@@ -1856,6 +1856,23 @@ tbody tr:focus-within {
 
 .back-btn:hover { text-decoration: underline; }
 
+.fire-back {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 13px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.fire-back:hover {
+  background: var(--blue-soft);
+  border-color: var(--blue);
+  text-decoration: none;
+}
+
 /* ────────────────────────────────────────────── */
 
 .no-ref {
