@@ -129,6 +129,7 @@ const state = {
   sortDir: "desc",
   visibleColumns: columns.map(([key]) => key),
   columnWidths: loadColumnWidths(),
+  source: "all",
 };
 
 let db = loadDb();
@@ -166,6 +167,8 @@ const el = {
   configModal: document.querySelector("#configModal"),
   toastStack: document.querySelector("#toastStack"),
   createTicketButton: document.querySelector("#createTicketButton"),
+  sourceFilter: document.querySelector("#sourceFilter"),
+  sourceFilterLabel: document.querySelector("#sourceFilterLabel"),
 };
 
 function deriveRouting(category, subOption) {
@@ -173,6 +176,11 @@ function deriveRouting(category, subOption) {
   if (CONTENT_ROUTED[category]?.includes(subOption)) return "content";
   if (category === "Others") return "support";
   return "content";
+}
+
+function deriveSource(category) {
+  if (category === "Can't See Something" || category === "Problem with this Question") return "Tests";
+  return "QBank";
 }
 
 function routeLabel(route) {
@@ -290,6 +298,7 @@ function createTicket(input) {
     returnedByFaculty: input.returnedByFaculty || false,
     revisionRequested: input.revisionRequested || false,
     technicalEscalation: input.technicalEscalation || false,
+    source: input.source || deriveSource(input.category),
     studentConfirmed: input.studentConfirmed || false,
     sessionDetails: input.sessionDetails || buildSessionDetails(input, raisedAt),
     history: input.history || [
@@ -906,6 +915,7 @@ function filteredTickets() {
   if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
   if (state.tab === "technical") rows = rows.filter((t) => t.technicalEscalation || t.category === "Can't See Something");
   if (state.tab === "lowCsat") rows = rows.filter((t) => t.satisfactionScore != null && t.satisfactionScore < 3);
+  if (state.source !== "all") rows = rows.filter((t) => t.source === state.source);
   if (state.status !== "all") rows = rows.filter((t) => t.status === state.status);
   if (state.assignee !== "all") rows = rows.filter((t) => owner(t) === state.assignee);
   rows = rows.filter((ticket) => inDateRange(ticket.raisedAt));
@@ -1079,6 +1089,9 @@ function renderFilters() {
   el.dateFromFilter.value = state.dateFrom;
   el.dateToFilter.value = state.dateTo;
   el.createTicketButton.hidden = state.role !== "manager";
+  const showSource = state.role === "team";
+  el.sourceFilterLabel.hidden = !showSource;
+  el.sourceFilter.value = state.source;
 }
 
 function renderSelectFilter(select, options, selected, allLabel, labels = {}) {
@@ -1836,6 +1849,7 @@ function drawerHtml(ticket) {
       </section>
       ${engineeringNotice(ticket)}
       ${drawerActions(ticket)}
+      ${engineeringEscalationPanel(ticket)}
       ${workflowPanel(ticket)}
       ${state.role === "team" || state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
@@ -1858,7 +1872,6 @@ function drawerActions(ticket) {
     if (unclaimed && (state.role === "content" || state.role === "team")) return `<div class="drawer-actions">${actions.join("")}</div>`;
   }
   if (teamOwnedByMe && ticket.status !== "Closed") {
-    if (!ticket.technicalEscalation) actions.push(`<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   }
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
@@ -1867,7 +1880,6 @@ function drawerActions(ticket) {
   if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Resolution submitted") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
   if (contentOwnedByMe && ticket.status !== "Closed") {
     actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
-    if (!ticket.technicalEscalation) actions.push(`<button class="danger" data-escalate-engineering="${ticket.id}">Escalate to Engineering</button>`);
   }
   if (contentOwnedByMe && ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
   if (state.role === "manager" && ticket.status !== "Closed" && owner(ticket) === "Unclaimed") actions.push(`<button class="primary" data-manager-claim="${ticket.id}">Claim as Manager</button>`);
@@ -1877,6 +1889,23 @@ function drawerActions(ticket) {
 function engineeringNotice(ticket) {
   if (!isEngineeringEscalated(ticket)) return "";
   return `<div class="drawer-actions"><span class="workflow-chip escalated">Escalated to Engineering</span></div>`;
+}
+
+function engineeringEscalationPanel(ticket) {
+  const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
+  const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
+  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed") return "";
+  return `<section class="drawer-card engg-escalation-panel">
+    <h3>Escalate to Engineering</h3>
+    <p class="muted engg-escalation-desc">Only escalate if you've confirmed this is a platform or technical issue. Describe your analysis, then type <strong>yes</strong> and confirm.</p>
+    <label class="engg-escalation-label">Your analysis
+      <textarea id="escalateAnalysis" class="engg-escalation-textarea" rows="3" placeholder="Describe the engineering problem you identified…"></textarea>
+    </label>
+    <label class="engg-escalation-label">Type "yes" to confirm
+      <input id="escalateConfirm" class="engg-escalation-input" type="text" placeholder="yes" />
+    </label>
+    <button class="danger engg-escalation-btn" data-confirm-escalate-engineering="${ticket.id}">Confirm Escalation to Engineering</button>
+  </section>`;
 }
 
 function studentQueryRows(ticket) {
@@ -3086,6 +3115,11 @@ el.assigneeFilter.addEventListener("change", (event) => {
   renderTable();
 });
 
+el.sourceFilter.addEventListener("change", (event) => {
+  state.source = event.target.value;
+  renderTable();
+});
+
 el.tableHead.addEventListener("pointerdown", startColumnResize);
 
 el.tableHead.addEventListener("dblclick", (event) => {
@@ -3201,8 +3235,13 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-approve-resolution]")) approveFacultyResolution(target.closest("[data-approve-resolution]").dataset.approveResolution);
   if (target.closest("[data-send-revision]")) sendRevision(target.closest("[data-send-revision]").dataset.sendRevision);
   if (target.closest("[data-close-ticket]")) closeTicket(target.closest("[data-close-ticket]").dataset.closeTicket);
-  if (target.closest("[data-escalate-engineering]")) {
-    const ticket = ticketById(target.closest("[data-escalate-engineering]").dataset.escalateEngineering);
+  if (target.closest("[data-confirm-escalate-engineering]")) {
+    const ticketId = target.closest("[data-confirm-escalate-engineering]").dataset.confirmEscalateEngineering;
+    const ticket = ticketById(ticketId);
+    const analysis = document.querySelector("#escalateAnalysis")?.value?.trim();
+    const confirmText = document.querySelector("#escalateConfirm")?.value?.trim();
+    if (!analysis) { toast("Add your analysis before escalating."); return; }
+    if (confirmText?.toLowerCase() !== "yes") { toast('Type "yes" in the confirmation field to escalate.'); return; }
     if (state.role === "team" ? !activeOwnsTicket(ticket) : ticket.claimedBy !== current.resolver) {
       toast("Claim this ticket before escalating it to Engineering.");
       return;
@@ -3212,7 +3251,7 @@ document.addEventListener("click", (event) => {
       return;
     }
     ticket.technicalEscalation = true;
-    addHistory(ticket, resolverActorName(), "Escalated this ticket to Engineering");
+    addHistory(ticket, resolverActorName(), `Escalated to Engineering — ${analysis}`);
     pushNotification("General", `Engineering escalation: #${ticket.id}`, ticket.id);
     persistAndRender(ticket.id);
   }
