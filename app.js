@@ -130,6 +130,8 @@ const state = {
   sortKey: "raisedAt",
   sortDir: "desc",
   visibleColumns: columns.map(([key]) => key),
+  managerFilter: null,
+  resolverSort: { key: "avgScore", dir: "desc" },
   columnWidths: loadColumnWidths(),
 };
 
@@ -168,6 +170,7 @@ const el = {
   configModal: document.querySelector("#configModal"),
   toastStack: document.querySelector("#toastStack"),
   createTicketButton: document.querySelector("#createTicketButton"),
+  fireAlerts: document.querySelector("#fireAlerts"),
 };
 
 function deriveRouting(category, subOption) {
@@ -645,6 +648,29 @@ function hoursLeft(ticket) {
   return Math.max(0, ticket.slaHours - ticketAgeHours(ticket));
 }
 
+function isToday(isoString) {
+  if (!isoString) return false;
+  const d = new Date(isoString), now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
+function breachingTickets() {
+  return db.tickets.filter(t => t.status !== "Closed" && hoursLeft(t) <= 2 && hoursLeft(t) > 0);
+}
+
+function oldUnclaimedTickets() {
+  return db.tickets.filter(t => owner(t) === "Unclaimed" && ticketAgeHours(t) >= 4);
+}
+
+function stuckTickets() {
+  return db.tickets.filter(t => {
+    if (t.status === "Closed" || owner(t) === "Unclaimed") return false;
+    if (!t.history?.length) return false;
+    const lastAt = Math.max(...t.history.map(h => new Date(h.at).getTime()));
+    return (Date.now() - lastAt) > 6 * 3600000;
+  });
+}
+
 function owner(ticket) {
   return ticket.facultyAssigned || ticket.claimedBy || "Unclaimed";
 }
@@ -897,6 +923,18 @@ function tabsForRole(base) {
 
 function filteredTickets() {
   let rows = [...roleTickets()];
+  if (state.role === "manager" && state.managerFilter) {
+    const mf = state.managerFilter;
+    if (mf.type === "resolver") rows = rows.filter(t => owner(t) === mf.value);
+    else if (mf.type === "alert_sla") rows = rows.filter(t => t.status !== "Closed" && hoursLeft(t) <= 2 && hoursLeft(t) > 0);
+    else if (mf.type === "alert_unclaimed") rows = rows.filter(t => owner(t) === "Unclaimed" && ticketAgeHours(t) >= 4);
+    else if (mf.type === "alert_stuck") rows = rows.filter(t => {
+      if (t.status === "Closed" || owner(t) === "Unclaimed") return false;
+      if (!t.history?.length) return false;
+      return (Date.now() - Math.max(...t.history.map(h => new Date(h.at).getTime()))) > 6 * 3600000;
+    });
+    else if (mf.type === "question") rows = rows.filter(t => t.questionId === mf.value);
+  }
   if (state.tab === "open") rows = rows.filter((t) => t.status !== "Closed");
   if (state.tab === "rating") rows = rows.filter((t) => t.escalationResolved && t.feedbackType === "escalation_resolved" && !t.escalationRating);
   if (state.tab === "closed") rows = rows.filter((t) => t.status === "Closed");
@@ -928,6 +966,91 @@ function filteredTickets() {
   return sortTickets(rows);
 }
 
+function renderFireAlerts() {
+  if (state.role !== "manager") { el.fireAlerts.hidden = true; return; }
+  const breaching = breachingTickets();
+  const unclaimed = oldUnclaimedTickets();
+  const stuck = stuckTickets();
+  const mk = (type, count, label, sub, dotClass) => {
+    const active = state.managerFilter?.type === type;
+    return `<button class="fire-card${active ? " active" : ""}" data-manager-alert="${type}">
+      <span class="fire-dot ${dotClass}"></span>
+      <div><strong>${count} ${label}</strong><p>${sub}</p></div>
+    </button>`;
+  };
+  const alerts = [];
+  if (breaching.length) alerts.push(mk("alert_sla", breaching.length, "SLA breaching", "within 2 hours", "red"));
+  if (unclaimed.length) alerts.push(mk("alert_unclaimed", unclaimed.length, "unclaimed", "older than 4 hours", "amber"));
+  if (stuck.length) alerts.push(mk("alert_stuck", stuck.length, "stuck", "no update in 6+ hours", "orange"));
+  el.fireAlerts.hidden = alerts.length === 0;
+  el.fireAlerts.innerHTML = alerts.length ? `<div class="fire-alerts-row">${alerts.join("")}</div>` : "";
+}
+
+function renderManagerOverview() {
+  const resolvers = allOperators().map(resolverStatsFor);
+  const { key, dir } = state.resolverSort;
+  resolvers.sort((a, b) => {
+    const va = key === "name" ? a.person.name : a[key];
+    const vb = key === "name" ? b.person.name : b[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    const cmp = typeof va === "string" ? va.localeCompare(vb) : va - vb;
+    return dir === "desc" ? -cmp : cmp;
+  });
+  const arrow = k => state.resolverSort.key === k ? (state.resolverSort.dir === "asc" ? " ↑" : " ↓") : "";
+  const th = (k, label) => `<th><button class="sort-header${state.resolverSort.key === k ? " active" : ""}" data-resolver-sort="${k}">${label}${arrow(k)}</button></th>`;
+  el.tableTitle.textContent = "Resolver Load";
+  el.tableSubtitle.textContent = `${resolvers.length} resolvers — tap a row to see their tickets`;
+  el.tableCols.innerHTML = `<col style="width:200px"><col style="width:100px"><col style="width:140px"><col style="width:170px"><col style="width:110px">`;
+  el.tableHead.innerHTML = `${th("name", "Name")}${th("openLoad", "Open load")}${th("resolvedToday", "Resolved today")}${th("avgTimeHours", "Avg resolution time")}${th("avgScore", "Avg score")}`;
+  el.ticketTable.innerHTML = resolvers.map(s => {
+    const scoreHtml = s.avgScore != null
+      ? `<strong class="score ${scoreClass(s.avgScore)}">${s.avgScore.toFixed(1)}</strong>`
+      : `<span class="muted">--</span>`;
+    const timeHtml = s.avgTimeHours != null ? `${s.avgTimeHours.toFixed(1)}h` : `<span class="muted">--</span>`;
+    const active = state.managerFilter?.type === "resolver" && state.managerFilter?.value === s.person.name;
+    return `<tr class="${active ? "selected" : ""}" data-manager-filter-resolver="${escapeAttr(s.person.name)}" style="cursor:pointer">
+      <td><div class="person-cell"><span class="avatar" style="background:${s.person.color}">${s.person.initials}</span><span>${s.person.name}</span></div></td>
+      <td><strong>${s.openLoad}</strong></td>
+      <td>${s.resolvedToday}</td>
+      <td>${timeHtml}</td>
+      <td>${scoreHtml}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderSignalsPanel() {
+  const all = db.tickets;
+  const qRows = topQuestionRows(all, 8);
+  const qList = qRows.length
+    ? `<div class="mini-list">${qRows.map(q => `<div class="mini-row"><div><button class="ticket-link" data-manager-filter-question="${q.questionId}"><strong>#${q.questionId}</strong></button><p class="muted">${q.topic} · ${q.subject}</p></div><span class="badge review">${q.count}</span></div>`).join("")}</div>`
+    : `<p class="muted">No repeated questions yet.</p>`;
+  el.insightPanel.innerHTML = `
+    <section class="insight-card"><h4>Repeated Questions</h4><p class="muted" style="font-size:11px;margin-bottom:6px">Tap ID to filter tickets</p>${qList}</section>
+    <section class="insight-card"><h4>Subject Breakdown</h4>${barList(topCounts(all, "subject", 6), all.length)}</section>
+    <section class="insight-card"><h4>Category Breakdown</h4>${barList(topCounts(all, "category", 5), all.length)}</section>
+  `;
+}
+
+function renderManagerTicketTable() {
+  const mf = state.managerFilter;
+  const labels = {
+    resolver: `Tickets — ${mf.value}`,
+    alert_sla: "SLA breaching — within 2 hours",
+    alert_unclaimed: "Unclaimed — older than 4 hours",
+    alert_stuck: "Stuck — no update in 6+ hours",
+    question: `All tickets for question #${mf.value}`,
+  };
+  const rows = filteredTickets();
+  const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
+  applyTableColumnWidths(visible.map(([key]) => key));
+  el.tableTitle.innerHTML = `<button class="back-btn" data-manager-filter-clear>← Overview</button>`;
+  el.tableSubtitle.textContent = `${labels[mf.type] || "Filtered"} — ${rows.length} ticket${rows.length === 1 ? "" : "s"}`;
+  el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
+  el.ticketTable.innerHTML = rows.map(ticket => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
+}
+
 function render() {
   applyAutoAssignments(db, false, true);
   renderTopNav();
@@ -935,21 +1058,34 @@ function render() {
   renderProfileSelect();
   el.activeUser.textContent = roleName();
   const isReport = state.section === "report";
+  const isManagerView = !isReport && state.role === "manager";
+  const isManagerOverview = isManagerView && !state.managerFilter;
   el.pageTitle.textContent = isReport ? "Reports Dashboard" : "Tickets Overview";
-  el.toolbar.hidden = isReport;
-  el.ticketTabs.hidden = isReport;
-  el.mainGrid.hidden = isReport;
   el.reportDashboard.hidden = !isReport;
-  el.mainGrid?.classList.toggle("no-side", true);
+  el.mainGrid.hidden = isReport;
+  el.toolbar.hidden = isReport || isManagerOverview;
+  el.ticketTabs.hidden = isReport || isManagerView;
+  el.mainGrid?.classList.toggle("no-side", !isManagerView);
   renderStats();
+  renderFireAlerts();
   if (isReport) {
     renderReportDashboard();
     return;
   }
+  if (isManagerOverview) {
+    renderManagerOverview();
+    renderSignalsPanel();
+    return;
+  }
   renderFilters();
-  renderTabs();
-  renderTable();
-  renderSidePanel();
+  if (isManagerView) {
+    renderManagerTicketTable();
+    renderSignalsPanel();
+  } else {
+    renderTabs();
+    renderTable();
+    renderSidePanel();
+  }
 }
 
 function renderTopNav() {
@@ -1822,6 +1958,19 @@ function renderAgentRow(person) {
     <div class="person"><span class="avatar" style="background:${person.color}">${person.initials}</span><div><button data-profile="${person.name}">${person.name}</button><p class="muted">${person.team}</p></div></div>
     <div><strong>${open}</strong><p class="muted">${avg} score</p></div>
   </div>`;
+}
+
+function resolverStatsFor(person) {
+  const all = db.tickets.filter(t => t.claimedBy === person.name || t.facultyAssigned === person.name);
+  const openLoad = all.filter(t => t.status !== "Closed").length;
+  const resolvedToday = all.filter(t => isToday(t.resolvedAt)).length;
+  const closedWithTime = all.filter(t => t.resolvedAt);
+  const avgTimeHours = closedWithTime.length
+    ? closedWithTime.reduce((s, t) => s + ((new Date(t.resolvedAt) - new Date(t.raisedAt)) / 3600000), 0) / closedWithTime.length
+    : null;
+  const scored = all.filter(t => t.satisfactionScore != null);
+  const avgScore = scored.length ? scored.reduce((s, t) => s + t.satisfactionScore, 0) / scored.length : null;
+  return { person, openLoad, resolvedToday, avgTimeHours, avgScore };
 }
 
 function openTicket(id) {
@@ -3062,6 +3211,7 @@ el.roleToggle.addEventListener("click", (event) => {
   state.status = "all";
   state.assignee = "all";
   state.questionIdSearch = "";
+  state.managerFilter = null;
   closeDrawer();
   render();
 });
@@ -3263,6 +3413,35 @@ document.addEventListener("click", (event) => {
   }
   if (target.closest("[data-create-ticket-modal]")) { openCreateTicketModal(); return; }
   if (target.closest("[data-submit-new-ticket]")) { submitNewTicket(); return; }
+  const managerAlert = target.closest("[data-manager-alert]");
+  if (managerAlert) {
+    const type = managerAlert.dataset.managerAlert;
+    state.managerFilter = state.managerFilter?.type === type ? null : { type };
+    render(); return;
+  }
+  const resolverRow = target.closest("[data-manager-filter-resolver]");
+  if (resolverRow) {
+    const name = resolverRow.dataset.managerFilterResolver;
+    state.managerFilter = state.managerFilter?.type === "resolver" && state.managerFilter?.value === name ? null : { type: "resolver", value: name };
+    render(); return;
+  }
+  const qFilter = target.closest("[data-manager-filter-question]");
+  if (qFilter) {
+    state.managerFilter = { type: "question", value: Number(qFilter.dataset.managerFilterQuestion) };
+    render(); return;
+  }
+  if (target.closest("[data-manager-filter-clear]")) {
+    state.managerFilter = null;
+    render(); return;
+  }
+  const resolverSort = target.closest("[data-resolver-sort]");
+  if (resolverSort) {
+    const k = resolverSort.dataset.resolverSort;
+    state.resolverSort = state.resolverSort.key === k
+      ? { key: k, dir: state.resolverSort.dir === "asc" ? "desc" : "asc" }
+      : { key: k, dir: "desc" };
+    renderManagerOverview(); return;
+  }
   if (target.closest("[data-period]")) {
     state.period = target.closest("[data-period]").dataset.period;
     renderSidePanel();
