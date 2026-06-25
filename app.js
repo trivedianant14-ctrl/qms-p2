@@ -1142,8 +1142,14 @@ function normalizeResolutionTimeline(ticket) {
     }
     upsertTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution|wrote.*resolution|wrote and saved/i.test(item.text || ""));
   }
-  if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
-    upsertTimelineEvent(ticket, ownerName, "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 80), (item) => /finalized student-facing resolution/i.test(item.text || ""));
+  const managerApproved = ticket.resolutionText &&
+    (ticket.status === "Awaiting feedback" ||
+      ((ticket.status === "Closed" || ticket.finalResolutionText) && ticket.feedbackType !== "escalation_resolved" && !ticket.escalationResolved));
+  if (managerApproved) {
+    const approvalAt = ticket.resolvedAt
+      ? new Date(new Date(ticket.resolvedAt).getTime() - 6 * 60000).toISOString()
+      : timelineBeforeResolved(ticket, 10, 80);
+    upsertTimelineEvent(ticket, current.manager, "Manager approved — resolution sent to student", approvalAt, (item) => /manager approved.*sent to student|finalized student-facing/i.test(item.text || ""));
   }
   if (isEngineeringEscalated(ticket)) {
     upsertTimelineEvent(ticket, ownerName, "Escalated this ticket to Engineering", timelineBeforeResolved(ticket, 35, 50), (item) => /escalated this ticket to engineering/i.test(item.text || ""));
