@@ -981,9 +981,7 @@ function stuckTickets() {
 }
 
 function inReviewTickets() {
-  return db.tickets.filter(t =>
-    t.status === "Working on" || t.status === "Being reviewed"
-  );
+  return db.tickets.filter(t => t.status === "Being reviewed");
 }
 
 function closedTodayTickets() {
@@ -1277,8 +1275,7 @@ function filteredTickets() {
       if (!t.history?.length) return false;
       return (Date.now() - Math.max(...t.history.map(h => new Date(h.at).getTime()))) > 6 * 3600000;
     });
-    else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Working on" || t.status === "Being reviewed");
-    else if (mf.type === "alert_awaiting_review") rows = rows.filter(t => t.status === "Awaiting feedback");
+    else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Being reviewed");
     else if (mf.type === "alert_closed_today") rows = rows.filter(t => t.status === "Closed");
     else if (mf.type === "alert_escalation") rows = rows.filter(t => t.status === "Escalation" || t.status === "Escalation resolved");
     else if (mf.type === "question") rows = rows.filter(t => t.questionId === mf.value);
@@ -1322,7 +1319,6 @@ function renderFireAlerts() {
   const stuck = stuckTickets();
   const inReview = inReviewTickets();
   const closedToday = closedTodayTickets();
-  const awaitingReview = awaitingReviewTickets();
   const escalations = escalationTickets();
   const mk = (type, count, label, sub, dotClass) => {
     const active = state.managerFilter?.type === type;
@@ -1336,8 +1332,7 @@ function renderFireAlerts() {
     mk("alert_unclaimed", unclaimed.length, "unclaimed", "older than 4 hours", "amber"),
     mk("alert_stuck", stuck.length, "stuck", "no update in 6+ hours", "orange"),
     mk("alert_escalation", escalations.length, "escalation", "active & resolved", "red"),
-    mk("alert_in_review", inReview.length, "in review", "being worked on", "blue"),
-    mk("alert_awaiting_review", awaitingReview.length, "awaiting review", "resolution submitted", "purple"),
+    mk("alert_in_review", inReview.length, "pending my review", "sent for approval", "purple"),
     mk("alert_closed_today", closedToday.length, "closed", "resolved & confirmed", "green"),
   ];
   const backBtn = state.managerFilter
@@ -1413,15 +1408,14 @@ function renderManagerTicketTable() {
     alert_unclaimed: "Unclaimed — older than 4 hours",
     alert_stuck: "Stuck — no update in 6+ hours",
     alert_escalation: "Escalation tickets — active & resolved",
-    alert_in_review: "In review — being worked on",
-    alert_awaiting_review: "Awaiting review — resolution submitted",
+    alert_in_review: "Pending my review — sent for approval",
     alert_closed_today: "Closed tickets",
     question: `All tickets for question #${mf.value}`,
   };
   const rows = filteredTickets();
   // Fixed curated columns for manager drilled view — avoids horizontal overflow
-  const MGR_KEYS = ["id", "raisedAt", "student", "status", "source", "category", "subject", "sla", "score"];
-  const MGR_PCTS = ["10%", "14%", "12%", "14%", "7%", "17%", "16%", "6%", "4%"];
+  const MGR_KEYS = ["id", "raisedAt", "student", "assignee", "status", "category", "subject", "sla", "score"];
+  const MGR_PCTS = ["9%", "12%", "11%", "13%", "13%", "16%", "16%", "6%", "4%"];
   const visible = MGR_KEYS.map(key => columns.find(([k]) => k === key)).filter(Boolean);
   el.tableCols.innerHTML = MGR_PCTS.map(w => `<col style="width:${w}">`).join("");
   const _dtbl = el.ticketTable.closest("table");

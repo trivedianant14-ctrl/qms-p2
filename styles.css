@@ -253,8 +253,16 @@ h1 {
   align-items: end;
   gap: 10px;
   padding: 0 24px 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
 }
+.toolbar::-webkit-scrollbar { height: 4px; }
+.toolbar::-webkit-scrollbar-track { background: transparent; }
+.toolbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.toolbar label, .toolbar select, .toolbar input, .toolbar button { flex-shrink: 0; }
 
 .toolbar label {
   display: grid;
