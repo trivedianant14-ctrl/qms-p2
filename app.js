@@ -1126,7 +1126,7 @@ function normalizeTimeline(targetDb) {
 }
 
 function normalizeResolutionTimeline(ticket) {
-  if (!ticket.resolutionText && !ticket.finalResolutionText && ticket.status !== "Closed" && !ticket.feedbackType) return;
+  if (!ticket.resolutionText && !ticket.finalResolutionText && ticket.status !== "Closed" && !ticket.feedbackType && !isEngineeringEscalated(ticket)) return;
   const ownerName = ticket.facultyAssigned || ticket.claimedBy || "Team Queue";
   const raisedMs = new Date(ticket.raisedAt).getTime();
   const resolvedMs = ticket.resolvedAt ? new Date(ticket.resolvedAt).getTime() : null;
