@@ -902,9 +902,11 @@ function roleTickets() {
 function tabsForRole(base) {
   if (state.role === "team") {
     const activeName = activeOperatorName();
+    const ACTIVE_STATUSES = ["Being reviewed", "Worked on", "Escalation"];
     return [
       ["all", "Total", base.length],
       ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
+      ["active", "Active", base.filter((t) => ACTIVE_STATUSES.includes(t.status)).length],
       ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
       ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
@@ -974,6 +976,7 @@ function filteredTickets() {
   if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
   if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= (state.role === "product" ? 12 : 2));
+  if (state.tab === "active") rows = rows.filter((t) => ["Being reviewed", "Worked on", "Escalation"].includes(t.status));
   if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation");
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
