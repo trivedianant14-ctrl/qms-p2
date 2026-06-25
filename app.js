@@ -2837,17 +2837,26 @@ function managerPanel(ticket) {
 
   let resolutionControls = "";
   if (ticket.status === "Being reviewed" && ticket.resolutionText) {
+    const ref = ticket.resolutionReference ? `<p class="muted small">${escapeHtml(ticket.resolutionReference)}</p>` : "";
     resolutionControls = `<section class="drawer-card manager-review-card">
-      <h3>Review Agent Resolution</h3>
-      <p class="muted">The agent has submitted a resolution for your review. Edit if needed, then approve to send to the student, or request a revision.</p>
-      <div class="resolution-form">
-        <label class="engg-escalation-label">Resolution text (editable)
-          <textarea id="managerReviewText" rows="5">${escapeHtml(ticket.resolutionText)}</textarea>
+      <h3>Review Resolution</h3>
+      <p class="muted">The resolver has submitted a resolution. Approve to send to the student as-is, or edit the text before sending.</p>
+      <div id="mgr-res-preview-${ticket.id}" class="res-preview-block">
+        <p class="review-preview-text">${escapeHtml(ticket.resolutionText)}</p>${ref}
+      </div>
+      <div id="mgr-res-edit-${ticket.id}" hidden>
+        <label class="engg-escalation-label">Edit Resolution
+          <textarea id="managerReviewText" rows="6">${escapeHtml(ticket.resolutionText)}</textarea>
         </label>
-        <div class="form-actions">
-          <button class="primary" data-manager-approve-resolution="${ticket.id}">Approve &amp; Send to Student</button>
-          <button class="ghost" data-send-revision="${ticket.id}">Request Revision</button>
-        </div>
+      </div>
+      <div class="form-actions" id="mgr-res-actions-${ticket.id}">
+        <button class="primary" data-manager-approve-resolution="${ticket.id}">Approve &amp; Send to Student</button>
+        <button class="ghost" data-manager-edit-resolution="${ticket.id}">Edit</button>
+        <button class="ghost danger-ghost" data-send-revision="${ticket.id}">Request Revision</button>
+      </div>
+      <div class="form-actions" id="mgr-res-confirm-${ticket.id}" hidden>
+        <button class="primary" data-manager-confirm-edit-resolution="${ticket.id}">Confirm &amp; Send to Student</button>
+        <button class="ghost" data-manager-cancel-edit="${ticket.id}">Cancel</button>
       </div>
     </section>`;
   } else if (ticket.status === "Closed" || ticket.finalResolutionText) {
@@ -3286,21 +3295,37 @@ function sendRevision(id) {
 
 function managerApproveResolution(id) {
   const ticket = ticketById(id);
-  const text = document.querySelector("#managerReviewText")?.value.trim() || ticket.resolutionText;
+  const text = ticket.resolutionText;
   if (!text || text.length < 20) { toast("Resolution needs at least 20 characters before approving."); return; }
   ticket.finalResolutionText = text;
-  ticket.resolutionText = text;
-  ticket.resolutionCode = "Student doubt resolved";
-  ticket.status = "Closed";
-  ticket.timelineStatus = "resolved";
+  ticket.status = "Resolution submitted";
+  ticket.timelineStatus = "resolution_submitted";
   ticket.resolvedAt = new Date().toISOString();
-  if (!ticket.feedbackType) {
-    ticket.feedbackType = "auto_closed";
-    ticket.satisfactionScore = satisfactionScore("auto_closed");
-  }
-  addHistory(ticket, current.manager, "Manager approved resolution and sent to student");
+  addHistory(ticket, current.manager, "Manager approved resolution — sent to student as-is");
   pushNotification("General", `Resolution approved and sent to student: #${ticket.id}`, ticket.id);
   toast("Resolution approved and sent to student.", "success");
+  persistAndRender(id);
+}
+
+function managerToggleEdit(id, show) {
+  document.getElementById(`mgr-res-preview-${id}`).hidden = show;
+  document.getElementById(`mgr-res-edit-${id}`).hidden = !show;
+  document.getElementById(`mgr-res-actions-${id}`).hidden = show;
+  document.getElementById(`mgr-res-confirm-${id}`).hidden = !show;
+}
+
+function managerConfirmEditResolution(id) {
+  const ticket = ticketById(id);
+  const text = document.querySelector("#managerReviewText")?.value.trim() || "";
+  if (text.length < 20) { toast("Resolution needs at least 20 characters."); return; }
+  ticket.resolutionText = text;
+  ticket.finalResolutionText = text;
+  ticket.status = "Resolution submitted";
+  ticket.timelineStatus = "resolution_submitted";
+  ticket.resolvedAt = new Date().toISOString();
+  addHistory(ticket, current.manager, "Manager edited and sent resolution to student");
+  pushNotification("General", `Manager-edited resolution sent to student: #${ticket.id}`, ticket.id);
+  toast("Edited resolution sent to student.", "success");
   persistAndRender(id);
 }
 
@@ -4126,6 +4151,9 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-confirm-send-to-review]")) { const id = target.closest("[data-confirm-send-to-review]").dataset.confirmSendToReview; closeModal(); submitFacultyResolution(id); return; }
   if (target.closest("[data-submit-resolution-direct]")) { submitResolutionDirect(target.closest("[data-submit-resolution-direct]").dataset.submitResolutionDirect); return; }
   if (target.closest("[data-manager-approve-resolution]")) { managerApproveResolution(target.closest("[data-manager-approve-resolution]").dataset.managerApproveResolution); return; }
+  if (target.closest("[data-manager-edit-resolution]")) { managerToggleEdit(target.closest("[data-manager-edit-resolution]").dataset.managerEditResolution, true); return; }
+  if (target.closest("[data-manager-cancel-edit]")) { managerToggleEdit(target.closest("[data-manager-cancel-edit]").dataset.managerCancelEdit, false); return; }
+  if (target.closest("[data-manager-confirm-edit-resolution]")) { managerConfirmEditResolution(target.closest("[data-manager-confirm-edit-resolution]").dataset.managerConfirmEditResolution); return; }
   if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
   if (target.closest("[data-save-note]")) {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);

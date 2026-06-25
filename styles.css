@@ -2167,6 +2167,11 @@ tbody tr:focus-within {
 /* Manager review card highlight */
 .manager-review-card { border: 1.5px solid var(--purple); }
 .manager-review-card h3 { color: var(--purple); }
+.res-preview-block { background: var(--surface-2); border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; }
+.res-preview-block .review-preview-text { margin: 0 0 4px; font-size: 14px; line-height: 1.55; }
+.res-preview-block .small { font-size: 12px; margin: 0; }
+button.danger-ghost { color: var(--red, #c0392b); border-color: var(--red, #c0392b); }
+button.danger-ghost:hover { background: rgba(192,57,43,.07); }
 
 /* ── Resolution Funnel ── */
 .fn-card { padding-bottom: 4px; }
