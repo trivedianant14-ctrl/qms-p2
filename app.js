@@ -1892,6 +1892,58 @@ function reportControlBar(type) {
   </div>`;
 }
 
+function resolutionFunnel(tickets) {
+  const monthly = tickets.filter(t => new Date(t.raisedAt).getTime() >= Date.now() - 30 * 24 * 3600000);
+  const total = monthly.length;
+  if (!total) return `<p class="muted fn-empty">No tickets raised in the last 30 days.</p>`;
+
+  const pct = n => Math.round(n / total * 100);
+  const w   = n => `${pct(n)}%`;
+
+  const unclaimed  = monthly.filter(t => owner(t) === "Unclaimed").length;
+  const assigned   = total - unclaimed;
+  const workingOn  = monthly.filter(t => t.status === "Working on").length;
+  const reviewing  = monthly.filter(t => t.status === "Being reviewed").length;
+  const submitted  = monthly.filter(t => t.status === "Resolution submitted").length;
+  const closed     = monthly.filter(t => t.status === "Closed").length;
+  const escalated  = monthly.filter(t => t.status === "Escalation" || t.status === "Escalation resolved").length;
+  const resolvRate = pct(closed);
+  const assignRate = pct(assigned);
+
+  const row = (label, sublabel, n, cls, isLast) => `
+    <div class="fn-row${isLast ? " fn-row-last" : ""}">
+      <div class="fn-label-col">
+        <span class="fn-label">${label}</span>
+        ${sublabel ? `<span class="fn-sublabel">${sublabel}</span>` : ""}
+      </div>
+      <div class="fn-track">
+        <div class="fn-fill ${cls}" style="width:${w(n)}"></div>
+      </div>
+      <div class="fn-stat-col">
+        <strong class="fn-count">${n}</strong>
+        <span class="fn-pct">${pct(n)}%</span>
+      </div>
+    </div>`;
+
+  return `
+    <div class="fn-header-row">
+      <div class="fn-kpi"><span class="fn-kpi-val">${total}</span><span class="fn-kpi-label">Total Raised</span></div>
+      <div class="fn-kpi"><span class="fn-kpi-val">${assignRate}%</span><span class="fn-kpi-label">Assignment Rate</span></div>
+      <div class="fn-kpi"><span class="fn-kpi-val">${resolvRate}%</span><span class="fn-kpi-label">Resolution Rate</span></div>
+      <div class="fn-kpi ${escalated ? "fn-kpi-warn" : ""}"><span class="fn-kpi-val">${escalated}</span><span class="fn-kpi-label">Escalated</span></div>
+    </div>
+    <div class="fn-stages">
+      <div class="fn-col-labels"><span>Stage</span><span>Progress (% of total raised)</span><span>Count</span></div>
+      ${row("Total Raised",          "All queries in last 30 days",      total,     "fn-blue",    false)}
+      ${row("Assigned",              `${unclaimed} still unclaimed`,      assigned,  "fn-purple",  false)}
+      ${row("Working On",            "Agent actively resolving",          workingOn, "fn-amber",   false)}
+      ${row("Sent to Manager",       "Under manager review",             reviewing, "fn-indigo",  false)}
+      ${row("Resolution Submitted",  "Sent directly to student",         submitted, "fn-teal",    false)}
+      ${row("Closed",                "Fully resolved &amp; closed",      closed,    "fn-green",   true)}
+    </div>
+    ${escalated ? `<div class="fn-escalation-bar"><span class="badge escalated">⚡ Escalation</span><span>${escalated} ticket${escalated > 1 ? "s" : ""} escalated this month — ${pct(escalated)}% of total. Review and resolve promptly.</span></div>` : ""}`;
+}
+
 function managerReportDashboard(rows) {
   const subjectLeaders = topCounts(rows, "subject", 6);
   const topicLeaders = topCounts(rows, "topic", 6);
@@ -1906,6 +1958,7 @@ function managerReportDashboard(rows) {
       <div class="report-hero-metrics">${reportMetric("Top Subject", subjectLeaders[0]?.label || "--", `${subjectLeaders[0]?.count || 0} tickets`)}${reportMetric("Top Topic", topicLeaders[0]?.label || "--", `${topicLeaders[0]?.count || 0} doubts`)}</div>
     </section>
     <section class="dashboard-grid manager-report-grid">
+      <article class="chart-card chart-wide fn-card"><div class="chart-head"><div><span class="label">30-Day Funnel</span><h3>Query Resolution Funnel</h3></div><span class="fn-period-tag">Last 30 days · always live</span></div>${resolutionFunnel(db.tickets)}</article>
       <article class="chart-card chart-wide"><div class="chart-head"><div><span class="label">Bar Graph</span><h3>Subject Query Volume</h3></div></div><canvas data-chart="manager-subject-bar"></canvas></article>
       <article class="chart-card"><div class="chart-head"><div><span class="label">Pie Chart</span><h3>Status Mix</h3></div></div><canvas data-chart="manager-status-pie"></canvas><div class="chart-legend">${chartLegend(topCounts(rows, "status", 6))}</div></article>
       <article class="chart-card"><div class="chart-head"><div><span class="label">Line Chart</span><h3>SLA Risk Trend</h3></div></div><canvas data-chart="manager-sla-line"></canvas></article>
