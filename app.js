@@ -1286,6 +1286,7 @@ function filteredTickets() {
       return (Date.now() - Math.max(...t.history.map(h => new Date(h.at).getTime()))) > 6 * 3600000;
     });
     else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Being reviewed");
+    else if (mf.type === "alert_my_tickets") rows = rows.filter(t => owner(t) === current.manager);
     else if (mf.type === "alert_closed_today") rows = rows.filter(t => t.status === "Closed");
     else if (mf.type === "alert_escalation") rows = rows.filter(t => t.status === "Escalation" || t.status === "Escalation resolved");
     else if (mf.type === "question") rows = rows.filter(t => t.questionId === mf.value);
@@ -1330,6 +1331,7 @@ function renderFireAlerts() {
   const inReview = inReviewTickets();
   const closedToday = closedTodayTickets();
   const escalations = escalationTickets();
+  const myManagerTickets = db.tickets.filter(t => owner(t) === current.manager);
   const mk = (type, count, label, sub, dotClass) => {
     const active = state.managerFilter?.type === type;
     return `<button class="fire-card${active ? " active" : ""}" data-manager-alert="${type}">
@@ -1343,6 +1345,7 @@ function renderFireAlerts() {
     mk("alert_stuck", stuck.length, "stuck", "no update in 6+ hours", "orange"),
     mk("alert_escalation", escalations.length, "escalation", "active & resolved", "red"),
     mk("alert_in_review", inReview.length, "pending my review", "sent for approval", "purple"),
+    mk("alert_my_tickets", myManagerTickets.length, "my tickets", "tickets I've claimed", "blue"),
     mk("alert_closed_today", closedToday.length, "closed", "resolved & confirmed", "green"),
   ];
   const backBtn = state.managerFilter
@@ -1410,7 +1413,7 @@ function renderSignalsPanel() {
 
 function renderManagerTicketTable() {
   const mf = state.managerFilter;
-  const isResolverView = mf.type === "resolver";
+  const isResolverView = mf.type === "resolver" || mf.type === "alert_my_tickets";
   const labels = {
     resolver: `Tickets — ${mf.value}`,
     alert_sla: "SLA breaching — within 2 hours",
@@ -1418,6 +1421,7 @@ function renderManagerTicketTable() {
     alert_stuck: "Stuck — no update in 6+ hours",
     alert_escalation: "Escalation tickets — active & resolved",
     alert_in_review: "Pending my review — sent for approval",
+    alert_my_tickets: `My Tickets — ${current.manager}`,
     alert_closed_today: "Closed tickets",
     question: `All tickets for question #${mf.value}`,
   };
@@ -2546,7 +2550,8 @@ function engineeringNotice(ticket) {
 function engineeringEscalationPanel(ticket) {
   const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
   const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
-  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed" || ticket.status === "Escalation resolved" || ticket.status === "Awaiting feedback") return "";
+  const managerView = state.role === "manager";
+  if ((!teamOwnedByMe && !contentOwnedByMe && !managerView) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed" || ticket.status === "Escalation resolved" || ticket.status === "Awaiting feedback") return "";
   return `<section class="drawer-card engg-escalation-panel">
     <h3>Escalate to Engineering</h3>
     <p class="muted engg-escalation-desc">Only escalate if you've confirmed this is a platform or technical issue. Describe your analysis, then type <strong>yes</strong> and confirm.</p>
@@ -4204,7 +4209,7 @@ document.addEventListener("click", (event) => {
     const confirmText = document.querySelector("#escalateConfirm")?.value?.trim();
     if (!analysis) { toast("Add your analysis before escalating."); return; }
     if (confirmText?.toLowerCase() !== "yes") { toast('Type "yes" in the confirmation field to escalate.'); return; }
-    if (state.role === "team" ? !activeOwnsTicket(ticket) : ticket.claimedBy !== current.resolver) {
+    if (state.role !== "manager" && (state.role === "team" ? !activeOwnsTicket(ticket) : ticket.claimedBy !== current.resolver)) {
       toast("Claim this ticket before escalating it to Engineering.");
       return;
     }
@@ -4213,7 +4218,8 @@ document.addEventListener("click", (event) => {
       return;
     }
     ticket.technicalEscalation = true;
-    addHistory(ticket, resolverActorName(), `Escalated to Engineering — ${analysis}`);
+    const escalateActor = state.role === "manager" ? current.manager : resolverActorName();
+    addHistory(ticket, escalateActor, `Escalated to Engineering — ${analysis}`);
     pushNotification("General", `Engineering escalation: #${ticket.id}`, ticket.id);
     persistAndRender(ticket.id);
   }
