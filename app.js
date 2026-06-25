@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v24";
+const STORE_KEY = "nprep-qms-phase2-prototype-v25";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -60,6 +60,7 @@ const current = {
 const STATUSES = [
   "Unclaimed",
   "Working on",
+  "Okay",
   "Being reviewed",
   "Awaiting feedback",
   "Escalation",
@@ -637,7 +638,9 @@ function seedDb() {
     createTicket({ id: "NP-00017", questionId: 84501, student: "Harsh V.", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
       queryText: "The answer key says Option A but my professor marked B in class. Which is correct for exam purpose?",
       studentDoubt: "Both options look clinically valid. Need clarity on exam-specific priority.", priority: "Highest", ageHours: 14,
-      status: "Working on", timelineStatus: "being_worked_on", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      status: "Awaiting feedback", timelineStatus: "awaiting_feedback", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      resolvedAt: new Date(Date.now() - 1 * 3600000).toISOString(),
+      resolutionText: "For exam purposes, Option A is the correct first-line nursing action. Option B is a secondary step taken only after initial assessment is complete. The exam blueprint prioritises airway and primary assessment before any intervention.",
       subject: "Obstetrics & Gynecology", topic: "Normal Pregnancy" }),
 
     createTicket({ id: "NP-00018", questionId: 84502, student: "Riya Sharma", category: "Problem with the Answer", subOption: "More than 1 option looks correct",
@@ -665,7 +668,8 @@ function seedDb() {
     createTicket({ id: "NP-00021", questionId: 84505, student: "Mohit P.", category: "I Have a Doubt", subOption: "Why is this option wrong?",
       queryText: "For the psychiatric drug question, why is haloperidol preferred over olanzapine in the acute setting?",
       studentDoubt: "NPrep says haloperidol but recent literature supports olanzapine. Exam-specific or general?", priority: "High", ageHours: 8,
-      status: "Working on", timelineStatus: "being_worked_on", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      status: "Okay", timelineStatus: "okay", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      resolutionText: "For exam purposes, haloperidol is the classical first-generation antipsychotic used in acute settings per standard nursing exam blueprints. Olanzapine is newer and preferred in clinical practice, but exam questions follow older protocols unless updated. Option B is correct for exam.",
       subject: "Psychiatry", topic: "Antipsychotic Therapy" }),
 
     createTicket({ id: "NP-00022", questionId: 84506, student: "Ankit Rathore", category: "Problem with the Answer", subOption: "The answer shown is wrong",
@@ -736,7 +740,9 @@ function seedDb() {
     createTicket({ id: "NP-00031", questionId: 84515, student: "Sana Ali", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
       queryText: "For the maternal and child health question on ANC visits, the answer says 4 visits but WHO updated it to 8.",
       studentDoubt: "The focused ANC model recommends 8 contacts. Is NPrep using old WHO guidelines?", priority: "Medium", ageHours: 10,
-      status: "Working on", timelineStatus: "being_worked_on", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      status: "Awaiting feedback", timelineStatus: "awaiting_feedback", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      resolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+      resolutionText: "The question uses the traditional focused ANC (4-visit) model which is still tested on standard nursing exams in India. The WHO 2016 update recommends 8 contacts but Indian exam blueprints have not universally updated yet. The answer of 4 visits is correct in the exam context.",
       subject: "Community Health Nursing", topic: "Maternal & Child Health" }),
 
     createTicket({ id: "NP-00032", questionId: 84516, student: "Neha K.", category: "Problem with the Answer", subOption: "Explanation / rationale doesn't match the answer",
@@ -757,7 +763,9 @@ function seedDb() {
     createTicket({ id: "NP-00034", questionId: 84518, student: "Riya Sharma", category: "Problem with this Question", subOption: "Question is in the wrong language",
       queryText: "The last three questions in the Pharmacology module are appearing in Hindi mixed with English terms.",
       studentDoubt: "I set my language to English only — why are these showing mixed language?", priority: "High", ageHours: 6,
-      status: "Working on", timelineStatus: "being_worked_on", routedTo: "content", claimedBy: "Amit K.",
+      status: "Awaiting feedback", timelineStatus: "awaiting_feedback", routedTo: "content", claimedBy: "Amit K.",
+      resolvedAt: new Date(Date.now() - 3 * 3600000).toISOString(),
+      resolutionText: "This was a content pipeline issue where bilingual metadata tags were incorrectly applied to 3 Pharmacology questions. The issue has been fixed and the questions are now rendering in English only. Please clear your browser cache and reload the module.",
       subject: "Pharmacology", topic: "CNS Pharmacology" }),
 
     createTicket({ id: "NP-00035", questionId: 84519, student: "Kavya N.", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
@@ -1223,7 +1231,7 @@ function tabsForRole(base) {
     return [
       ["all", "Total", base.length],
       ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
-      ["active", "Active", base.filter((t) => ACTIVE_STATUSES.includes(t.status)).length],
+      ["active", "Active", base.filter((t) => ["Working on", "Okay", "Being reviewed", "Escalation"].includes(t.status)).length],
       ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved").length],
     ];
@@ -1292,7 +1300,7 @@ function filteredTickets() {
   if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
   if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= (state.role === "product" ? 12 : 2));
-  if (state.tab === "active") rows = rows.filter((t) => ["Working on", "Being reviewed", "Escalation"].includes(t.status));
+  if (state.tab === "active") rows = rows.filter((t) => ["Working on", "Okay", "Being reviewed", "Escalation"].includes(t.status));
   if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved");
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
@@ -1631,8 +1639,9 @@ function sortValue(ticket, key) {
   const statusRank = {
     Unclaimed: 1,
     "Working on": 2,
-    "Being reviewed": 3,
-    "Awaiting feedback": 4,
+    "Okay": 3,
+    "Being reviewed": 4,
+    "Awaiting feedback": 5,
     Escalation: 5,
     "Escalation resolved": 6,
     Closed: 7,
@@ -2533,7 +2542,7 @@ function engineeringNotice(ticket) {
 function engineeringEscalationPanel(ticket) {
   const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
   const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
-  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed" || ticket.status === "Escalation resolved" || ticket.status === "Awaiting feedback") return "";
+  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed" || ticket.status === "Okay" || ticket.status === "Escalation resolved" || ticket.status === "Awaiting feedback") return "";
   return `<section class="drawer-card engg-escalation-panel">
     <h3>Escalate to Engineering</h3>
     <p class="muted engg-escalation-desc">Only escalate if you've confirmed this is a platform or technical issue. Describe your analysis, then type <strong>yes</strong> and confirm.</p>
@@ -2624,6 +2633,17 @@ function facultyPanel(ticket) {
   if (!canUseFacultyFlow) return "";
   if (ticket.finalResolutionText) {
     return `<section class="drawer-card"><h3>Resolution Locked</h3><div class="next-step"><span class="label">Approved &amp; sent</span><p>This resolution was approved by the manager and sent to the student.</p></div></section>`;
+  }
+  if (ticket.status === "Okay") {
+    return `<section class="drawer-card okay-card">
+      <h3>Resolution Marked as Okay</h3>
+      <p class="muted">Your resolution has been self-approved. Send it to the student to start the 48-hour feedback window, or escalate to manager review first.</p>
+      <blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote>
+      <div class="form-actions">
+        <button class="primary" data-send-to-student="${ticket.id}">Send to Student</button>
+        <button class="ghost" data-open-send-to-review="${ticket.id}">Escalate to Manager</button>
+      </div>
+    </section>`;
   }
   if (ticket.status === "Being reviewed" && !ticket.revisionRequested) {
     return `<section class="drawer-card"><h3>Sent to Manager Review</h3><div class="next-step"><span class="label">Awaiting approval</span><p>Your resolution has been submitted for manager review. You'll be notified if a revision is requested.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
@@ -3270,11 +3290,22 @@ function submitResolutionDirect(id) {
   ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.revisionRequested = false;
+  ticket.status = "Okay";
+  ticket.timelineStatus = "okay";
+  addHistory(ticket, facultyActorName(), "Marked resolution as Okay — ready to send to student");
+  pushNotification("General", `Resolution ready: #${ticket.id} — awaiting dispatch`, ticket.id);
+  toast(`Resolution marked as Okay for #${id}.`, "success");
+  persistAndRender(id);
+}
+
+function sendToStudentFromOkay(id) {
+  const ticket = ticketById(id);
   ticket.status = "Awaiting feedback";
-  ticket.timelineStatus = "resolution_submitted";
-  addHistory(ticket, facultyActorName(), "Submitted resolution directly to student");
-  pushNotification("General", `Direct resolution submitted: #${ticket.id}`, ticket.id);
-  toast(`Resolution submitted for #${id}.`, "success");
+  ticket.timelineStatus = "awaiting_feedback";
+  ticket.resolvedAt = new Date().toISOString();
+  addHistory(ticket, facultyActorName(), "Resolution sent to student — awaiting their response");
+  pushNotification("General", `Resolution sent to student: #${ticket.id}`, ticket.id);
+  toast(`Resolution sent to student for #${ticket.id}.`, "success");
   persistAndRender(id);
 }
 
@@ -3828,6 +3859,7 @@ function isEngineeringEscalated(ticket) {
 
 function statusClass(status) {
   if (status === "Closed") return "closed";
+  if (status === "Okay") return "ok";
   if (status === "Awaiting feedback") return "awaiting";
   if (status === "Working on") return "work";
   if (status === "Escalation") return "escalated";
@@ -4155,6 +4187,7 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-open-send-to-review]")) { openSendToReviewModal(target.closest("[data-open-send-to-review]").dataset.openSendToReview); return; }
   if (target.closest("[data-confirm-send-to-review]")) { const id = target.closest("[data-confirm-send-to-review]").dataset.confirmSendToReview; closeModal(); submitFacultyResolution(id); return; }
   if (target.closest("[data-submit-resolution-direct]")) { submitResolutionDirect(target.closest("[data-submit-resolution-direct]").dataset.submitResolutionDirect); return; }
+  if (target.closest("[data-send-to-student]")) { sendToStudentFromOkay(target.closest("[data-send-to-student]").dataset.sendToStudent); return; }
   if (target.closest("[data-manager-approve-resolution]")) { managerApproveResolution(target.closest("[data-manager-approve-resolution]").dataset.managerApproveResolution); return; }
   if (target.closest("[data-manager-edit-resolution]")) { managerToggleEdit(target.closest("[data-manager-edit-resolution]").dataset.managerEditResolution, true); return; }
   if (target.closest("[data-manager-cancel-edit]")) { managerToggleEdit(target.closest("[data-manager-cancel-edit]").dataset.managerCancelEdit, false); return; }
