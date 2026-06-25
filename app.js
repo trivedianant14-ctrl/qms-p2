@@ -1348,9 +1348,7 @@ function renderFireAlerts() {
   const backBtn = state.managerFilter
     ? `<button class="back-btn fire-back" data-manager-filter-clear>← Overview</button>`
     : "";
-  const createBtn = !state.managerFilter
-    ? `<button class="primary fire-create-btn" data-create-ticket-modal>+ Create Ticket</button>`
-    : "";
+  const createBtn = `<button class="primary fire-create-btn" data-create-ticket-modal>+ Create Ticket</button>`;
   const exportBtn = !state.managerFilter
     ? `<button class="ghost fire-export-btn" data-export-all-csv>Export CSV</button>`
     : "";
