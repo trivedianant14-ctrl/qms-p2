@@ -1412,6 +1412,7 @@ function renderSignalsPanel() {
 
 function renderManagerTicketTable() {
   const mf = state.managerFilter;
+  const isResolverView = mf.type === "resolver";
   const labels = {
     resolver: `Tickets — ${mf.value}`,
     alert_sla: "SLA breaching — within 2 hours",
@@ -1422,8 +1423,11 @@ function renderManagerTicketTable() {
     alert_closed_today: "Closed tickets",
     question: `All tickets for question #${mf.value}`,
   };
-  const rows = filteredTickets();
-  const MGR_KEYS = ["id", "raisedAt", "student", "owner", "status", "category", "subject", "sla", "score"];
+  let rows = filteredTickets();
+  if (isResolverView) rows = rows.filter(t => t.status !== "Unclaimed");
+  const MGR_KEYS = isResolverView
+    ? ["id", "raisedAt", "student", "status", "category", "subject", "sla", "score"]
+    : ["id", "raisedAt", "student", "owner", "status", "category", "subject", "sla", "score"];
   const visible = MGR_KEYS.map(key => columns.find(([k]) => k === key)).filter(Boolean);
   applyTableColumnWidths(visible.map(([key]) => key));
   const _dtbl = el.ticketTable.closest("table");
@@ -1432,6 +1436,8 @@ function renderManagerTicketTable() {
   el.managerBackBtn.hidden = false;
   el.createTicketButton.hidden = true;
   el.pullTicketButton.hidden = true;
+  el.exportCsvButton.hidden = isResolverView;
+  el.assigneeFilter.closest("label").hidden = isResolverView;
   el.tableTitle.textContent = labels[mf.type] || "Filtered";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
@@ -1694,6 +1700,8 @@ function renderTable() {
   _ntbl.style.minWidth = "";
   _ntbl.closest(".table-wrap").style.overflowX = "";
   el.managerBackBtn.hidden = true;
+  el.exportCsvButton.hidden = false;
+  el.assigneeFilter.closest("label").hidden = false;
   el.tableTitle.textContent = state.role === "team" ? "Team Queries Queue" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
