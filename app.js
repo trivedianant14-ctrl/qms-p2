@@ -230,6 +230,7 @@ const el = {
   toastStack: document.querySelector("#toastStack"),
   createTicketButton: document.querySelector("#createTicketButton"),
   pullTicketButton: document.querySelector("#pullTicketButton"),
+  resetFiltersButton: document.querySelector("#resetFiltersButton"),
   fireAlerts: document.querySelector("#fireAlerts"),
 };
 
@@ -1448,15 +1449,21 @@ function renderReportStats() {
   el.statsRow.innerHTML = statSets[state.reportView].map(([label, value, help, tone]) => `<article class="stat-card ${tone}"><span class="label">${label}</span><strong>${value}</strong><span>${help}</span></article>`).join("");
 }
 
+function hasActiveFilters() {
+  return state.search !== "" || state.questionIdSearch !== "" || state.status !== "all" || state.assignee !== "all" || state.dateFrom !== "" || state.dateTo !== "";
+}
+
 function renderFilters() {
   const scoped = roleTickets();
-  const statuses = ["all", ...STATUSES];
+  const visibleStatuses = STATUSES.filter(s => state.role !== "team" || s !== "Unclaimed");
+  const statuses = ["all", ...visibleStatuses];
   el.statusFilter.innerHTML = statuses.map((status) => `<option value="${status}">${status === "all" ? "All statuses" : status}</option>`).join("");
   el.statusFilter.value = statuses.includes(state.status) ? state.status : "all";
   renderSelectFilter(el.assigneeFilter, ["all", ...new Set(scoped.map((ticket) => owner(ticket)))], state.assignee, "All assignees");
   el.questionIdFilter.value = state.questionIdSearch;
   el.dateFromFilter.value = state.dateFrom;
   el.dateToFilter.value = state.dateTo;
+  el.resetFiltersButton.hidden = !hasActiveFilters();
   el.createTicketButton.hidden = state.role !== "manager";
   el.pullTicketButton.hidden = state.role !== "team";
 }
@@ -1527,6 +1534,7 @@ function renderTabs() {
 }
 
 function renderTable() {
+  el.resetFiltersButton.hidden = !hasActiveFilters();
   const rows = filteredTickets();
   const visible = columns.filter(([key]) => state.visibleColumns.includes(key));
   applyTableColumnWidths(visible.map(([key]) => key));
@@ -3772,6 +3780,18 @@ el.searchInput.addEventListener("input", (event) => {
 el.searchClear.addEventListener("click", () => {
   state.search = "";
   el.searchInput.value = "";
+  renderTable();
+});
+
+el.resetFiltersButton.addEventListener("click", () => {
+  state.search = "";
+  state.questionIdSearch = "";
+  state.status = "all";
+  state.assignee = "all";
+  state.dateFrom = "";
+  state.dateTo = "";
+  el.searchInput.value = "";
+  renderFilters();
   renderTable();
 });
 
