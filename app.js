@@ -229,6 +229,7 @@ const el = {
   configModal: document.querySelector("#configModal"),
   toastStack: document.querySelector("#toastStack"),
   createTicketButton: document.querySelector("#createTicketButton"),
+  pullTicketButton: document.querySelector("#pullTicketButton"),
   fireAlerts: document.querySelector("#fireAlerts"),
 };
 
@@ -1278,6 +1279,7 @@ function renderManagerTicketTable() {
   _dtbl.closest(".table-wrap").style.overflowX = "hidden";
   el.managerBackBtn.hidden = false;
   el.createTicketButton.hidden = true;
+  el.pullTicketButton.hidden = true;
   el.tableTitle.textContent = labels[mf.type] || "Filtered";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
@@ -1456,6 +1458,7 @@ function renderFilters() {
   el.dateFromFilter.value = state.dateFrom;
   el.dateToFilter.value = state.dateTo;
   el.createTicketButton.hidden = state.role !== "manager";
+  el.pullTicketButton.hidden = state.role !== "team";
 }
 
 function renderSelectFilter(select, options, selected, allLabel, labels = {}) {
@@ -1520,13 +1523,6 @@ function renderTabs() {
   const tabs = tabsForRole(roleTickets().filter((ticket) => inDateRange(ticket.raisedAt)));
   if (!tabs.some(([key]) => key === state.tab)) state.tab = "all";
   let html = tabs.map(([key, label, count]) => `<button class="${state.tab === key ? "active" : ""}" data-tab="${key}">${label}<span class="count">${count}</span></button>`).join("");
-  if (state.role === "team") {
-    const poolCount = db.tickets.filter(t => owner(t) === "Unclaimed").length;
-    html += `<div class="pull-ticket-wrap">
-      ${poolCount ? `<span class="pull-pool-hint">${poolCount} in pool · earliest first</span>` : `<span class="pull-pool-hint muted">Pool is empty</span>`}
-      <button class="primary pull-ticket-btn" data-pull-ticket>Pull Ticket</button>
-    </div>`;
-  }
   el.ticketTabs.innerHTML = html;
 }
 
@@ -3256,8 +3252,9 @@ function pullTicket() {
   ticket.timelineStatus = "being_worked_on";
   addHistory(ticket, actor, "Pulled from unclaimed pool (earliest first)");
   pushNotification("Content Queries", `${actor} pulled #${ticket.id} from the unclaimed pool`, ticket.id);
-  toast(`Pulled ${ticket.id} — assigned to you. ${pool.length - 1} remaining in pool.`, "success");
-  persistAndRender(ticket.id);
+  toast(`${ticket.id} added to your queue.`, "success");
+  state.tab = "my";
+  persistAndRender();
 }
 
 function openAllClearModal() {
