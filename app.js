@@ -1022,8 +1022,11 @@ function renderFireAlerts() {
   const createBtn = !state.managerFilter
     ? `<button class="primary fire-create-btn" data-create-ticket-modal>+ Create Ticket</button>`
     : "";
+  const exportBtn = !state.managerFilter
+    ? `<button class="ghost fire-export-btn" data-export-all-csv>Export CSV</button>`
+    : "";
   el.fireAlerts.hidden = false;
-  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}${createBtn}</div>`;
+  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}${exportBtn}${createBtn}</div>`;
 }
 
 function renderManagerOverview() {
@@ -1521,6 +1524,43 @@ function exportCsv() {
   link.remove();
   URL.revokeObjectURL(url);
   toast(`Exported ${rows.length} ticket${rows.length === 1 ? "" : "s"} to CSV.`);
+}
+
+function exportAllCsv() {
+  const rows = db.tickets;
+  if (!rows.length) { toast("No tickets to export."); return; }
+  const allCols = ["id", "raisedAt", "student", "status", "source", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score", "resolvedAt"];
+  const headers = ["Ticket ID", "Raised At", "Student", "Status", "Source", "Category", "Sub Category", "Subject", "Topic", "Assignee", "SLA", "Priority", "Score", "Resolved At"];
+  const csvRows = [
+    headers.map(csvEscape).join(","),
+    ...rows.map(t => [
+      t.id,
+      absoluteDate(t.raisedAt),
+      t.student,
+      isEngineeringEscalated(t) ? `${t.status} - Engineering Escalation` : t.status,
+      t.source || "QBank",
+      t.category,
+      t.subOption,
+      t.subject,
+      t.topic,
+      owner(t),
+      t.status === "Closed" ? "Closed" : `${hoursLeft(t).toFixed(1)}h left`,
+      owner(t) === "Unclaimed" || !t.priority ? "" : t.priority,
+      t.satisfactionScore == null ? "" : t.satisfactionScore.toFixed(1),
+      t.resolvedAt ? absoluteDate(t.resolvedAt) : "",
+    ].map(csvEscape).join(",")),
+  ];
+  const blob = new Blob([csvRows.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  const today = new Date().toISOString().slice(0, 10);
+  link.download = `nprep-qms-all-agents-${today}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${rows.length} tickets across all agents.`);
 }
 
 function downloadReport(type) {
@@ -3500,6 +3540,7 @@ document.addEventListener("click", (event) => {
     if (ticketId) managerAssign(ticketId, assignee);
     openProfile(assignee);
   }
+  if (target.closest("[data-export-all-csv]")) { exportAllCsv(); return; }
   if (target.closest("[data-create-ticket-modal]")) { openCreateTicketModal(); return; }
   if (target.closest("[data-submit-new-ticket]")) { submitNewTicket(); return; }
   const managerAlert = target.closest("[data-manager-alert]");
