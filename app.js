@@ -232,17 +232,26 @@ function buildSessionDetails(input, raisedAt) {
   const appVersions = ["4.18.2", "4.18.1", "4.17.9", "4.18.2", "4.17.8"];
   const locations = ["Delhi, IN", "Jaipur, IN", "Lucknow, IN", "Patna, IN", "Pune, IN"];
   const networks = ["4G - Jio", "Wi-Fi - home", "5G - Airtel", "Wi-Fi - campus", "4G - Vi"];
+  const screens = ["1080×2400", "720×1600", "1170×2532", "1080×2340", "1080×2280"];
+  const memories = ["2.1 GB / 6 GB", "1.8 GB / 4 GB", "3.2 GB / 8 GB", "2.6 GB / 6 GB", "1.4 GB / 4 GB"];
   const hasRenderConcern = input.technicalEscalation || input.category === "Can't See Something";
+  const av = appVersions[seed % appVersions.length];
   return {
     sessionId: `SES-${String(seed).slice(-6).padStart(6, "0")}`,
-    appVersion: appVersions[seed % appVersions.length],
+    appVersion: av,
+    buildHash: `${av}-build.${String(seed * 31337 % 99999999).padStart(8, "0")}`,
     device: devices[seed % devices.length],
     osVersion: platforms[seed % platforms.length],
+    screen: screens[seed % screens.length],
+    memoryUsed: memories[seed % memories.length],
     location: locations[seed % locations.length],
     network: networks[seed % networks.length],
+    networkLatency: hasRenderConcern ? `${340 + (seed % 200)} ms` : `${42 + (seed % 80)} ms`,
     lastActive: raisedAt,
-    questionRenderEngine: hasRenderConcern ? "Content renderer flagged" : "Content renderer healthy",
-    apiTrace: hasRenderConcern ? "Last asset request timed out" : "All content APIs returned 200",
+    questionRenderEngine: hasRenderConcern ? "⚠ Content renderer flagged" : "✓ Content renderer healthy",
+    apiTrace: hasRenderConcern ? `ERR_ASSET_TIMEOUT — GET /content/q/${input.questionId}/assets (30 s)` : `200 OK — all content APIs responded`,
+    errorLog: hasRenderConcern ? `ERR_CONTENT_RENDER at renderer.js:412 — asset fetch failed` : "No recent errors",
+    crashLog: hasRenderConcern ? `ANR detected 2 min before ticket raised (main thread blocked 8 s)` : "No crashes in session",
     attachmentCount: Number(Boolean(input.studentReference)) + Number(Boolean(input.studentVoiceNote)),
     engineeringSignal: hasRenderConcern ? "Check asset payload, WebView cache, and rendering logs." : "No active technical signal.",
   };
@@ -2428,25 +2437,37 @@ function escalationPanel(ticket) {
 function sessionDetailPanel(ticket) {
   const session = ticket.sessionDetails || buildSessionDetails(ticket, ticket.raisedAt);
   const technical = ticket.technicalEscalation || ticket.category === "Can't See Something";
-  return `<details class="drawer-card collapse-card session-detail-card">
-    <summary><span><strong>Student Device Detail</strong><small>Session context for engineering reference</small></span><span class="badge ${technical ? "critical" : "review"}">${technical ? "Technical signal" : "Session detail"}</span></summary>
-    ${detailGrid([
-      ["Session ID", session.sessionId],
-      ["App Version", session.appVersion],
-      ["Device", session.device],
-      ["OS Version", session.osVersion],
-      ["Device Location", session.location],
-      ["Network", session.network],
-      ["Last Active", absoluteDate(session.lastActive)],
-      ["Question Renderer", session.questionRenderEngine],
-      ["API Trace", session.apiTrace],
-      ["Attachments", `${session.attachmentCount} attached`],
-    ])}
-    <div class="json-section">
-      <div class="json-section-head"><h4>Mock JSON Views</h4><p>Expandable sample payloads for engineering handoff.</p></div>
-      ${jsonPayloadCards(ticket, session)}
+  return `<section class="drawer-card session-detail-card">
+    <div class="session-detail-head" data-toggle-session-detail>
+      <span class="session-detail-title"><strong>Student Device Detail</strong><small>Session context for engineering reference</small></span>
+      <span class="badge ${technical ? "critical" : "review"}">${technical ? "Technical signal" : "Session detail"}</span>
+      <span class="session-toggle-icon">+</span>
     </div>
-  </details>`;
+    <div class="session-detail-body" hidden>
+      ${detailGrid([
+        ["Session ID", session.sessionId],
+        ["App Version", session.appVersion],
+        ["Build Hash", session.buildHash],
+        ["Device", session.device],
+        ["OS Version", session.osVersion],
+        ["Screen Resolution", session.screen],
+        ["Memory Used", session.memoryUsed],
+        ["Device Location", session.location],
+        ["Network", session.network],
+        ["Network Latency", session.networkLatency],
+        ["Last Active", absoluteDate(session.lastActive)],
+        ["Question Renderer", session.questionRenderEngine],
+        ["API Trace", session.apiTrace],
+        ["Error Log", session.errorLog],
+        ["Crash Log", session.crashLog],
+        ["Attachments", `${session.attachmentCount} attached`],
+      ])}
+      <div class="json-section">
+        <div class="json-section-head"><h4>Mock JSON Payloads</h4><p>Expandable sample payloads for engineering handoff.</p></div>
+        ${jsonPayloadCards(ticket, session)}
+      </div>
+    </div>
+  </section>`;
 }
 
 function jsonPayloadCards(ticket, session) {
@@ -3366,6 +3387,14 @@ document.addEventListener("change", (event) => {
 
 document.addEventListener("click", (event) => {
   const target = event.target;
+  if (target.closest("[data-toggle-session-detail]")) {
+    const card = target.closest(".session-detail-card");
+    const body = card?.querySelector(".session-detail-body");
+    const icon = card?.querySelector(".session-toggle-icon");
+    if (body) body.hidden = !body.hidden;
+    if (icon) icon.textContent = body?.hidden ? "+" : "−";
+    return;
+  }
   const open = target.closest("[data-open]");
   const rowOpen = target.closest("[data-row-open]");
   const close = target.closest("[data-close-drawer]");

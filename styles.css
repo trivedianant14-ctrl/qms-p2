@@ -1448,6 +1448,40 @@ tbody tr:focus-within {
   font-size: 14px;
 }
 
+.session-detail-head {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 7px;
+}
+.session-detail-head:hover { background: var(--hover); }
+.session-detail-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.session-detail-title strong { font-size: 14px; }
+.session-detail-title small { font-size: 12px; color: var(--muted); }
+.session-toggle-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.session-detail-body { padding-bottom: 14px; }
+
 .collapse-card > summary small {
   color: var(--muted);
   font-size: 12px;
