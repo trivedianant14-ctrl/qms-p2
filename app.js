@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v20";
+const STORE_KEY = "nprep-qms-phase2-prototype-v21";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -458,9 +458,10 @@ function seedDb() {
       priority: "Highest",
       ageHours: 20,
       status: "Escalation",
-      timelineStatus: "assigned",
+      timelineStatus: "escalated",
       facultyAssigned: "Arjun Rao",
       resolvedAt: new Date(Date.now() - 4 * 3600000).toISOString(),
+      escalationRaisedAt: new Date(Date.now() - 3 * 3600000).toISOString(),
       resolutionText: "Option C is incorrect because it describes an adverse-effect management step, not the priority intervention.",
       feedbackType: "thumbs_down",
       satisfactionScore: 1.0,
@@ -495,11 +496,14 @@ function seedDb() {
       queryText: "I need a stepwise explanation of the priority order.",
       priority: "Low",
       ageHours: 22,
-      status: "Closed",
-      timelineStatus: "resolved",
+      status: "Escalation resolved",
+      timelineStatus: "escalation_resolved",
       facultyAssigned: "Meera Joshi",
       resolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+      escalationRaisedAt: new Date(Date.now() - 10 * 3600000).toISOString(),
+      escalationResolvedAt: new Date(Date.now() - 3 * 3600000).toISOString(),
       resolutionText: "Priority is decided by airway and immediate risk. Option A is correct because it prevents deterioration first.",
+      finalResolutionText: "Priority is decided by airway and immediate risk. Option A is correct because it prevents deterioration first.",
       feedbackType: "escalation_resolved",
       escalationRating: 3,
       escalationReview: "Sir explained it very clearly on the call.",
@@ -1218,7 +1222,7 @@ function tabsForRole(base) {
       ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
       ["active", "Active", base.filter((t) => ACTIVE_STATUSES.includes(t.status)).length],
       ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
-      ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
+      ["escalated", "Escalation", base.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved").length],
     ];
   }
   if (state.role === "faculty") {
@@ -1235,7 +1239,7 @@ function tabsForRole(base) {
       ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
       ["review", "Being reviewed", base.filter((t) => t.status === "Being reviewed").length],
       ["returned", "Returned", base.filter((t) => t.returnedByFaculty).length],
-      ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
+      ["escalated", "Escalation", base.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved").length],
     ];
   }
   if (state.role === "product") {
@@ -1252,7 +1256,7 @@ function tabsForRole(base) {
     ["own", "My Resolver Queue", base.filter((t) => t.claimedBy === current.resolver).length],
     ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
     ["breaching", "Breaching Soon", base.filter((t) => t.status !== "Closed" && hoursLeft(t) <= 2).length],
-    ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
+    ["escalated", "Escalation", base.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved").length],
   ];
 }
 
@@ -1287,7 +1291,7 @@ function filteredTickets() {
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
   if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= (state.role === "product" ? 12 : 2));
   if (state.tab === "active") rows = rows.filter((t) => ["Working on", "Being reviewed", "Escalation"].includes(t.status));
-  if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation");
+  if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved");
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
   if (state.tab === "technical") rows = rows.filter((t) => t.technicalEscalation || t.category === "Can't See Something");
