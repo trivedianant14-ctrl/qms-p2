@@ -2533,7 +2533,7 @@ function engineeringNotice(ticket) {
 function engineeringEscalationPanel(ticket) {
   const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
   const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
-  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed") return "";
+  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed" || ticket.status === "Escalation resolved" || ticket.status === "Awaiting feedback") return "";
   return `<section class="drawer-card engg-escalation-panel">
     <h3>Escalate to Engineering</h3>
     <p class="muted engg-escalation-desc">Only escalate if you've confirmed this is a platform or technical issue. Describe your analysis, then type <strong>yes</strong> and confirm.</p>
