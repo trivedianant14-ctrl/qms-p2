@@ -637,6 +637,11 @@ tbody tr:focus-within {
   background: var(--purple-soft);
 }
 
+.badge.awaiting {
+  color: #92400e;
+  background: #fef3c7;
+}
+
 .badge.work {
   color: #175cd3;
   background: #d1e9ff;

@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v21";
+const STORE_KEY = "nprep-qms-phase2-prototype-v22";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -61,7 +61,7 @@ const STATUSES = [
   "Unclaimed",
   "Working on",
   "Being reviewed",
-  "Resolution submitted",
+  "Awaiting feedback",
   "Escalation",
   "Escalation resolved",
   "Closed",
@@ -73,8 +73,8 @@ const STATUS_ALIASES = {
   "Worked on": "Working on",
   "With Faculty": "Being reviewed",
   Faculty: "Being reviewed",
-  "Faculty Resolved": "Resolution submitted",
-  "Faculty resolved": "Resolution submitted",
+  "Faculty Resolved": "Awaiting feedback",
+  "Faculty resolved": "Awaiting feedback",
   Escalated: "Escalation",
   "Escalation Resolved": "Escalation resolved",
 };
@@ -678,7 +678,7 @@ function seedDb() {
     createTicket({ id: "NP-00023", questionId: 84507, student: "Sana Ali", category: "I Have a Doubt", subOption: "I didn't understand the explanation",
       queryText: "The explanation for the foot arches anatomy question uses terms I haven't seen in my textbook.",
       studentDoubt: "What is the difference between medial and lateral longitudinal arches clinically? The explanation doesn't clarify.", priority: "Medium", ageHours: 18,
-      status: "Resolution submitted", timelineStatus: "resolution_submitted", routedTo: "faculty", facultyAssigned: "Sunita Verma",
+      status: "Awaiting feedback", timelineStatus: "resolution_submitted", routedTo: "faculty", facultyAssigned: "Sunita Verma",
       resolutionText: "The medial arch is more mobile and acts as a spring for propulsion; the lateral arch is rigid and bears weight. Clinically, flat foot affects the medial arch. This explains why Option B (medial) is the answer.",
       subject: "Anatomy", topic: "Foot Arches & Joints" }),
 
@@ -992,7 +992,7 @@ function closedTodayTickets() {
 }
 
 function awaitingReviewTickets() {
-  return db.tickets.filter(t => t.status === "Resolution submitted");
+  return db.tickets.filter(t => t.status === "Awaiting feedback");
 }
 
 function escalationTickets() {
@@ -1107,7 +1107,6 @@ function normalizeTimeline(targetDb) {
   targetDb.tickets.forEach((ticket) => {
     ticket.history = ticket.history || [];
     upsertTimelineEvent(ticket, "SYSTEM", "Ticket created from student query", ticket.raisedAt, (item) => /ticket created from student query/i.test(item.text || ""));
-    upsertTimelineEvent(ticket, "Auto-router", `Routed to ${routeLabel(ticket.routedTo)}`, timelineOffset(ticket, 5), (item) => /^routed to /i.test(item.text || ""));
     const hasOwnerEvent = ticket.history.some((item) => /claimed|assigned|auto-assigned/i.test(item.text || "") && (item.actor === ticket.facultyAssigned || item.actor === ticket.claimedBy || item.text.includes(ticket.facultyAssigned || ticket.claimedBy || "__none__")));
     const claimAt = ticket.facultyAssignedAt || timelineBeforeResolved(ticket, 75, 30);
     if (ticket.facultyAssigned && !hasOwnerEvent) {
@@ -1128,7 +1127,14 @@ function normalizeResolutionTimeline(ticket) {
     const resolutionText = ticket.routedTo === "content" && !ticket.facultyAssigned
       ? "Submitted student-facing resolution; resolution is now locked"
       : "Submitted resolution for review; resolution is now locked";
-    ensureTimelineEvent(ticket, ownerName, resolutionText, timelineBeforeResolved(ticket, 45, 90), (item) => /submitted .*resolution/i.test(item.text || ""));
+    // Ensure submit event is always placed AFTER the claim event
+    const claimItem = ticket.history.find(item => /claimed this ticket|claimed ticket/i.test(item.text || ""));
+    const claimMs = claimItem?.at ? new Date(claimItem.at).getTime() : null;
+    let submitAt = timelineBeforeResolved(ticket, 45, 90);
+    if (claimMs && new Date(submitAt).getTime() <= claimMs) {
+      submitAt = new Date(claimMs + 20 * 60000).toISOString();
+    }
+    ensureTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution/i.test(item.text || ""));
   }
   if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
     ensureTimelineEvent(ticket, ticket.claimedBy || "Auto-router", "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 110), (item) => /finalized student-facing resolution|closed ticket with code/i.test(item.text || ""));
@@ -1273,7 +1279,7 @@ function filteredTickets() {
       return (Date.now() - Math.max(...t.history.map(h => new Date(h.at).getTime()))) > 6 * 3600000;
     });
     else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Working on" || t.status === "Being reviewed");
-    else if (mf.type === "alert_awaiting_review") rows = rows.filter(t => t.status === "Resolution submitted");
+    else if (mf.type === "alert_awaiting_review") rows = rows.filter(t => t.status === "Awaiting feedback");
     else if (mf.type === "alert_closed_today") rows = rows.filter(t => t.status === "Closed");
     else if (mf.type === "alert_escalation") rows = rows.filter(t => t.status === "Escalation" || t.status === "Escalation resolved");
     else if (mf.type === "question") rows = rows.filter(t => t.questionId === mf.value);
@@ -1633,7 +1639,7 @@ function sortValue(ticket, key) {
     Unclaimed: 1,
     "Working on": 2,
     "Being reviewed": 3,
-    "Resolution submitted": 4,
+    "Awaiting feedback": 4,
     Escalation: 5,
     "Escalation resolved": 6,
     Closed: 7,
@@ -2049,7 +2055,7 @@ function resolutionFunnel(tickets) {
   const assigned   = total - unclaimed;
   const workingOn  = monthly.filter(t => t.status === "Working on").length;
   const reviewing  = monthly.filter(t => t.status === "Being reviewed").length;
-  const submitted  = monthly.filter(t => t.status === "Resolution submitted").length;
+  const submitted  = monthly.filter(t => t.status === "Awaiting feedback").length;
   const closed     = monthly.filter(t => t.status === "Closed").length;
   const escalated  = monthly.filter(t => t.status === "Escalation" || t.status === "Escalation resolved").length;
   const resolvRate = pct(closed);
@@ -2517,7 +2523,7 @@ function drawerActions(ticket) {
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
   if (contentOwnedByMe && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign Resolver</button>`);
   if (contentOwnedByMe && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Resolver</button>`);
-  if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Resolution submitted") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
+  if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Awaiting feedback") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
   if (contentOwnedByMe && ticket.status !== "Closed") {
     actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
   }
@@ -2629,8 +2635,8 @@ function facultyPanel(ticket) {
   if (ticket.status === "Being reviewed" && !ticket.revisionRequested) {
     return `<section class="drawer-card"><h3>Sent to Manager Review</h3><div class="next-step"><span class="label">Awaiting approval</span><p>Your resolution has been submitted for manager review. You'll be notified if a revision is requested.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
   }
-  if (ticket.status === "Resolution submitted" && !ticket.finalResolutionText && !ticket.revisionRequested) {
-    return `<section class="drawer-card"><h3>Resolution Submitted</h3><div class="next-step"><span class="label">Sent to student</span><p>Your resolution was submitted directly to the student.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
+  if (ticket.status === "Awaiting feedback" && !ticket.finalResolutionText && !ticket.revisionRequested) {
+    return `<section class="drawer-card"><h3>Awaiting Student Feedback</h3><div class="next-step"><span class="label">Resolution sent</span><p>Your resolution was sent to the student. Awaiting their confirmation within 48 hours.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
   }
   const revisionBanner = ticket.revisionRequested
     ? `<div class="revision-notice">Manager has requested a revision. Please update your resolution and send again.</div>`
@@ -3269,7 +3275,7 @@ function submitResolutionDirect(id) {
   ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.revisionRequested = false;
-  ticket.status = "Resolution submitted";
+  ticket.status = "Awaiting feedback";
   ticket.timelineStatus = "resolution_submitted";
   addHistory(ticket, facultyActorName(), "Submitted resolution directly to student");
   pushNotification("General", `Direct resolution submitted: #${ticket.id}`, ticket.id);
@@ -3280,7 +3286,7 @@ function submitResolutionDirect(id) {
 function approveFacultyResolution(id) {
   const ticket = ticketById(id);
   ticket.finalResolutionText = ticket.resolutionText;
-  ticket.status = "Resolution submitted";
+  ticket.status = "Awaiting feedback";
   ticket.revisionRequested = false;
   addHistory(ticket, resolverActorName(), "Approved submitted resolution and moved to finalization");
   persistAndRender(id);
@@ -3302,7 +3308,7 @@ function managerApproveResolution(id) {
   const text = ticket.resolutionText;
   if (!text || text.length < 20) { toast("Resolution needs at least 20 characters before approving."); return; }
   ticket.finalResolutionText = text;
-  ticket.status = "Resolution submitted";
+  ticket.status = "Awaiting feedback";
   ticket.timelineStatus = "resolution_submitted";
   ticket.resolvedAt = new Date().toISOString();
   addHistory(ticket, current.manager, "Manager approved resolution — sent to student as-is");
@@ -3324,7 +3330,7 @@ function managerConfirmEditResolution(id) {
   if (text.length < 20) { toast("Resolution needs at least 20 characters."); return; }
   ticket.resolutionText = text;
   ticket.finalResolutionText = text;
-  ticket.status = "Resolution submitted";
+  ticket.status = "Awaiting feedback";
   ticket.timelineStatus = "resolution_submitted";
   ticket.resolvedAt = new Date().toISOString();
   addHistory(ticket, current.manager, "Manager edited and sent resolution to student");
@@ -3567,7 +3573,7 @@ function nextStepText(ticket) {
     if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
     if (ticket.revisionRequested) return "Manager requested a revision. Update your resolution and send to review again.";
     if (ticket.status === "Being reviewed") return "Resolution sent to manager for review. Awaiting approval or revision request.";
-    if (ticket.status === "Resolution submitted") return "Resolution submitted directly to student. Awaiting student feedback.";
+    if (ticket.status === "Awaiting feedback") return "Resolution sent to student. They have 48 hours to confirm — ticket auto-closes on no response.";
     if (!ticket.resolutionText) return "Write your resolution, then either submit directly to the student or send to manager for review first.";
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
     return "Resolution is submitted and awaiting manager approval.";
@@ -3827,7 +3833,7 @@ function isEngineeringEscalated(ticket) {
 
 function statusClass(status) {
   if (status === "Closed") return "closed";
-  if (status === "Resolution submitted") return "faculty";
+  if (status === "Awaiting feedback") return "awaiting";
   if (status === "Working on") return "work";
   if (status === "Escalation") return "escalated";
   if (status === "Escalation resolved") return "review";
