@@ -1423,20 +1423,21 @@ function renderManagerTicketTable() {
   const rows = filteredTickets();
   // Fixed curated columns for manager drilled view — avoids horizontal overflow
   const MGR_KEYS = ["id", "raisedAt", "student", "owner", "status", "category", "subject", "sla", "score"];
-  const MGR_PCTS = ["9%", "12%", "11%", "13%", "13%", "16%", "16%", "6%", "4%"];
-  const visible = MGR_KEYS.map(key => columns.find(([k]) => k === key)).filter(Boolean);
-  el.tableCols.innerHTML = MGR_PCTS.map(w => `<col style="width:${w}">`).join("");
+  const MGR_WIDTHS = [110, 150, 130, 140, 150, 180, 190, 90, 80];
+  const visible = MGR_KEYS.map((key, i) => { const col = columns.find(([k]) => k === key); return col ? { col, w: MGR_WIDTHS[i] } : null; }).filter(Boolean);
+  el.tableCols.innerHTML = visible.map(({ w }) => `<col style="width:${w}px">`).join("");
   const _dtbl = el.ticketTable.closest("table");
-  _dtbl.style.width = "100%";
-  _dtbl.style.minWidth = "0";
-  _dtbl.closest(".table-wrap").style.overflowX = "hidden";
+  const totalW = MGR_WIDTHS.reduce((s, w) => s + w, 0);
+  _dtbl.style.width = totalW + "px";
+  _dtbl.style.minWidth = totalW + "px";
+  _dtbl.closest(".table-wrap").style.overflowX = "auto";
+  el.tableHead.innerHTML = visible.map(({ col: [key, label] }) => headerCell(key, label)).join("");
+  el.ticketTable.innerHTML = rows.map(ticket => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(({ col: [key] }) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
   el.managerBackBtn.hidden = false;
   el.createTicketButton.hidden = true;
   el.pullTicketButton.hidden = true;
   el.tableTitle.textContent = labels[mf.type] || "Filtered";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
-  el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
-  el.ticketTable.innerHTML = rows.map(ticket => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
 }
 
 function render() {
