@@ -961,7 +961,7 @@ function ticketAgeHours(ticket) {
 
 function hoursLeft(ticket) {
   if (ticket.status === "Closed") return 0;
-  return Math.max(0, ticket.slaHours - ticketAgeHours(ticket));
+  return ticket.slaHours - ticketAgeHours(ticket);
 }
 
 function isToday(isoString) {
@@ -971,7 +971,7 @@ function isToday(isoString) {
 }
 
 function breachingTickets() {
-  return db.tickets.filter(t => t.status !== "Closed" && hoursLeft(t) <= 2 && hoursLeft(t) > 0);
+  return db.tickets.filter(t => t.status !== "Closed" && hoursLeft(t) <= 2);
 }
 
 function oldUnclaimedTickets() {
@@ -1278,7 +1278,7 @@ function filteredTickets() {
   if (state.role === "manager" && state.managerFilter) {
     const mf = state.managerFilter;
     if (mf.type === "resolver") rows = rows.filter(t => owner(t) === mf.value);
-    else if (mf.type === "alert_sla") rows = rows.filter(t => t.status !== "Closed" && hoursLeft(t) <= 2 && hoursLeft(t) > 0);
+    else if (mf.type === "alert_sla") rows = rows.filter(t => t.status !== "Closed" && hoursLeft(t) <= 2);
     else if (mf.type === "alert_unclaimed") rows = rows.filter(t => owner(t) === "Unclaimed" && ticketAgeHours(t) >= 4);
     else if (mf.type === "alert_stuck") rows = rows.filter(t => {
       if (t.status === "Closed" || owner(t) === "Unclaimed") return false;
@@ -1806,7 +1806,7 @@ function cell(ticket, key) {
     topic: ticket.topic,
     routedTo: titleCase(ticket.routedTo),
     owner: owner(ticket),
-    sla: ticket.status === "Closed" ? `<span class="badge resolved">Closed</span>` : `<span class="badge ${slaClass(ticket)}">${hoursLeft(ticket).toFixed(1)}h left</span>`,
+    sla: ticket.status === "Closed" ? `<span class="badge resolved">Closed</span>` : (() => { const h = hoursLeft(ticket); return h < 0 ? `<span class="badge breached">-${Math.abs(h).toFixed(1)}h</span>` : `<span class="badge ${slaClass(ticket)}">${h.toFixed(1)}h left</span>`; })(),
     priority: owner(ticket) === "Unclaimed" || !ticket.priority ? `<span class="muted">--</span>` : `<span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span>`,
     score: ticket.satisfactionScore == null ? `<span class="muted">--</span>` : `<strong class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)}</strong>`,
   };
@@ -3854,8 +3854,10 @@ function statusClass(status) {
 
 function slaClass(ticket) {
   if (ticket.status === "Closed") return "resolved";
-  if (hoursLeft(ticket) <= 2) return "critical";
-  if (hoursLeft(ticket) <= 12) return "warn";
+  const h = hoursLeft(ticket);
+  if (h < 0) return "breached";
+  if (h <= 2) return "critical";
+  if (h <= 12) return "warn";
   return "open";
 }
 

@@ -681,6 +681,12 @@ tbody tr:focus-within {
   background: var(--red-soft);
 }
 
+.badge.breached {
+  color: #fff;
+  background: #dc2626;
+  font-weight: 700;
+}
+
 .badge.engineering {
   color: #7c2d12;
   background: #ffedd5;
