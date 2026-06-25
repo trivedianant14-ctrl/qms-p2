@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v23";
+const STORE_KEY = "nprep-qms-phase2-prototype-v24";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -374,8 +374,7 @@ function createTicket(input) {
     studentConfirmed: input.studentConfirmed || false,
     sessionDetails: input.sessionDetails || buildSessionDetails(input, raisedAt),
     history: input.history || [
-      eventLine("SYSTEM", "Ticket created from student query"),
-      eventLine("Auto-router", `Routed to ${routeLabel(routedTo)}`),
+      eventLine("SYSTEM", "Ticket created from student query", raisedAt),
     ],
   };
 }
@@ -427,7 +426,7 @@ function seedDb() {
       timelineStatus: "being_worked_on",
       facultyAssigned: "Meera Joshi",
       studentVoiceNote: "0:24 voice note",
-      history: [eventLine("SYSTEM", "Ticket created from student query"), eventLine("Auto-router", "Auto-assigned to Meera Joshi")],
+      history: [eventLine("SYSTEM", "Ticket created from student query")],
     }),
     createTicket({
       id: "NP-00004",
@@ -1137,7 +1136,7 @@ function normalizeResolutionTimeline(ticket) {
     ensureTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution/i.test(item.text || ""));
   }
   if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
-    ensureTimelineEvent(ticket, ticket.claimedBy || "Auto-router", "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 110), (item) => /finalized student-facing resolution|closed ticket with code/i.test(item.text || ""));
+    ensureTimelineEvent(ticket, ownerName, "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 110), (item) => /finalized student-facing resolution|closed ticket with code/i.test(item.text || ""));
   }
   if (isEngineeringEscalated(ticket)) {
     ensureTimelineEvent(ticket, ownerName, "Escalated this ticket to Engineering", timelineBeforeResolved(ticket, 35, 70), (item) => /escalated this ticket to engineering/i.test(item.text || ""));
@@ -1190,7 +1189,7 @@ function timelineBeforeResolved(ticket, minutesBeforeResolved, fallbackMinutesAf
   const resolvedAt = ticket.resolvedAt ? new Date(ticket.resolvedAt).getTime() : null;
   if (!resolvedAt || resolvedAt <= raisedAt) return timelineOffset(ticket, fallbackMinutesAfterRaised);
   const target = resolvedAt - minutesBeforeResolved * 60000;
-  return new Date(Math.max(raisedAt + 10 * 60000, target)).toISOString();
+  return new Date(Math.max(raisedAt + fallbackMinutesAfterRaised * 60000, target)).toISOString();
 }
 
 function roleName() {
