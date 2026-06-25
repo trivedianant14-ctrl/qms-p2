@@ -2852,7 +2852,7 @@ function managerPanel(ticket) {
     : "";
 
   let resolutionControls = "";
-  const needsManagerReview = (ticket.status === "Being reviewed" || ticket.status === "Awaiting feedback") && ticket.resolutionText && !ticket.finalResolutionText;
+  const needsManagerReview = ticket.status === "Being reviewed" && ticket.resolutionText && !ticket.finalResolutionText;
   if (needsManagerReview) {
     const fromReviewer = ticket.status === "Being reviewed";
     const ref = ticket.resolutionReference ? `<p class="muted small">${escapeHtml(ticket.resolutionReference)}</p>` : "";
