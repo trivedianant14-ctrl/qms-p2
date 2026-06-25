@@ -1422,7 +1422,7 @@ function renderManagerTicketTable() {
   };
   const rows = filteredTickets();
   // Fixed curated columns for manager drilled view — avoids horizontal overflow
-  const MGR_KEYS = ["id", "raisedAt", "student", "assignee", "status", "category", "subject", "sla", "score"];
+  const MGR_KEYS = ["id", "raisedAt", "student", "owner", "status", "category", "subject", "sla", "score"];
   const MGR_PCTS = ["9%", "12%", "11%", "13%", "13%", "16%", "16%", "6%", "4%"];
   const visible = MGR_KEYS.map(key => columns.find(([k]) => k === key)).filter(Boolean);
   el.tableCols.innerHTML = MGR_PCTS.map(w => `<col style="width:${w}">`).join("");
