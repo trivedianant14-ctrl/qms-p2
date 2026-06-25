@@ -1536,7 +1536,6 @@ function renderStats() {
   const statSets = {
     team: [
       ["My Open", open.filter((t) => isAssignedTo(t, activeName)).length, `Assigned to ${activeName}`, ""],
-      ["Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length, "Available for team pickup", "amber"],
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
       ["Closed Today", closedToday.length, "Tickets closed today", "green"],
       ["Overall Closed", closed.length, "All closed tickets in this view", "green"],
