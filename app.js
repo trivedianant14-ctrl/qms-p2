@@ -562,6 +562,70 @@ function seedDb() {
       claimedBy: "Meera Joshi",
       resolutionText: "The explanation does reference D as a secondary consideration, but B is the primary answer per the exam blueprint. The wording in the explanation has been noted for editorial review. For exam purposes, B is the correct answer and students should mark it confidently.",
     }),
+    createTicket({
+      id: "NP-00013",
+      questionId: 84400,
+      student: "Mohit P.",
+      category: "I Have a Doubt",
+      subOption: "Why is this the correct answer?",
+      queryText: "I don't understand why Option B is prioritised over Option D in the context of fluid management.",
+      studentDoubt: "My notes say both are acceptable first steps. Need clarification on priority.",
+      priority: "High",
+      ageHours: 9,
+      status: "Unclaimed",
+      timelineStatus: "raised",
+      routedTo: "faculty",
+      subject: "Medical Surgical Nursing",
+      topic: "Renal Disorders",
+    }),
+    createTicket({
+      id: "NP-00014",
+      questionId: 84405,
+      student: "Ankit Rathore",
+      category: "Problem with the Answer",
+      subOption: "The answer shown is wrong",
+      queryText: "The marked answer for the pharmacokinetics question seems inconsistent with standard references.",
+      studentDoubt: "Three different textbooks I checked give a different first-line drug. Can someone verify?",
+      priority: "High",
+      ageHours: 6,
+      status: "Unclaimed",
+      timelineStatus: "raised",
+      routedTo: "faculty",
+      subject: "Pharmacology",
+      topic: "Antimicrobials",
+    }),
+    createTicket({
+      id: "NP-00015",
+      questionId: 84412,
+      student: "Neha K.",
+      category: "I Have a Doubt",
+      subOption: "I didn't understand the explanation",
+      queryText: "The explanation for the anatomy question skips a step — I can't follow the logic.",
+      studentDoubt: "Could someone explain how the nerve supply connects to the clinical presentation described?",
+      priority: "Medium",
+      ageHours: 3,
+      status: "Unclaimed",
+      timelineStatus: "raised",
+      routedTo: "faculty",
+      subject: "Anatomy",
+      topic: "Brachial Plexus",
+    }),
+    createTicket({
+      id: "NP-00016",
+      questionId: 84419,
+      student: "Sana Ali",
+      category: "Problem with this Question",
+      subOption: "This belongs to a different topic or chapter",
+      queryText: "This question appears under Psychiatry but it seems to be testing Pharmacology concepts.",
+      studentDoubt: "The drug mentioned is a CNS drug — why is it categorised under Psychiatry disorders?",
+      priority: "Medium",
+      ageHours: 1.5,
+      status: "Unclaimed",
+      timelineStatus: "raised",
+      routedTo: "faculty",
+      subject: "Psychiatry",
+      topic: "Schizophrenia & Psychosis",
+    }),
   ];
 
   const studentNames = ["Riya Sharma", "Mohit P.", "Ankit Rathore", "Neha K.", "Sana Ali", "Harsh V.", "Kavya N.", "Dev S."];
@@ -987,7 +1051,7 @@ function roleName() {
 function roleTickets() {
   if (state.role === "team") {
     const activeName = activeOperatorName();
-    return db.tickets.filter((ticket) => owner(ticket) === "Unclaimed" || isAssignedTo(ticket, activeName));
+    return db.tickets.filter((ticket) => isAssignedTo(ticket, activeName));
   }
   if (state.role === "faculty") {
     const subjects = allOperators().find((person) => person.name === current.faculty)?.subjects || ALL_SUBJECTS;
@@ -1133,11 +1197,8 @@ function renderFireAlerts() {
   const exportBtn = !state.managerFilter
     ? `<button class="ghost fire-export-btn" data-export-all-csv>Export CSV</button>`
     : "";
-  const pullBtn = !state.managerFilter
-    ? `<button class="primary fire-pull-btn" data-pull-ticket>+ Pull Ticket</button>`
-    : "";
   el.fireAlerts.hidden = false;
-  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}${exportBtn}${pullBtn}${createBtn}</div>`;
+  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}${exportBtn}${createBtn}</div>`;
 }
 
 function renderManagerOverview() {
@@ -1462,8 +1523,8 @@ function renderTabs() {
   if (state.role === "team") {
     const poolCount = db.tickets.filter(t => owner(t) === "Unclaimed").length;
     html += `<div class="pull-ticket-wrap">
-      ${poolCount ? `<span class="pull-pool-hint">${poolCount} in pool · earliest first</span>` : ""}
-      <button class="primary pull-ticket-btn" data-pull-ticket>${poolCount ? "Pull Ticket" : "Pool Empty"}</button>
+      ${poolCount ? `<span class="pull-pool-hint">${poolCount} in pool · earliest first</span>` : `<span class="pull-pool-hint muted">Pool is empty</span>`}
+      <button class="primary pull-ticket-btn" data-pull-ticket>Pull Ticket</button>
     </div>`;
   }
   el.ticketTabs.innerHTML = html;
@@ -3202,25 +3263,15 @@ function pullTicket() {
 function openAllClearModal() {
   el.modalScrim.hidden = false;
   el.configModal.setAttribute("open", "");
-  el.configModal.className = "config-modal ct-wide-modal";
-  el.configModal.innerHTML = `<div class="modal-head"><strong>Pull Ticket — How it Works</strong><button data-close-modal>✕</button></div>
+  el.configModal.className = "config-modal";
+  el.configModal.innerHTML = `<div class="modal-head"><strong>Pool is Empty</strong><button data-close-modal>✕</button></div>
     <div class="modal-body">
-      <div class="all-clear-split">
-        <div class="all-clear-panel all-clear-success">
-          <p class="all-clear-icon">✅</p>
-          <h4>When pool has tickets</h4>
-          <p class="muted">The oldest unclaimed query (earliest raised) is automatically assigned to you. Your queue gets one new ticket — no manual picking. If two agents pull at the same moment, the system randomly decides who gets it.</p>
-          <div class="all-clear-tag blue-tag">Earliest first · fair distribution</div>
-        </div>
-        <div class="all-clear-divider"></div>
-        <div class="all-clear-panel all-clear-empty">
-          <p class="all-clear-icon">🎉</p>
-          <h4>When pool is empty</h4>
-          <p class="muted">Hooray — you're all caught up! There are no unclaimed queries in the pool right now. Your team has resolved everything that's come in so far. Please check back later for fresh queries.</p>
-          <div class="all-clear-tag green-tag">All queries resolved</div>
-        </div>
+      <div class="all-clear-body">
+        <p class="all-clear-emoji">🎉</p>
+        <h4>Hooray — you're all caught up!</h4>
+        <p class="muted">There are no unclaimed queries in the pool right now. Your team has cleared everything that's come in. Check back later as new queries arrive.</p>
+        <div class="all-clear-footer"><button class="primary" data-close-modal>Got it</button></div>
       </div>
-      <div class="all-clear-footer"><button class="primary" data-close-modal>Got it</button></div>
     </div>`;
 }
 

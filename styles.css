@@ -2149,7 +2149,8 @@ tbody tr:focus-within {
 /* All-clear modal */
 .all-clear-body { text-align: center; padding: 8px 0 4px; }
 .all-clear-emoji { font-size: 44px; line-height: 1; margin: 0 0 12px; }
-.all-clear-body h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.all-clear-body h4 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.all-clear-body .muted { max-width: 340px; margin: 0 auto 16px; }
 
 /* Send to Review modal */
 .review-modal-intro { margin-bottom: 12px; }
