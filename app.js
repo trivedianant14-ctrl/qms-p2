@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v18";
+const STORE_KEY = "nprep-qms-phase2-prototype-v19";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -59,8 +59,8 @@ const current = {
 
 const STATUSES = [
   "Unclaimed",
+  "Working on",
   "Being reviewed",
-  "Worked on",
   "Resolution submitted",
   "Escalation",
   "Escalation resolved",
@@ -69,7 +69,8 @@ const STATUSES = [
 
 const STATUS_ALIASES = {
   "In Review": "Being reviewed",
-  "Being Worked On": "Worked on",
+  "Being Worked On": "Working on",
+  "Worked on": "Working on",
   "With Faculty": "Being reviewed",
   Faculty: "Being reviewed",
   "Faculty Resolved": "Resolution submitted",
@@ -406,8 +407,8 @@ function seedDb() {
       queryText: "The image area is blank in question 84294.",
       priority: "High",
       ageHours: 8,
-      status: "Being reviewed",
-      timelineStatus: "in_review",
+      status: "Working on",
+      timelineStatus: "being_worked_on",
       claimedBy: "Priya S.",
       studentReference: "Screenshot attached",
     }),
@@ -420,8 +421,8 @@ function seedDb() {
       queryText: "The rationale says B is correct but I thought it should be C because both mention autonomic activity.",
       priority: "High",
       ageHours: 6,
-      status: "Being reviewed",
-      timelineStatus: "in_review",
+      status: "Working on",
+      timelineStatus: "being_worked_on",
       facultyAssigned: "Meera Joshi",
       studentVoiceNote: "0:24 voice note",
       history: [eventLine("SYSTEM", "Ticket created from student query"), eventLine("Auto-router", "Auto-assigned to Meera Joshi")],
@@ -524,7 +525,7 @@ function seedDb() {
       queryText: "Formula renders as symbols on Android.",
       priority: "Highest",
       ageHours: 47,
-      status: "Worked on",
+      status: "Working on",
       timelineStatus: "being_worked_on",
       claimedBy: "Rahul M.",
       technicalEscalation: true,
@@ -540,8 +541,8 @@ function seedDb() {
       studentDoubt: "Checked three textbooks — all point to option C for initial nursing action. The marked answer seems incorrect.",
       priority: "High",
       ageHours: 5,
-      status: "Resolution submitted",
-      timelineStatus: "resolution_submitted",
+      status: "Being reviewed",
+      timelineStatus: "in_review",
       claimedBy: "Priya S.",
       resolutionText: "Option A is correct in the NPrep context because the question specifies immediate nursing action under exam conditions where airway takes precedence over circulation assessment. Option C applies only in post-stabilisation. The rationale has been reviewed by the content lead.",
       resolutionReference: "NPrep Exam Prep Guide, Chapter 4, pg. 87",
@@ -556,8 +557,8 @@ function seedDb() {
       studentDoubt: "The explanation paragraph mentions D as well — confused whether D should also be accepted.",
       priority: "Medium",
       ageHours: 3,
-      status: "Resolution submitted",
-      timelineStatus: "resolution_submitted",
+      status: "Being reviewed",
+      timelineStatus: "in_review",
       claimedBy: "Meera Joshi",
       resolutionText: "The explanation does reference D as a secondary consideration, but B is the primary answer per the exam blueprint. The wording in the explanation has been noted for editorial review. For exam purposes, B is the correct answer and students should mark it confidently.",
     }),
@@ -587,8 +588,8 @@ function seedDb() {
       subject,
       routedTo: "faculty",
       facultyAssigned: isClosed ? allOperators()[index % allOperators().length].name : ownerName,
-      status: isClosed ? "Closed" : ownerName ? "Being reviewed" : "Unclaimed",
-      timelineStatus: isClosed ? "resolved" : ownerName ? "in_review" : "raised",
+      status: isClosed ? "Closed" : ownerName ? "Working on" : "Unclaimed",
+      timelineStatus: isClosed ? "resolved" : ownerName ? "being_worked_on" : "raised",
       priority: index % 5 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
       ageHours: 2 + ((index * 2.25) % 46),
       queryText: `Subject-routed doubt ${index + 1}: student needs expert explanation for ${subject}.`,
@@ -624,7 +625,7 @@ function seedDb() {
       subject: facultySubjects[(index + 1) % facultySubjects.length],
       routedTo: "content",
       claimedBy: isClosed ? current.resolver : ownerName,
-      status: isClosed ? "Closed" : ownerName ? (index % 4 === 0 ? "Worked on" : "Being reviewed") : "Unclaimed",
+      status: isClosed ? "Closed" : ownerName ? "Working on" : "Unclaimed",
       timelineStatus: isClosed ? "resolved" : ownerName ? "in_review" : "raised",
       priority: index % 4 === 0 ? "Highest" : index % 3 === 0 ? "Medium" : "High",
       ageHours: 1 + ((index * 1.85) % 47),
@@ -771,7 +772,7 @@ function stuckTickets() {
 
 function inReviewTickets() {
   return db.tickets.filter(t =>
-    t.status === "Being reviewed" || t.status === "Worked on"
+    t.status === "Working on" || t.status === "Being reviewed"
   );
 }
 
@@ -852,8 +853,8 @@ function applyAutoAssignments(targetDb = db, shouldNotify = true, shouldPersist 
     ticket.facultyAssigned = assignee;
     ticket.claimedBy = null;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Being reviewed";
-    ticket.timelineStatus = "in_review";
+    ticket.status = "Working on";
+    ticket.timelineStatus = "being_worked_on";
     ticket.history.unshift(eventLine("SYSTEM", `Auto-assigned after 24h unclaimed SLA to ${assignee}`));
     targetDb.notifications.unshift(note("General", `Auto-assigned after 24h: #${ticket.id} to ${assignee}`, ticket.id));
     changed = true;
@@ -1004,7 +1005,7 @@ function roleTickets() {
 function tabsForRole(base) {
   if (state.role === "team") {
     const activeName = activeOperatorName();
-    const ACTIVE_STATUSES = ["Being reviewed", "Worked on", "Escalation"];
+    const ACTIVE_STATUSES = ["Working on", "Being reviewed", "Escalation"];
     return [
       ["all", "Total", base.length],
       ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
@@ -1060,7 +1061,7 @@ function filteredTickets() {
       if (!t.history?.length) return false;
       return (Date.now() - Math.max(...t.history.map(h => new Date(h.at).getTime()))) > 6 * 3600000;
     });
-    else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Being reviewed" || t.status === "Worked on");
+    else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Working on" || t.status === "Being reviewed");
     else if (mf.type === "alert_awaiting_review") rows = rows.filter(t => t.status === "Resolution submitted");
     else if (mf.type === "alert_closed_today") rows = rows.filter(t => t.status === "Closed");
     else if (mf.type === "alert_escalation") rows = rows.filter(t => t.status === "Escalation" || t.status === "Escalation resolved");
@@ -1078,7 +1079,7 @@ function filteredTickets() {
   if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
   if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= (state.role === "product" ? 12 : 2));
-  if (state.tab === "active") rows = rows.filter((t) => ["Being reviewed", "Worked on", "Escalation"].includes(t.status));
+  if (state.tab === "active") rows = rows.filter((t) => ["Working on", "Being reviewed", "Escalation"].includes(t.status));
   if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation");
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
@@ -1414,8 +1415,8 @@ function sortValue(ticket, key) {
   const priorityRank = { Highest: 1, High: 2, Medium: 3, Low: 4 };
   const statusRank = {
     Unclaimed: 1,
-    "Being reviewed": 2,
-    "Worked on": 3,
+    "Working on": 2,
+    "Being reviewed": 3,
     "Resolution submitted": 4,
     Escalation: 5,
     "Escalation resolved": 6,
@@ -2270,7 +2271,7 @@ function engineeringNotice(ticket) {
 function engineeringEscalationPanel(ticket) {
   const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
   const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
-  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed") return "";
+  if ((!teamOwnedByMe && !contentOwnedByMe) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed") return "";
   return `<section class="drawer-card engg-escalation-panel">
     <h3>Escalate to Engineering</h3>
     <p class="muted engg-escalation-desc">Only escalate if you've confirmed this is a platform or technical issue. Describe your analysis, then type <strong>yes</strong> and confirm.</p>
@@ -2362,13 +2363,16 @@ function facultyPanel(ticket) {
   if (ticket.finalResolutionText) {
     return `<section class="drawer-card"><h3>Resolution Locked</h3><div class="next-step"><span class="label">Approved &amp; sent</span><p>This resolution was approved by the manager and sent to the student.</p></div></section>`;
   }
-  if (ticket.resolutionText && !ticket.revisionRequested) {
+  if (ticket.status === "Being reviewed" && !ticket.revisionRequested) {
     return `<section class="drawer-card"><h3>Sent to Manager Review</h3><div class="next-step"><span class="label">Awaiting approval</span><p>Your resolution has been submitted for manager review. You'll be notified if a revision is requested.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
+  }
+  if (ticket.status === "Resolution submitted" && !ticket.finalResolutionText && !ticket.revisionRequested) {
+    return `<section class="drawer-card"><h3>Resolution Submitted</h3><div class="next-step"><span class="label">Sent to student</span><p>Your resolution was submitted directly to the student.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
   }
   const revisionBanner = ticket.revisionRequested
     ? `<div class="revision-notice">Manager has requested a revision. Please update your resolution and send again.</div>`
     : "";
-  return `<section class="drawer-card" id="facultyResolution"><h3>${ticket.revisionRequested ? "Revision Requested" : "Write Resolution"}</h3>${revisionBanner}<div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-open-send-to-review="${ticket.id}">Send to Manager Review</button><span class="muted">Manager will review before sending to student. Min 30 characters.</span></div></div></section>`;
+  return `<section class="drawer-card" id="facultyResolution"><h3>${ticket.revisionRequested ? "Revision Requested" : "Write Resolution"}</h3>${revisionBanner}<div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-open-send-to-review="${ticket.id}">Send to Manager Review</button><button class="ghost" data-submit-resolution-direct="${ticket.id}">Submit Resolution</button></div><p class="muted ct-optional">Min 30 characters. Submit directly to student, or send to manager for review first.</p></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -2573,7 +2577,7 @@ function managerPanel(ticket) {
     : "";
 
   let resolutionControls = "";
-  if (ticket.status === "Resolution submitted" && ticket.resolutionText) {
+  if (ticket.status === "Being reviewed" && ticket.resolutionText) {
     resolutionControls = `<section class="drawer-card manager-review-card">
       <h3>Review Agent Resolution</h3>
       <p class="muted">The agent has submitted a resolution for your review. Edit if needed, then approve to send to the student, or request a revision.</p>
@@ -2892,7 +2896,7 @@ function persistAndRender(openId) {
 function claimTicket(id, assignee = resolverActorName()) {
   const ticket = ticketById(id);
   ticket.claimedBy = assignee;
-  if (ticket.status === "Unclaimed") ticket.status = "Being reviewed";
+  if (ticket.status === "Unclaimed") ticket.status = "Working on";
   ticket.timelineStatus = "in_review";
   addHistory(ticket, assignee, "Claimed this ticket");
   persistAndRender(id);
@@ -2916,8 +2920,8 @@ function assignToFaculty(id) {
   } else {
     ticket.facultyAssigned = result.assigned;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Being reviewed";
-    ticket.timelineStatus = "in_review";
+    ticket.status = "Working on";
+    ticket.timelineStatus = "being_worked_on";
     addHistory(ticket, "Content Queries", `${result.reason === "RANDOM_TIE_BREAK" ? "Random tie-break assigned" : "Auto-assigned"} to ${result.assigned}`);
     pushNotification("Content Queries", `Assigned to ${result.assigned}: #${ticket.id} - ${ticket.subject}`, ticket.id);
   }
@@ -2929,8 +2933,8 @@ function facultyClaim(id) {
   const actor = facultyActorName();
   ticket.facultyAssigned = actor;
   ticket.facultyAssignedAt = new Date().toISOString();
-  ticket.status = "Being reviewed";
-  ticket.timelineStatus = "in_review";
+  ticket.status = "Working on";
+  ticket.timelineStatus = "being_worked_on";
   addHistory(ticket, actor, "Claimed from Subject Pool");
   pushNotification("Content Queries", `${actor} claimed #${ticket.id} from Subject Pool`, ticket.id);
   persistAndRender(id);
@@ -2972,17 +2976,39 @@ function submitFacultyResolution(id) {
   ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.revisionRequested = false;
-  ticket.status = "Resolution submitted";
-  ticket.timelineStatus = "resolution_submitted";
+  ticket.status = "Being reviewed";
+  ticket.timelineStatus = "in_review";
   addHistory(ticket, facultyActorName(), "Sent resolution to manager for review");
   pushNotification("General", `Resolution pending review: #${ticket.id} — ${facultyActorName()}`, ticket.id);
+  persistAndRender(id);
+}
+
+function submitResolutionDirect(id) {
+  const ticket = ticketById(id);
+  if (ticket.resolutionText || ticket.finalResolutionText) {
+    toast("Resolution has already been submitted and is locked.");
+    return;
+  }
+  const text = document.querySelector("#resolutionText")?.value.trim() || "";
+  if (text.length < 30) { toast("Resolution needs at least 30 characters."); return; }
+  ticket.resolutionText = text;
+  ticket.resolutionReference = document.querySelector("#resolutionRef")?.value.trim() || "";
+  ticket.resolutionImageName = document.querySelector("#resolutionImageName")?.value.trim() || "";
+  ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
+  ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
+  ticket.revisionRequested = false;
+  ticket.status = "Resolution submitted";
+  ticket.timelineStatus = "resolution_submitted";
+  addHistory(ticket, facultyActorName(), "Submitted resolution directly to student");
+  pushNotification("General", `Direct resolution submitted: #${ticket.id}`, ticket.id);
+  toast(`Resolution submitted for #${id}.`, "success");
   persistAndRender(id);
 }
 
 function approveFacultyResolution(id) {
   const ticket = ticketById(id);
   ticket.finalResolutionText = ticket.resolutionText;
-  ticket.status = "Worked on";
+  ticket.status = "Resolution submitted";
   ticket.revisionRequested = false;
   addHistory(ticket, resolverActorName(), "Approved submitted resolution and moved to finalization");
   persistAndRender(id);
@@ -2990,7 +3016,7 @@ function approveFacultyResolution(id) {
 
 function sendRevision(id) {
   const ticket = ticketById(id);
-  ticket.status = "Being reviewed";
+  ticket.status = "Working on";
   ticket.revisionRequested = true;
   ticket.resolutionText = "";
   addHistory(ticket, current.manager, "Requested revision — resolution sent back to agent");
@@ -3103,7 +3129,7 @@ function managerAssign(id, assignee) {
   ticket.facultyAssigned = assignee;
   ticket.claimedBy = null;
   ticket.routedTo = "faculty";
-  ticket.status = "Being reviewed";
+  ticket.status = "Working on";
   addHistory(ticket, current.manager, `Assigned to ${assignee} based on bandwidth`);
   toast(`Successfully assigned #${ticket.id} to ${assignee}`, "success");
   persistAndRender(id);
@@ -3116,7 +3142,7 @@ function managerClaim(id) {
     return;
   }
   ticket.claimedBy = current.manager;
-  ticket.status = ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
+  ticket.status = ticket.status === "Unclaimed" ? "Working on" : ticket.status;
   ticket.timelineStatus = "in_review";
   addHistory(ticket, current.manager, "Manager claimed this unowned ticket");
   persistAndRender(id);
@@ -3165,8 +3191,8 @@ function pullTicket() {
   ticket.facultyAssigned = actor;
   ticket.claimedBy = null;
   ticket.facultyAssignedAt = new Date().toISOString();
-  ticket.status = "Being reviewed";
-  ticket.timelineStatus = "in_review";
+  ticket.status = "Working on";
+  ticket.timelineStatus = "being_worked_on";
   addHistory(ticket, actor, "Pulled from unclaimed pool (earliest first)");
   pushNotification("Content Queries", `${actor} pulled #${ticket.id} from the unclaimed pool`, ticket.id);
   toast(`Pulled ${ticket.id} — assigned to you. ${pool.length - 1} remaining in pool.`, "success");
@@ -3205,8 +3231,8 @@ function assignToMe(id) {
     ticket.facultyAssigned = actor;
     ticket.claimedBy = null;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Being reviewed";
-    ticket.timelineStatus = "in_review";
+    ticket.status = "Working on";
+    ticket.timelineStatus = "being_worked_on";
     addHistory(ticket, actor, "Claimed this ticket");
     pushNotification("Content Queries", `${actor} assigned themselves to #${ticket.id}`, ticket.id);
     persistAndRender(id);
@@ -3215,14 +3241,14 @@ function assignToMe(id) {
   if (state.role === "faculty") {
     ticket.facultyAssigned = current.faculty;
     ticket.facultyAssignedAt = new Date().toISOString();
-    ticket.status = "Being reviewed";
-    ticket.timelineStatus = "in_review";
+    ticket.status = "Working on";
+    ticket.timelineStatus = "being_worked_on";
     addHistory(ticket, current.faculty, "Claimed this ticket");
     pushNotification("Content Queries", `${current.faculty} assigned themselves to #${ticket.id}`, ticket.id);
   }
   if (state.role === "content") {
     ticket.claimedBy = current.resolver;
-    ticket.status = ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
+    ticket.status = ticket.status === "Unclaimed" ? "Working on" : ticket.status;
     ticket.timelineStatus = "in_review";
     addHistory(ticket, current.resolver, "Claimed this ticket");
   }
@@ -3261,8 +3287,9 @@ function nextStepText(ticket) {
   if (state.role === "team") {
     if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
     if (ticket.revisionRequested) return "Manager requested a revision. Update your resolution and send to review again.";
-    if (ticket.status === "Resolution submitted") return "Resolution sent to manager for review. Awaiting approval or revision request.";
-    if (!ticket.resolutionText) return "Write an explanation, attach a reference or voice note if useful, then send to manager review.";
+    if (ticket.status === "Being reviewed") return "Resolution sent to manager for review. Awaiting approval or revision request.";
+    if (ticket.status === "Resolution submitted") return "Resolution submitted directly to student. Awaiting student feedback.";
+    if (!ticket.resolutionText) return "Write your resolution, then either submit directly to the student or send to manager for review first.";
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
     return "Resolution is submitted and awaiting manager approval.";
   }
@@ -3522,7 +3549,7 @@ function isEngineeringEscalated(ticket) {
 function statusClass(status) {
   if (status === "Closed") return "closed";
   if (status === "Resolution submitted") return "faculty";
-  if (status === "Worked on") return "work";
+  if (status === "Working on") return "work";
   if (status === "Escalation") return "escalated";
   if (status === "Escalation resolved") return "review";
   if (status === "Being reviewed") return "review";
@@ -3835,6 +3862,7 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-clear-voice-note]")) clearVoiceNote();
   if (target.closest("[data-open-send-to-review]")) { openSendToReviewModal(target.closest("[data-open-send-to-review]").dataset.openSendToReview); return; }
   if (target.closest("[data-confirm-send-to-review]")) { const id = target.closest("[data-confirm-send-to-review]").dataset.confirmSendToReview; closeModal(); submitFacultyResolution(id); return; }
+  if (target.closest("[data-submit-resolution-direct]")) { submitResolutionDirect(target.closest("[data-submit-resolution-direct]").dataset.submitResolutionDirect); return; }
   if (target.closest("[data-manager-approve-resolution]")) { managerApproveResolution(target.closest("[data-manager-approve-resolution]").dataset.managerApproveResolution); return; }
   if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
   if (target.closest("[data-save-note]")) {
@@ -3849,7 +3877,7 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-recall]")) {
     const ticket = ticketById(target.closest("[data-recall]").dataset.recall);
     ticket.facultyAssigned = null;
-    ticket.status = "Being reviewed";
+    ticket.status = "Working on";
     addHistory(ticket, resolverActorName(), "Recalled from resolver");
     persistAndRender(ticket.id);
   }
