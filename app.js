@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v19";
+const STORE_KEY = "nprep-qms-phase2-prototype-v20";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -628,6 +628,147 @@ function seedDb() {
       subject: "Psychiatry",
       topic: "Schizophrenia & Psychosis",
     }),
+
+    // ── NP-00017 to NP-00036: additional diverse test tickets ──
+
+    createTicket({ id: "NP-00017", questionId: 84501, student: "Harsh V.", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
+      queryText: "The answer key says Option A but my professor marked B in class. Which is correct for exam purpose?",
+      studentDoubt: "Both options look clinically valid. Need clarity on exam-specific priority.", priority: "Highest", ageHours: 14,
+      status: "Working on", timelineStatus: "being_worked_on", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      subject: "Obstetrics & Gynecology", topic: "Normal Pregnancy" }),
+
+    createTicket({ id: "NP-00018", questionId: 84502, student: "Riya Sharma", category: "Problem with the Answer", subOption: "More than 1 option looks correct",
+      queryText: "Options C and D both seem correct for the Pediatrics question on neonatal jaundice management.",
+      studentDoubt: "My reference says phototherapy is first line but the explanation says exchange transfusion. Please verify.", priority: "High", ageHours: 20,
+      status: "Being reviewed", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Arjun Rao",
+      resolutionText: "Phototherapy is indeed first-line for neonatal jaundice with bilirubin 15-20 mg/dL. Exchange transfusion applies only above 20 mg/dL or with hemolysis. Option C is correct.",
+      subject: "Pediatrics", topic: "Neonatal Disorders" }),
+
+    createTicket({ id: "NP-00019", questionId: 84503, student: "Kavya N.", category: "Can't See Something", subOption: "Image in the question is not loading",
+      queryText: "The diagram for the CHN immunisation schedule question is not visible at all — blank white box.",
+      studentDoubt: "I cannot attempt this question without the image. Needs technical fix.", priority: "High", ageHours: 5,
+      status: "Escalation", timelineStatus: "escalated", routedTo: "content", claimedBy: "Priya S.",
+      technicalEscalation: "Image asset missing from CDN. Session JSON: img-ref-isc-404. Escalated to engineering.",
+      subject: "Community Health Nursing", topic: "Immunisation Programme" }),
+
+    createTicket({ id: "NP-00020", questionId: 84504, student: "Dev S.", category: "Problem with this Question", subOption: "The question itself is wrong",
+      queryText: "The question asks about contraindication of metformin in CKD but the stage mentioned seems off.",
+      studentDoubt: "Standard guidelines say avoid in stage 4+ but the question says stage 3b. Is this an error?", priority: "Medium", ageHours: 30,
+      status: "Closed", timelineStatus: "resolved", routedTo: "faculty", facultyAssigned: "Sunita Verma",
+      resolvedAt: new Date(Date.now() - 4 * 3600000).toISOString(),
+      resolutionText: "The question is based on older guidelines where stage 3b was the cutoff. A note has been added to the explanation. For exam purposes the question stands.", finalResolutionText: "This follows older NICE guidelines — a clarification note has been added to the question explanation.",
+      feedbackType: "thumbs_up", satisfactionScore: 3.0, subject: "Pharmacology", topic: "Endocrine Pharmacology" }),
+
+    createTicket({ id: "NP-00021", questionId: 84505, student: "Mohit P.", category: "I Have a Doubt", subOption: "Why is this option wrong?",
+      queryText: "For the psychiatric drug question, why is haloperidol preferred over olanzapine in the acute setting?",
+      studentDoubt: "NPrep says haloperidol but recent literature supports olanzapine. Exam-specific or general?", priority: "High", ageHours: 8,
+      status: "Working on", timelineStatus: "being_worked_on", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      subject: "Psychiatry", topic: "Antipsychotic Therapy" }),
+
+    createTicket({ id: "NP-00022", questionId: 84506, student: "Ankit Rathore", category: "Problem with the Answer", subOption: "The answer shown is wrong",
+      queryText: "The correct answer for the spinal cord injury nursing care question should involve log-rolling, not turning.",
+      studentDoubt: "Log-rolling preserves spinal alignment. Why is the marked answer showing standard turning?", priority: "Highest", ageHours: 2,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "faculty",
+      subject: "Medical Surgical Nursing", topic: "Spinal Cord Injury" }),
+
+    createTicket({ id: "NP-00023", questionId: 84507, student: "Sana Ali", category: "I Have a Doubt", subOption: "I didn't understand the explanation",
+      queryText: "The explanation for the foot arches anatomy question uses terms I haven't seen in my textbook.",
+      studentDoubt: "What is the difference between medial and lateral longitudinal arches clinically? The explanation doesn't clarify.", priority: "Medium", ageHours: 18,
+      status: "Resolution submitted", timelineStatus: "resolution_submitted", routedTo: "faculty", facultyAssigned: "Sunita Verma",
+      resolutionText: "The medial arch is more mobile and acts as a spring for propulsion; the lateral arch is rigid and bears weight. Clinically, flat foot affects the medial arch. This explains why Option B (medial) is the answer.",
+      subject: "Anatomy", topic: "Foot Arches & Joints" }),
+
+    createTicket({ id: "NP-00024", questionId: 84508, student: "Neha K.", category: "Can't See Something", subOption: "Explanation / table / formula is not showing",
+      queryText: "The drug dose calculation table in the Pediatrics question is cut off on the right side.",
+      studentDoubt: "I can see only 2 of 4 columns. The table seems to overflow out of view.", priority: "High", ageHours: 11,
+      status: "Working on", timelineStatus: "being_worked_on", routedTo: "content", claimedBy: "Priya S.",
+      subject: "Pediatrics", topic: "Nutritional Disorders" }),
+
+    createTicket({ id: "NP-00025", questionId: 84509, student: "Harsh V.", category: "Problem with this Question", subOption: "This belongs to a different topic or chapter",
+      queryText: "This OBG question on menstrual disorders is showing inside the Psychiatry module.",
+      studentDoubt: "Wrong section — this should be under OBG not Psychiatry.", priority: "Medium", ageHours: 4,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
+      subject: "Psychiatry", topic: "Mood Disorders" }),
+
+    createTicket({ id: "NP-00026", questionId: 84510, student: "Riya Sharma", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
+      queryText: "For the antiepileptic drug question, why is sodium valproate first-line and not carbamazepine?",
+      studentDoubt: "My notes say carbamazepine is preferred for partial seizures. The question seems to be about generalised — is that why?", priority: "High", ageHours: 35,
+      status: "Closed", timelineStatus: "resolved", routedTo: "faculty", facultyAssigned: "Arjun Rao",
+      resolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+      resolutionText: "Correct — sodium valproate is first-line for generalised seizures while carbamazepine is preferred for focal/partial. The question stem specifies tonic-clonic (generalised), so Option A is correct.",
+      finalResolutionText: "Sodium valproate is first-line for generalised tonic-clonic seizures. Carbamazepine is used for focal/partial seizures. Hope this clears it!",
+      feedbackType: "thumbs_up", satisfactionScore: 3.0, subject: "Pharmacology", topic: "Antiepileptics" }),
+
+    createTicket({ id: "NP-00027", questionId: 84511, student: "Kavya N.", category: "Problem with the Answer", subOption: "My book / teacher says something different",
+      queryText: "Question on Bishop score — my textbook gives different values for the favourable score threshold.",
+      studentDoubt: "NPrep says ≥8 is favourable but my Dutta's Obstetrics says ≥6. Which do we follow for exam?", priority: "High", ageHours: 7,
+      status: "Being reviewed", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      resolutionText: "For standardised nursing exams in India, the conventional threshold cited is ≥8 for a favourable Bishop score. Dutta's references the original scoring but NPrep aligns with the exam-standard cutoff used by NEET PG. Option B is correct.",
+      subject: "Obstetrics & Gynecology", topic: "Labour & Delivery" }),
+
+    createTicket({ id: "NP-00028", questionId: 84512, student: "Dev S.", category: "I Have a Doubt", subOption: "Why is this option wrong?",
+      queryText: "MMSE scoring — why is Option D wrong? I calculated the same cutoff from the explanation.",
+      studentDoubt: "The explanation says 24 but the cutoff for mild cognitive impairment in some references is 23. Need clarity.", priority: "Medium", ageHours: 22,
+      status: "Working on", timelineStatus: "being_worked_on", routedTo: "faculty", facultyAssigned: "Sunita Verma",
+      subject: "Psychiatry", topic: "Nursing Care" }),
+
+    createTicket({ id: "NP-00029", questionId: 84513, student: "Mohit P.", category: "Can't See Something", subOption: "Image in the question is not loading",
+      queryText: "ECG strip in the cardiovascular disorders question is not rendering — shows a broken image icon.",
+      studentDoubt: "Can't interpret the rhythm without the strip. This needs to be fixed urgently.", priority: "Highest", ageHours: 1,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
+      subject: "Medical Surgical Nursing", topic: "Arrhythmias" }),
+
+    createTicket({ id: "NP-00030", questionId: 84514, student: "Ankit Rathore", category: "Problem with this Question", subOption: "I've already seen this question",
+      queryText: "This exact question appeared in yesterday's Grand Practice Set 1 with a different answer key.",
+      studentDoubt: "How can the same question have different correct answers in two sets?", priority: "High", ageHours: 16,
+      status: "Escalation resolved", timelineStatus: "resolved", routedTo: "content", claimedBy: "Rahul M.",
+      escalationRaisedAt: new Date(Date.now() - 12 * 3600000).toISOString(),
+      escalationResolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+      escalationResolved: true, feedbackType: "escalation_resolved", escalationRating: 3,
+      resolutionText: "The question appeared in two sets due to a content pipeline error. The answer key has been corrected in both sets and the duplicate flagged for editorial review.",
+      finalResolutionText: "Issue resolved — the duplicate question has been corrected across both practice sets.",
+      resolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(), satisfactionScore: 2.5,
+      subject: "Anatomy", topic: "Shoulder Joint" }),
+
+    createTicket({ id: "NP-00031", questionId: 84515, student: "Sana Ali", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
+      queryText: "For the maternal and child health question on ANC visits, the answer says 4 visits but WHO updated it to 8.",
+      studentDoubt: "The focused ANC model recommends 8 contacts. Is NPrep using old WHO guidelines?", priority: "Medium", ageHours: 10,
+      status: "Working on", timelineStatus: "being_worked_on", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      subject: "Community Health Nursing", topic: "Maternal & Child Health" }),
+
+    createTicket({ id: "NP-00032", questionId: 84516, student: "Neha K.", category: "Problem with the Answer", subOption: "Explanation / rationale doesn't match the answer",
+      queryText: "The explanation for the immunity question correctly explains active immunity but the marked answer says passive.",
+      studentDoubt: "The explanation and the answer contradict each other. Which one is actually correct?", priority: "Highest", ageHours: 3,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
+      subject: "Community Health Nursing", topic: "Communicable Diseases" }),
+
+    createTicket({ id: "NP-00033", questionId: 84517, student: "Harsh V.", category: "I Have a Doubt", subOption: "I didn't understand the explanation",
+      queryText: "The basal ganglia question explanation is too brief and doesn't explain why the other options are ruled out.",
+      studentDoubt: "I need differential reasoning — why can't it be the subthalamic nucleus instead of putamen?", priority: "Medium", ageHours: 26,
+      status: "Closed", timelineStatus: "resolved", routedTo: "faculty", facultyAssigned: "Arjun Rao",
+      resolvedAt: new Date(Date.now() - 5 * 3600000).toISOString(),
+      resolutionText: "Hemiballismus is classically linked to subthalamic nucleus lesions, not the putamen. The question specifically mentions 'contralateral flinging movements' which is the hallmark of hemiballismus — this is the answer key distinction.",
+      finalResolutionText: "Great observation! Hemiballismus = subthalamic nucleus. The key differentiator from putamen lesions is the violent flinging quality of the movement.",
+      feedbackType: "thumbs_up", satisfactionScore: 3.0, subject: "Anatomy", topic: "Basal Ganglia & Thalamus" }),
+
+    createTicket({ id: "NP-00034", questionId: 84518, student: "Riya Sharma", category: "Problem with this Question", subOption: "Question is in the wrong language",
+      queryText: "The last three questions in the Pharmacology module are appearing in Hindi mixed with English terms.",
+      studentDoubt: "I set my language to English only — why are these showing mixed language?", priority: "High", ageHours: 6,
+      status: "Working on", timelineStatus: "being_worked_on", routedTo: "content", claimedBy: "Amit K.",
+      subject: "Pharmacology", topic: "CNS Pharmacology" }),
+
+    createTicket({ id: "NP-00035", questionId: 84519, student: "Kavya N.", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
+      queryText: "For postpartum haemorrhage management, why is oxytocin listed before bimanual compression?",
+      studentDoubt: "ALSO management protocol I studied starts with bimanual uterine compression then oxytocin.", priority: "High", ageHours: 13,
+      status: "Being reviewed", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Sunita Verma",
+      resolutionText: "For exam purposes, oxytocin is listed as first-line pharmacological management per FOGSI guidelines (20-40 IU IV infusion). Bimanual compression is a mechanical adjunct used alongside, not before. The question tests pharmacological priority.",
+      subject: "Obstetrics & Gynecology", topic: "Postpartum Haemorrhage" }),
+
+    createTicket({ id: "NP-00036", questionId: 84520, student: "Dev S.", category: "Can't See Something", subOption: "Option text is missing or has symbols",
+      queryText: "Option B in the Pediatrics GI question shows '□□□□' symbols instead of actual text.",
+      studentDoubt: "Looks like a character encoding issue. The option text is garbled completely.", priority: "High", ageHours: 2.5,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
+      subject: "Pediatrics", topic: "GI Disorders" }),
   ];
 
   const studentNames = ["Riya Sharma", "Mohit P.", "Ankit Rathore", "Neha K.", "Sana Ali", "Harsh V.", "Kavya N.", "Dev S."];
@@ -646,7 +787,7 @@ function seedDb() {
     const subject = facultySubjects[index % facultySubjects.length];
     const isClosed = index % 9 === 0;
     tickets.push(createTicket({
-      id: `NP-${String(index + 10).padStart(5, "0")}`,
+      id: `NP-${String(index + 40).padStart(5, "0")}`,
       questionId: 85001 + index,
       student: studentNames[index % studentNames.length],
       category,
@@ -683,7 +824,7 @@ function seedDb() {
     const ownerName = contentOwners[index % contentOwners.length];
     const isClosed = index % 10 === 0;
     tickets.push(createTicket({
-      id: `NP-${String(index + 30).padStart(5, "0")}`,
+      id: `NP-${String(index + 60).padStart(5, "0")}`,
       questionId: 86001 + index,
       student: studentNames[(index + 2) % studentNames.length],
       category,
