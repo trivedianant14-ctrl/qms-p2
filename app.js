@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v22";
+const STORE_KEY = "nprep-qms-phase2-prototype-v23";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -2846,11 +2846,13 @@ function managerPanel(ticket) {
     : "";
 
   let resolutionControls = "";
-  if (ticket.status === "Being reviewed" && ticket.resolutionText) {
+  const needsManagerReview = (ticket.status === "Being reviewed" || ticket.status === "Awaiting feedback") && ticket.resolutionText && !ticket.finalResolutionText;
+  if (needsManagerReview) {
+    const fromReviewer = ticket.status === "Being reviewed";
     const ref = ticket.resolutionReference ? `<p class="muted small">${escapeHtml(ticket.resolutionReference)}</p>` : "";
     resolutionControls = `<section class="drawer-card manager-review-card">
       <h3>Review Resolution</h3>
-      <p class="muted">The resolver has submitted a resolution. Approve to send to the student as-is, or edit the text before sending.</p>
+      <p class="muted">${fromReviewer ? "The resolver has sent this for your review." : "Resolution submitted by resolver — review before it goes to the student."} Approve as-is or edit before sending.</p>
       <div id="mgr-res-preview-${ticket.id}" class="res-preview-block">
         <p class="review-preview-text">${escapeHtml(ticket.resolutionText)}</p>${ref}
       </div>
@@ -2862,7 +2864,7 @@ function managerPanel(ticket) {
       <div class="form-actions" id="mgr-res-actions-${ticket.id}">
         <button class="primary" data-manager-approve-resolution="${ticket.id}">Approve &amp; Send to Student</button>
         <button class="ghost" data-manager-edit-resolution="${ticket.id}">Edit</button>
-        <button class="ghost danger-ghost" data-send-revision="${ticket.id}">Request Revision</button>
+        ${fromReviewer ? `<button class="ghost danger-ghost" data-send-revision="${ticket.id}">Request Revision</button>` : ""}
       </div>
       <div class="form-actions" id="mgr-res-confirm-${ticket.id}" hidden>
         <button class="primary" data-manager-confirm-edit-resolution="${ticket.id}">Confirm &amp; Send to Student</button>
