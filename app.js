@@ -1132,15 +1132,15 @@ function normalizeResolutionTimeline(ticket) {
   const resolvedMs = ticket.resolvedAt ? new Date(ticket.resolvedAt).getTime() : null;
   if (ticket.resolutionText) {
     const resolutionText = ticket.routedTo === "content" && !ticket.facultyAssigned
-      ? "Submitted student-facing resolution; resolution is now locked"
-      : "Submitted resolution for review; resolution is now locked";
+      ? "Wrote and saved student-facing resolution"
+      : "Wrote resolution — sent to manager for approval";
     const claimItem = ticket.history.find(item => /claimed this ticket|claimed ticket/i.test(item.text || ""));
     const claimMs = claimItem?.at ? new Date(claimItem.at).getTime() : null;
     let submitAt = timelineBeforeResolved(ticket, 45, 60);
     if (claimMs && new Date(submitAt).getTime() <= claimMs) {
       submitAt = new Date(claimMs + 20 * 60000).toISOString();
     }
-    upsertTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution|wrote.*resolution|wrote and saved/i.test(item.text || ""));
   }
   if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
     upsertTimelineEvent(ticket, ownerName, "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 80), (item) => /finalized student-facing resolution/i.test(item.text || ""));
@@ -3285,7 +3285,7 @@ function submitResolutionDirect(id) {
   ticket.revisionRequested = false;
   ticket.status = "Being reviewed";
   ticket.timelineStatus = "in_review";
-  addHistory(ticket, facultyActorName(), "Submitted resolution for manager review");
+  addHistory(ticket, facultyActorName(), "Wrote resolution — sent to manager for approval");
   pushNotification("General", `Resolution submitted for review: #${ticket.id}`, ticket.id);
   toast(`Resolution submitted for manager review: #${id}.`, "success");
   persistAndRender(id);
