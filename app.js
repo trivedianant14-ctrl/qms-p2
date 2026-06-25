@@ -59,7 +59,6 @@ const current = {
 
 const STATUSES = [
   "Unclaimed",
-  "Raised",
   "Being reviewed",
   "Worked on",
   "Resolution submitted",
@@ -221,8 +220,8 @@ function satisfactionScore(feedbackType, rating) {
 }
 
 function normalizeStatus(status) {
-  const next = STATUS_ALIASES[status] || status || "Raised";
-  return STATUSES.includes(next) ? next : "Raised";
+  const next = STATUS_ALIASES[status] || status || "Unclaimed";
+  return STATUSES.includes(next) ? next : "Unclaimed";
 }
 
 function buildSessionDetails(input, raisedAt) {
@@ -336,7 +335,7 @@ function seedDb() {
       studentDoubt: "I checked the explanation twice. The final marked option and rationale do not match.",
       priority: "Highest",
       ageHours: 46.4,
-      status: "Raised",
+      status: "Unclaimed",
       timelineStatus: "raised",
       studentReference: "Screenshot of answer key",
     }),
@@ -455,7 +454,7 @@ function seedDb() {
       queryText: "Question appears in Hindi in an English exam pack.",
       priority: "High",
       ageHours: 41,
-      status: "Raised",
+      status: "Unclaimed",
       timelineStatus: "raised",
     }),
     createTicket({
@@ -472,6 +471,37 @@ function seedDb() {
       claimedBy: "Rahul M.",
       technicalEscalation: true,
       studentReference: "Screenshot attached",
+    }),
+    createTicket({
+      id: "NP-00011",
+      questionId: 84301,
+      student: "Kavya N.",
+      category: "Problem with the Answer",
+      subOption: "The answer shown is wrong",
+      queryText: "Option A is marked correct but my reference says option C is the right first-line intervention.",
+      studentDoubt: "Checked three textbooks — all point to option C for initial nursing action. The marked answer seems incorrect.",
+      priority: "High",
+      ageHours: 5,
+      status: "Resolution submitted",
+      timelineStatus: "resolution_submitted",
+      claimedBy: "Priya S.",
+      resolutionText: "Option A is correct in the NPrep context because the question specifies immediate nursing action under exam conditions where airway takes precedence over circulation assessment. Option C applies only in post-stabilisation. The rationale has been reviewed by the content lead.",
+      resolutionReference: "NPrep Exam Prep Guide, Chapter 4, pg. 87",
+    }),
+    createTicket({
+      id: "NP-00012",
+      questionId: 84309,
+      student: "Dev S.",
+      category: "I Have a Doubt",
+      subOption: "Need clarification on a concept",
+      queryText: "The explanation says both options B and D are correct but only B is marked.",
+      studentDoubt: "The explanation paragraph mentions D as well — confused whether D should also be accepted.",
+      priority: "Medium",
+      ageHours: 3,
+      status: "Resolution submitted",
+      timelineStatus: "resolution_submitted",
+      claimedBy: "Meera Joshi",
+      resolutionText: "The explanation does reference D as a secondary consideration, but B is the primary answer per the exam blueprint. The wording in the explanation has been noted for editorial review. For exam purposes, B is the correct answer and students should mark it confidently.",
     }),
   ];
 
@@ -1306,13 +1336,12 @@ function sortValue(ticket, key) {
   const priorityRank = { Highest: 1, High: 2, Medium: 3, Low: 4 };
   const statusRank = {
     Unclaimed: 1,
-    Raised: 2,
-    "Being reviewed": 3,
-    "Worked on": 4,
-    "Resolution submitted": 5,
-    Escalation: 6,
-    "Escalation resolved": 7,
-    Closed: 8,
+    "Being reviewed": 2,
+    "Worked on": 3,
+    "Resolution submitted": 4,
+    Escalation: 5,
+    "Escalation resolved": 6,
+    Closed: 7,
   };
   const values = {
     id: Number(ticket.id.replace(/\D/g, "")),
@@ -2241,11 +2270,16 @@ function facultyPanel(ticket) {
     ? activeOwnsTicket(ticket) && ticket.status !== "Closed"
     : ticket.facultyAssigned === facultyActorName() && ticket.status !== "Closed";
   if (!canUseFacultyFlow) return "";
-  const submitted = Boolean(ticket.resolutionText || ticket.finalResolutionText);
-  if (submitted) {
-    return `<section class="drawer-card"><h3>Resolution Locked</h3><div class="next-step"><span class="label">Submitted once</span><p>This resolution has already been submitted and cannot be edited or submitted again.</p></div></section>`;
+  if (ticket.finalResolutionText) {
+    return `<section class="drawer-card"><h3>Resolution Locked</h3><div class="next-step"><span class="label">Approved &amp; sent</span><p>This resolution was approved by the manager and sent to the student.</p></div></section>`;
   }
-  return `<section class="drawer-card" id="facultyResolution"><h3>Submit Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution="${ticket.id}">Submit Resolution</button><span class="muted">One-time submission. Minimum 30 characters.</span></div></div></section>`;
+  if (ticket.resolutionText && !ticket.revisionRequested) {
+    return `<section class="drawer-card"><h3>Sent to Manager Review</h3><div class="next-step"><span class="label">Awaiting approval</span><p>Your resolution has been submitted for manager review. You'll be notified if a revision is requested.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
+  }
+  const revisionBanner = ticket.revisionRequested
+    ? `<div class="revision-notice">Manager has requested a revision. Please update your resolution and send again.</div>`
+    : "";
+  return `<section class="drawer-card" id="facultyResolution"><h3>${ticket.revisionRequested ? "Revision Requested" : "Write Resolution"}</h3>${revisionBanner}<div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-open-send-to-review="${ticket.id}">Send to Manager Review</button><span class="muted">Manager will review before sending to student. Min 30 characters.</span></div></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -2445,14 +2479,31 @@ function contentPanel(ticket) {
 
 function managerPanel(ticket) {
   const canReassign = ticket.status !== "Closed";
-  const resolutionLocked = ticket.status === "Closed" || Boolean(ticket.finalResolutionText || ticket.resolutionText);
-  const lockedResolution = ticket.finalResolutionText || ticket.resolutionText || "This ticket is already closed. No editable resolution is available.";
   const reassignmentControls = canReassign
     ? `<section class="drawer-card"><h3>Manager Controls</h3><p class="muted">Use this to reassign unclaimed or stalled work. The selected person becomes the ticket owner immediately and the change is written to the timeline.</p>${assignmentSelect(ticket.id, "managerAssignee")}</section>`
     : "";
-  const resolutionControls = resolutionLocked
-    ? `<section class="drawer-card"><h3>Manager Resolution</h3><div class="next-step"><span class="label">Resolution locked</span><p>A submitted or closed resolution cannot be edited, replaced, or submitted again.</p></div><p>${escapeHtml(lockedResolution)}</p></section>`
-    : `<section class="drawer-card"><h3>Manager Resolution</h3><p class="muted">If nobody claims the ticket, the manager can take ownership and close it with a student-facing resolution.</p><div class="resolution-form"><textarea id="managerResolutionText" placeholder="Write the resolution the learner will see..."></textarea><select id="managerResolutionCode"><option>Manager resolved</option><option>Content corrected</option><option>Explanation clarified</option><option>Technical issue fixed</option></select><button class="primary" data-manager-resolve="${ticket.id}">Claim and Resolve</button></div></section>`;
+
+  let resolutionControls = "";
+  if (ticket.status === "Resolution submitted" && ticket.resolutionText) {
+    resolutionControls = `<section class="drawer-card manager-review-card">
+      <h3>Review Agent Resolution</h3>
+      <p class="muted">The agent has submitted a resolution for your review. Edit if needed, then approve to send to the student, or request a revision.</p>
+      <div class="resolution-form">
+        <label class="engg-escalation-label">Resolution text (editable)
+          <textarea id="managerReviewText" rows="5">${escapeHtml(ticket.resolutionText)}</textarea>
+        </label>
+        <div class="form-actions">
+          <button class="primary" data-manager-approve-resolution="${ticket.id}">Approve &amp; Send to Student</button>
+          <button class="ghost" data-send-revision="${ticket.id}">Request Revision</button>
+        </div>
+      </div>
+    </section>`;
+  } else if (ticket.status === "Closed" || ticket.finalResolutionText) {
+    const lockedResolution = ticket.finalResolutionText || ticket.resolutionText || "No resolution text.";
+    resolutionControls = `<section class="drawer-card"><h3>Manager Resolution</h3><div class="next-step"><span class="label">Resolution locked</span><p>Approved and sent to student. Cannot be edited.</p></div><p class="review-preview-text">${escapeHtml(lockedResolution)}</p></section>`;
+  } else {
+    resolutionControls = `<section class="drawer-card"><h3>Manager Resolution</h3><p class="muted">If nobody claims the ticket, the manager can take ownership and close it with a student-facing resolution.</p><div class="resolution-form"><textarea id="managerResolutionText" placeholder="Write the resolution the learner will see..."></textarea><select id="managerResolutionCode"><option>Manager resolved</option><option>Content corrected</option><option>Explanation clarified</option><option>Technical issue fixed</option></select><button class="primary" data-manager-resolve="${ticket.id}">Claim and Resolve</button></div></section>`;
+  }
   return `${reassignmentControls}${resolutionControls}`;
 }
 
@@ -2751,7 +2802,7 @@ function persistAndRender(openId) {
 function claimTicket(id, assignee = resolverActorName()) {
   const ticket = ticketById(id);
   ticket.claimedBy = assignee;
-  if (ticket.status === "Raised" || ticket.status === "Unclaimed") ticket.status = "Being reviewed";
+  if (ticket.status === "Unclaimed") ticket.status = "Being reviewed";
   ticket.timelineStatus = "in_review";
   addHistory(ticket, assignee, "Claimed this ticket");
   persistAndRender(id);
@@ -2795,6 +2846,25 @@ function facultyClaim(id) {
   persistAndRender(id);
 }
 
+function openSendToReviewModal(id) {
+  const text = document.querySelector("#resolutionText")?.value.trim() || "";
+  if (text.length < 30) { toast("Resolution needs at least 30 characters before sending."); return; }
+  el.modalScrim.hidden = false;
+  el.configModal.setAttribute("open", "");
+  el.configModal.innerHTML = `<div class="modal-head"><strong>Send to Manager Review</strong><button data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <p class="muted review-modal-intro">Once sent, you cannot edit the resolution. The manager will review it and either approve (sent to student) or request a revision.</p>
+      <div class="review-preview-box">
+        <span class="label">Your resolution</span>
+        <p class="review-preview-text">${escapeHtml(text)}</p>
+      </div>
+      <div class="form-actions">
+        <button class="primary" data-confirm-send-to-review="${escapeAttr(id)}">Confirm &amp; Send to Manager</button>
+        <button class="ghost" data-close-modal>Cancel</button>
+      </div>
+    </div>`;
+}
+
 function submitFacultyResolution(id) {
   const ticket = ticketById(id);
   if (ticket.resolutionText || ticket.finalResolutionText) {
@@ -2811,17 +2881,11 @@ function submitFacultyResolution(id) {
   ticket.resolutionImageName = document.querySelector("#resolutionImageName")?.value.trim() || "";
   ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
+  ticket.revisionRequested = false;
   ticket.status = "Resolution submitted";
   ticket.timelineStatus = "resolution_submitted";
-  if (state.role === "team") {
-    ticket.finalResolutionText = text;
-    ticket.resolutionCode = ticket.resolutionCode || "Student doubt resolved";
-    addHistory(ticket, facultyActorName(), "Submitted student-facing resolution; resolution is now locked");
-    pushNotification("Content Queries", `Resolution ready for student: #${ticket.id} - ${facultyActorName()}`, ticket.id);
-  } else {
-    addHistory(ticket, facultyActorName(), "Submitted resolution for review; resolution is now locked");
-    pushNotification("Content Queries", `Resolution submitted #${ticket.id} - ${facultyActorName()}`, ticket.id);
-  }
+  addHistory(ticket, facultyActorName(), "Sent resolution to manager for review");
+  pushNotification("General", `Resolution pending review: #${ticket.id} — ${facultyActorName()}`, ticket.id);
   persistAndRender(id);
 }
 
@@ -2838,8 +2902,30 @@ function sendRevision(id) {
   const ticket = ticketById(id);
   ticket.status = "Being reviewed";
   ticket.revisionRequested = true;
-  addHistory(ticket, resolverActorName(), "Sent resolution back for revision");
-  pushNotification("Content Queries", `Revision requested for #${ticket.id}`, ticket.id);
+  ticket.resolutionText = "";
+  addHistory(ticket, current.manager, "Requested revision — resolution sent back to agent");
+  pushNotification("General", `Revision requested on #${ticket.id} — please update your resolution`, ticket.id);
+  persistAndRender(id);
+  toast("Revision requested. Agent will be notified.");
+}
+
+function managerApproveResolution(id) {
+  const ticket = ticketById(id);
+  const text = document.querySelector("#managerReviewText")?.value.trim() || ticket.resolutionText;
+  if (!text || text.length < 20) { toast("Resolution needs at least 20 characters before approving."); return; }
+  ticket.finalResolutionText = text;
+  ticket.resolutionText = text;
+  ticket.resolutionCode = "Student doubt resolved";
+  ticket.status = "Closed";
+  ticket.timelineStatus = "resolved";
+  ticket.resolvedAt = new Date().toISOString();
+  if (!ticket.feedbackType) {
+    ticket.feedbackType = "auto_closed";
+    ticket.satisfactionScore = satisfactionScore("auto_closed");
+  }
+  addHistory(ticket, current.manager, "Manager approved resolution and sent to student");
+  pushNotification("General", `Resolution approved and sent to student: #${ticket.id}`, ticket.id);
+  toast("Resolution approved and sent to student.", "success");
   persistAndRender(id);
 }
 
@@ -2940,7 +3026,7 @@ function managerClaim(id) {
     return;
   }
   ticket.claimedBy = current.manager;
-  ticket.status = ticket.status === "Raised" || ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
+  ticket.status = ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
   ticket.timelineStatus = "in_review";
   addHistory(ticket, current.manager, "Manager claimed this unowned ticket");
   persistAndRender(id);
@@ -3000,7 +3086,7 @@ function assignToMe(id) {
   }
   if (state.role === "content") {
     ticket.claimedBy = current.resolver;
-    ticket.status = ticket.status === "Raised" || ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
+    ticket.status = ticket.status === "Unclaimed" ? "Being reviewed" : ticket.status;
     ticket.timelineStatus = "in_review";
     addHistory(ticket, current.resolver, "Claimed this ticket");
   }
@@ -3038,9 +3124,11 @@ function nextStepText(ticket) {
   if (owner(ticket) === "Unclaimed") return "Assign this ticket to yourself or route it to the right expert before doing resolution work.";
   if (state.role === "team") {
     if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
-    if (!ticket.resolutionText) return "Write an explanation, attach a reference or voice note if useful, then submit the resolution.";
+    if (ticket.revisionRequested) return "Manager requested a revision. Update your resolution and send to review again.";
+    if (ticket.status === "Resolution submitted") return "Resolution sent to manager for review. Awaiting approval or revision request.";
+    if (!ticket.resolutionText) return "Write an explanation, attach a reference or voice note if useful, then send to manager review.";
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
-    return "Resolution is submitted and locked. Wait for student confirmation or close after the allowed window.";
+    return "Resolution is submitted and awaiting manager approval.";
   }
   const ownedByAnotherFaculty = state.role === "faculty" && ticket.facultyAssigned && ticket.facultyAssigned !== current.faculty;
   const ownedByAnotherResolver = state.role === "content" && ticket.claimedBy && ticket.claimedBy !== current.resolver;
@@ -3169,7 +3257,7 @@ function submitNewTicket() {
     studentDoubt: queryText,
     priority,
     ageHours: 0,
-    status: "Raised",
+    status: "Unclaimed",
     timelineStatus: "raised",
   });
   if (remarks) {
@@ -3493,6 +3581,9 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-toggle-voice-recording]")) toggleVoiceRecording();
   if (target.closest("[data-play-voice-note]")) playVoiceNote();
   if (target.closest("[data-clear-voice-note]")) clearVoiceNote();
+  if (target.closest("[data-open-send-to-review]")) { openSendToReviewModal(target.closest("[data-open-send-to-review]").dataset.openSendToReview); return; }
+  if (target.closest("[data-confirm-send-to-review]")) { const id = target.closest("[data-confirm-send-to-review]").dataset.confirmSendToReview; closeModal(); submitFacultyResolution(id); return; }
+  if (target.closest("[data-manager-approve-resolution]")) { managerApproveResolution(target.closest("[data-manager-approve-resolution]").dataset.managerApproveResolution); return; }
   if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
   if (target.closest("[data-save-note]")) {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);

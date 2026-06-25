@@ -2108,3 +2108,19 @@ tbody tr:focus-within {
     max-height: none;
   }
 }
+
+/* Send to Review modal */
+.review-modal-intro { margin-bottom: 12px; }
+.review-preview-box { background: var(--bg); border: 1.5px solid var(--line-strong); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+.review-preview-box .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); display: block; margin-bottom: 6px; }
+.review-preview-text { font-size: 14px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; margin: 0; }
+
+/* Agent resolution pending quote */
+.review-pending-quote { border-left: 3px solid var(--purple); margin: 12px 0 0; padding: 8px 12px; background: var(--purple-soft); border-radius: 0 6px 6px 0; font-size: 13px; color: var(--ink); white-space: pre-wrap; }
+
+/* Revision notice banner */
+.revision-notice { background: var(--amber-soft); border: 1.5px solid var(--amber); border-radius: 7px; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #7a4a00; margin-bottom: 12px; }
+
+/* Manager review card highlight */
+.manager-review-card { border: 1.5px solid var(--purple); }
+.manager-review-card h3 { color: var(--purple); }
