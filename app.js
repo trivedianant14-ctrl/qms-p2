@@ -725,6 +725,20 @@ function awaitingReviewTickets() {
   return db.tickets.filter(t => t.status === "Resolution submitted");
 }
 
+function escalationTickets() {
+  return db.tickets.filter(t => t.status === "Escalation" || t.status === "Escalation resolved");
+}
+
+function weeklyTickets() {
+  const cutoff = Date.now() - 7 * 24 * 3600000;
+  return db.tickets.filter(t => new Date(t.raisedAt).getTime() >= cutoff);
+}
+
+function monthlyTickets() {
+  const cutoff = Date.now() - 30 * 24 * 3600000;
+  return db.tickets.filter(t => new Date(t.raisedAt).getTime() >= cutoff);
+}
+
 function owner(ticket) {
   return ticket.facultyAssigned || ticket.claimedBy || "Unclaimed";
 }
@@ -992,6 +1006,7 @@ function filteredTickets() {
     else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Being reviewed" || t.status === "Worked on");
     else if (mf.type === "alert_awaiting_review") rows = rows.filter(t => t.status === "Resolution submitted");
     else if (mf.type === "alert_closed_today") rows = rows.filter(t => t.status === "Closed");
+    else if (mf.type === "alert_escalation") rows = rows.filter(t => t.status === "Escalation" || t.status === "Escalation resolved");
     else if (mf.type === "question") rows = rows.filter(t => t.questionId === mf.value);
   }
   if (state.tab === "open") rows = rows.filter((t) => t.status !== "Closed");
@@ -1034,6 +1049,7 @@ function renderFireAlerts() {
   const inReview = inReviewTickets();
   const closedToday = closedTodayTickets();
   const awaitingReview = awaitingReviewTickets();
+  const escalations = escalationTickets();
   const mk = (type, count, label, sub, dotClass) => {
     const active = state.managerFilter?.type === type;
     return `<button class="fire-card${active ? " active" : ""}" data-manager-alert="${type}">
@@ -1045,6 +1061,7 @@ function renderFireAlerts() {
     mk("alert_sla", breaching.length, "SLA breaching", "within 2 hours", "red"),
     mk("alert_unclaimed", unclaimed.length, "unclaimed", "older than 4 hours", "amber"),
     mk("alert_stuck", stuck.length, "stuck", "no update in 6+ hours", "orange"),
+    mk("alert_escalation", escalations.length, "escalation", "active & resolved", "red"),
     mk("alert_in_review", inReview.length, "in review", "being worked on", "blue"),
     mk("alert_awaiting_review", awaitingReview.length, "awaiting review", "resolution submitted", "purple"),
     mk("alert_closed_today", closedToday.length, "closed", "resolved & confirmed", "green"),
@@ -1121,6 +1138,7 @@ function renderManagerTicketTable() {
     alert_sla: "SLA breaching — within 2 hours",
     alert_unclaimed: "Unclaimed — older than 4 hours",
     alert_stuck: "Stuck — no update in 6+ hours",
+    alert_escalation: "Escalation tickets — active & resolved",
     alert_in_review: "In review — being worked on",
     alert_awaiting_review: "Awaiting review — resolution submitted",
     alert_closed_today: "Closed tickets",
@@ -1257,11 +1275,11 @@ function renderStats() {
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 2.5 ? "green" : "amber"],
     ],
     manager: [
-      ["Open", open.length, "Across content, support, and subject experts", ""],
-      ["SLA Hit Rate", "78%", "Rolling team performance", "green"],
-      ["SLA Risk", breaching.length, "Within two hours", breaching.length ? "red" : "green"],
-      ["Closed Today", closedToday.length, "Team closures today", "green"],
-      ["Overall Closed", closed.length, "All closed tickets", "green"],
+      ["This Week", weeklyTickets().length, "Total queries raised in last 7 days", ""],
+      ["This Month", monthlyTickets().length, "Total queries raised in last 30 days", ""],
+      ["Escalations", escalationTickets().length, "Active + resolved escalations", escalationTickets().filter(t => t.status === "Escalation").length ? "red" : "amber"],
+      ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
+      ["Open", open.length, "Across all queues", ""],
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 2.5 ? "green" : "amber"],
     ],
     product: [
@@ -1287,10 +1305,10 @@ function renderReportStats() {
   const suboptionTop = topCount(rows, "subOption");
   const statSets = {
     manager: [
-      ["Open Tickets", open.length, "Across content and resolver queues", ""],
-      ["SLA Risk", open.filter((ticket) => hoursLeft(ticket) <= 2).length, "Breaching within 2 hours", "red"],
-      ["Top Subject", subjectTop?.label || "--", `${subjectTop?.count || 0} queries`, "amber"],
-      ["Top Topic", topicTop?.label || "--", `${topicTop?.count || 0} doubts`, ""],
+      ["This Week", weeklyTickets().length, "Queries raised in last 7 days", ""],
+      ["This Month", monthlyTickets().length, "Queries raised in last 30 days", ""],
+      ["Escalations", escalationTickets().length, "Active + resolved escalation tickets", escalationTickets().filter(t => t.status === "Escalation").length ? "red" : "amber"],
+      ["SLA Risk", open.filter((ticket) => hoursLeft(ticket) <= 2).length, "Breaching within 2 hours", open.filter((ticket) => hoursLeft(ticket) <= 2).length ? "red" : "green"],
       ["Avg Resolution", avgResolutionHours(rows), "Closed ticket cycle time", "green"],
       ["Avg Score", averageScore(rows), "Resolved CSAT", "green"],
     ],
