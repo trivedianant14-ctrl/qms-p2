@@ -2109,6 +2109,17 @@ tbody tr:focus-within {
   }
 }
 
+/* Pull Ticket bar */
+.pull-ticket-wrap { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.pull-ticket-btn { font-size: 13px; padding: 5px 14px; white-space: nowrap; }
+.pull-pool-hint { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pool-notice { font-size: 13px; line-height: 1.5; }
+
+/* All-clear modal */
+.all-clear-body { text-align: center; padding: 8px 0 4px; }
+.all-clear-emoji { font-size: 44px; line-height: 1; margin: 0 0 12px; }
+.all-clear-body h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+
 /* Send to Review modal */
 .review-modal-intro { margin-bottom: 12px; }
 .review-preview-box { background: var(--bg); border: 1.5px solid var(--line-strong); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }

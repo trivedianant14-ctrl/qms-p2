@@ -951,7 +951,6 @@ function tabsForRole(base) {
       ["all", "Total", base.length],
       ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
       ["active", "Active", base.filter((t) => ACTIVE_STATUSES.includes(t.status)).length],
-      ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
       ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation").length],
     ];
@@ -1397,7 +1396,15 @@ function toggleSort(key) {
 function renderTabs() {
   const tabs = tabsForRole(roleTickets().filter((ticket) => inDateRange(ticket.raisedAt)));
   if (!tabs.some(([key]) => key === state.tab)) state.tab = "all";
-  el.ticketTabs.innerHTML = tabs.map(([key, label, count]) => `<button class="${state.tab === key ? "active" : ""}" data-tab="${key}">${label}<span class="count">${count}</span></button>`).join("");
+  let html = tabs.map(([key, label, count]) => `<button class="${state.tab === key ? "active" : ""}" data-tab="${key}">${label}<span class="count">${count}</span></button>`).join("");
+  if (state.role === "team") {
+    const poolCount = db.tickets.filter(t => owner(t) === "Unclaimed").length;
+    html += `<div class="pull-ticket-wrap">
+      ${poolCount ? `<span class="pull-pool-hint">${poolCount} in pool · earliest first</span>` : ""}
+      <button class="primary pull-ticket-btn" data-pull-ticket>${poolCount ? "Pull Ticket" : "Pool Empty"}</button>
+    </div>`;
+  }
+  el.ticketTabs.innerHTML = html;
 }
 
 function renderTable() {
@@ -2172,9 +2179,12 @@ function drawerActions(ticket) {
   const unclaimed = owner(ticket) === "Unclaimed";
   const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
   const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
+  if (unclaimed && state.role === "team") {
+    return `<div class="drawer-actions"><span class="muted pool-notice">This ticket is in the unclaimed pool. Use <strong>Pull Ticket</strong> from the queue to receive tickets — earliest raised first.</span></div>`;
+  }
   if (canAssignToMe(ticket)) {
     actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
-    if (unclaimed && (state.role === "content" || state.role === "team")) return `<div class="drawer-actions">${actions.join("")}</div>`;
+    if (unclaimed && state.role === "content") return `<div class="drawer-actions">${actions.join("")}</div>`;
   }
   if (teamOwnedByMe && ticket.status !== "Closed") {
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) actions.push(`<button class="primary" data-mark-escalation-resolved="${ticket.id}">Mark Call Resolved</button>`);
@@ -3074,10 +3084,43 @@ function managerResolve(id) {
 function canAssignToMe(ticket) {
   if (ticket.status === "Closed") return false;
   if (owner(ticket) !== "Unclaimed") return false;
-  if (state.role === "team") return true;
+  if (state.role === "team") return false; // team uses Pull Ticket
   if (state.role === "faculty") return ticket.routedTo === "faculty" && subjectResolvers(ticket.subject).some((person) => person.name === current.faculty);
   if (state.role === "content") return ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved";
   return false;
+}
+
+function pullTicket() {
+  // Sort unclaimed pool by raisedAt ascending — earliest raised gets priority.
+  // In a multi-user production system a server-side lock/transaction would resolve
+  // concurrent pulls; here first-click-wins (single SPA session).
+  const pool = db.tickets
+    .filter(t => owner(t) === "Unclaimed")
+    .sort((a, b) => new Date(a.raisedAt).getTime() - new Date(b.raisedAt).getTime());
+  if (!pool.length) { openAllClearModal(); return; }
+  const ticket = pool[0];
+  const actor = activeOperatorName();
+  ticket.facultyAssigned = actor;
+  ticket.claimedBy = null;
+  ticket.facultyAssignedAt = new Date().toISOString();
+  ticket.status = "Being reviewed";
+  ticket.timelineStatus = "in_review";
+  addHistory(ticket, actor, "Pulled from unclaimed pool (earliest first)");
+  pushNotification("Content Queries", `${actor} pulled #${ticket.id} from the unclaimed pool`, ticket.id);
+  toast(`Pulled ${ticket.id} — assigned to you. ${pool.length - 1} remaining in pool.`, "success");
+  persistAndRender(ticket.id);
+}
+
+function openAllClearModal() {
+  el.modalScrim.hidden = false;
+  el.configModal.setAttribute("open", "");
+  el.configModal.innerHTML = `<div class="modal-head"><strong>All Clear!</strong><button data-close-modal>✕</button></div>
+    <div class="modal-body all-clear-body">
+      <p class="all-clear-emoji">🎉</p>
+      <h3>Hooray — you're all caught up!</h3>
+      <p class="muted">There are no unclaimed queries in the pool right now. Your team has resolved everything that's come in so far. Please refresh later for fresh queries.</p>
+      <div class="form-actions"><button class="primary" data-close-modal>Got it</button></div>
+    </div>`;
 }
 
 function assignToMe(id) {
@@ -3590,6 +3633,7 @@ document.addEventListener("click", (event) => {
   if (profile) openProfile(profile.dataset.profile);
   if (showPanel) document.querySelector(`#${showPanel.dataset.showPanel}`)?.classList.remove("hidden");
   if (target.closest("[data-claim]")) claimTicket(target.closest("[data-claim]").dataset.claim);
+  if (target.closest("[data-pull-ticket]")) { pullTicket(); return; }
   if (target.closest("[data-assign-self]")) assignToMe(target.closest("[data-assign-self]").dataset.assignSelf);
   if (target.closest("[data-save-workflow]")) saveWorkflow(target.closest("[data-save-workflow]").dataset.saveWorkflow);
   if (target.closest("[data-faculty-claim]")) facultyClaim(target.closest("[data-faculty-claim]").dataset.facultyClaim);
