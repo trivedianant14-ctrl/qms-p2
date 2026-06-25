@@ -78,6 +78,64 @@ const STATUS_ALIASES = {
   "Escalation Resolved": "Escalation resolved",
 };
 
+const CT_DATA = {
+  subjects: ["Anatomy", "Pharmacology", "Medical Surgical Nursing", "Community Health Nursing", "Pediatrics", "Obstetrics & Gynecology", "Psychiatry"],
+  chapters: {
+    "Anatomy": ["Upper Limb", "Lower Limb", "Head & Neck", "Thorax", "Abdomen", "Neuroanatomy", "Histology & Embryology"],
+    "Pharmacology": ["Autonomic Pharmacology", "CNS Pharmacology", "Cardiovascular Drugs", "Antimicrobials", "Endocrine Pharmacology", "Chemotherapy"],
+    "Medical Surgical Nursing": ["Cardiovascular Disorders", "Respiratory Disorders", "Neurological Disorders", "GI Disorders", "Renal Disorders", "Endocrine Disorders"],
+    "Community Health Nursing": ["Epidemiology", "Communicable Diseases", "Maternal & Child Health", "School & Occupational Health", "Environmental Health"],
+    "Pediatrics": ["Growth & Development", "Neonatal Disorders", "Nutritional Disorders", "Infectious Diseases in Children", "Congenital Anomalies"],
+    "Obstetrics & Gynecology": ["Normal Pregnancy", "Complications of Pregnancy", "Labour & Delivery", "Postpartum Care", "Gynecological Disorders"],
+    "Psychiatry": ["Schizophrenia & Psychosis", "Mood Disorders", "Anxiety & Stress Disorders", "Personality Disorders", "Substance Use Disorders"],
+  },
+  topics: {
+    "Upper Limb": ["Shoulder Joint", "Brachial Plexus", "Cubital Fossa", "Carpal Tunnel", "Muscles of Forearm & Hand"],
+    "Lower Limb": ["Hip Joint", "Femoral Triangle", "Popliteal Fossa", "Sciatic Nerve", "Foot Arches & Joints"],
+    "Head & Neck": ["Cranial Nerves", "Cavernous Sinus", "Thyroid & Parathyroid", "Parotid & Salivary Glands", "Triangles of Neck"],
+    "Thorax": ["Heart & Great Vessels", "Lungs & Pleura", "Mediastinum", "Diaphragm", "Intercostal Spaces"],
+    "Abdomen": ["Liver & Biliary System", "Stomach & Duodenum", "Small & Large Intestine", "Peritoneum & Mesentery", "Kidneys & Ureters"],
+    "Neuroanatomy": ["Cerebral Cortex", "Basal Ganglia & Thalamus", "Brainstem", "Cerebellum", "Spinal Cord"],
+    "Histology & Embryology": ["Epithelium", "Connective Tissue", "Muscle Tissue", "Nerve Tissue", "Early Embryology"],
+    "Autonomic Pharmacology": ["Cholinergic Agonists", "Cholinergic Blockers", "Adrenergic Agonists", "Adrenergic Blockers"],
+    "CNS Pharmacology": ["Sedatives & Hypnotics", "Antiepileptics", "Antipsychotics", "Antidepressants", "Opioid Analgesics"],
+    "Cardiovascular Drugs": ["Antihypertensives", "Antiarrhythmics", "Anticoagulants & Antiplatelet", "Diuretics", "Cardiac Glycosides"],
+    "Antimicrobials": ["Penicillins & Cephalosporins", "Fluoroquinolones", "Macrolides & Tetracyclines", "Aminoglycosides", "Antifungals & Antivirals"],
+    "Endocrine Pharmacology": ["Insulin & Oral Hypoglycemics", "Thyroid Drugs", "Corticosteroids", "Sex Hormones & Contraceptives"],
+    "Chemotherapy": ["Alkylating Agents", "Antimetabolites", "Antibiotics in Cancer", "Targeted Therapy"],
+    "Cardiovascular Disorders": ["Heart Failure", "Myocardial Infarction", "Hypertension", "Arrhythmias", "Valvular Disorders"],
+    "Respiratory Disorders": ["Asthma & COPD", "Pneumonia", "TB Nursing", "ARDS", "Pleural Disorders"],
+    "Neurological Disorders": ["Stroke & TIA", "Epilepsy", "Parkinson's Disease", "Meningitis", "Spinal Cord Injury"],
+    "GI Disorders": ["Peptic Ulcer", "Liver Cirrhosis", "Pancreatitis", "IBD", "Colorectal Disorders"],
+    "Renal Disorders": ["Acute Kidney Injury", "CKD & Dialysis", "Urinary Tract Infection", "Nephrotic Syndrome", "Kidney Stones"],
+    "Endocrine Disorders": ["Diabetes Mellitus Nursing", "Thyroid Disorders", "Adrenal Disorders", "Pituitary Disorders"],
+    "Epidemiology": ["Descriptive Epidemiology", "Analytical Studies", "Disease Burden Indicators", "Screening & Prevention"],
+    "Communicable Diseases": ["Respiratory Infections", "Vector-Borne Diseases", "Sexually Transmitted Infections", "Vaccine-Preventable Diseases"],
+    "Maternal & Child Health": ["Antenatal Care", "Family Planning", "Immunisation Programme", "IMNCI"],
+    "School & Occupational Health": ["School Health Programme", "Occupational Hazards", "Ergonomics", "First Aid"],
+    "Environmental Health": ["Water Supply & Sanitation", "Air & Noise Pollution", "Food Safety", "Waste Management"],
+    "Growth & Development": ["Developmental Milestones", "Growth Charts", "Developmental Assessment", "Play & Stimulation"],
+    "Neonatal Disorders": ["Neonatal Jaundice", "Respiratory Distress", "Neonatal Sepsis", "Congenital Hypothyroidism"],
+    "Nutritional Disorders": ["PEM", "Vitamin Deficiencies", "Obesity in Children", "Iron Deficiency Anaemia"],
+    "Infectious Diseases in Children": ["Measles & Mumps", "Typhoid", "Dengue", "Malaria in Children"],
+    "Congenital Anomalies": ["Neural Tube Defects", "Congenital Heart Disease", "Cleft Lip & Palate", "Down Syndrome"],
+    "Normal Pregnancy": ["Physiological Changes", "Antenatal Assessment", "Nutritional Needs", "Fetal Development"],
+    "Complications of Pregnancy": ["Pre-eclampsia", "Gestational Diabetes", "Placenta Previa", "PROM"],
+    "Labour & Delivery": ["Stages of Labour", "Fetal Monitoring", "Normal Delivery", "Instrumental Delivery"],
+    "Postpartum Care": ["Postpartum Haemorrhage", "Puerperal Sepsis", "Breast Feeding", "Postnatal Assessment"],
+    "Gynecological Disorders": ["Menstrual Disorders", "PCOS", "Uterine Fibroids", "Cervical Cancer Screening"],
+    "Schizophrenia & Psychosis": ["Positive Symptoms", "Negative Symptoms", "Antipsychotic Therapy", "Nursing Care"],
+    "Mood Disorders": ["Major Depression", "Bipolar Disorder", "Electroconvulsive Therapy", "Suicide Risk"],
+    "Anxiety & Stress Disorders": ["GAD", "Panic Disorder", "OCD", "PTSD"],
+    "Personality Disorders": ["Cluster A, B, C", "Borderline Personality", "Antisocial Personality", "Therapeutic Approaches"],
+    "Substance Use Disorders": ["Alcohol Dependence", "Opioid Use Disorder", "Detoxification Protocols", "Relapse Prevention"],
+  },
+  qbankTests: ["QBank Practice Set 1", "QBank Practice Set 2", "QBank Practice Set 3", "QBank Revision Module A", "QBank Revision Module B", "Grand Practice Series 1", "Grand Practice Series 2"],
+  liveTests: ["All India Grand Test 1", "All India Grand Test 2", "All India Grand Test 3", "All India Mock 1", "All India Mock 2", "All India Mock 3", "Pre-Final All India Mock"],
+  pyqTests: ["NEET PG 2023", "NEET PG 2022", "NEET PG 2021", "NEET PG 2020", "NEET PG 2019", "AIIMS Nov 2019", "AIIMS May 2019"],
+  subjectTests: ["Anatomy Subject Test", "Pharmacology Subject Test", "MSN Subject Test", "CHN Subject Test", "Pediatrics Subject Test", "OBG Subject Test", "Psychiatry Subject Test"],
+};
+
 const columns = [
   ["id", "Ticket ID"],
   ["questionId", "Question ID"],
@@ -1074,8 +1132,11 @@ function renderFireAlerts() {
   const exportBtn = !state.managerFilter
     ? `<button class="ghost fire-export-btn" data-export-all-csv>Export CSV</button>`
     : "";
+  const pullBtn = !state.managerFilter
+    ? `<button class="primary fire-pull-btn" data-pull-ticket>+ Pull Ticket</button>`
+    : "";
   el.fireAlerts.hidden = false;
-  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}${exportBtn}${createBtn}</div>`;
+  el.fireAlerts.innerHTML = `<div class="fire-alerts-row">${backBtn}${alerts.join("")}${exportBtn}${pullBtn}${createBtn}</div>`;
 }
 
 function renderManagerOverview() {
@@ -2819,6 +2880,7 @@ function closeDrawer() {
 function closeModal() {
   el.modalScrim.hidden = true;
   el.configModal.removeAttribute("open");
+  el.configModal.className = "config-modal";
 }
 
 function persistAndRender(openId) {
@@ -3114,12 +3176,25 @@ function pullTicket() {
 function openAllClearModal() {
   el.modalScrim.hidden = false;
   el.configModal.setAttribute("open", "");
-  el.configModal.innerHTML = `<div class="modal-head"><strong>All Clear!</strong><button data-close-modal>✕</button></div>
-    <div class="modal-body all-clear-body">
-      <p class="all-clear-emoji">🎉</p>
-      <h3>Hooray — you're all caught up!</h3>
-      <p class="muted">There are no unclaimed queries in the pool right now. Your team has resolved everything that's come in so far. Please refresh later for fresh queries.</p>
-      <div class="form-actions"><button class="primary" data-close-modal>Got it</button></div>
+  el.configModal.className = "config-modal ct-wide-modal";
+  el.configModal.innerHTML = `<div class="modal-head"><strong>Pull Ticket — How it Works</strong><button data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <div class="all-clear-split">
+        <div class="all-clear-panel all-clear-success">
+          <p class="all-clear-icon">✅</p>
+          <h4>When pool has tickets</h4>
+          <p class="muted">The oldest unclaimed query (earliest raised) is automatically assigned to you. Your queue gets one new ticket — no manual picking. If two agents pull at the same moment, the system randomly decides who gets it.</p>
+          <div class="all-clear-tag blue-tag">Earliest first · fair distribution</div>
+        </div>
+        <div class="all-clear-divider"></div>
+        <div class="all-clear-panel all-clear-empty">
+          <p class="all-clear-icon">🎉</p>
+          <h4>When pool is empty</h4>
+          <p class="muted">Hooray — you're all caught up! There are no unclaimed queries in the pool right now. Your team has resolved everything that's come in so far. Please check back later for fresh queries.</p>
+          <div class="all-clear-tag green-tag">All queries resolved</div>
+        </div>
+      </div>
+      <div class="all-clear-footer"><button class="primary" data-close-modal>Got it</button></div>
     </div>`;
 }
 
@@ -3235,95 +3310,197 @@ function categorySuboptions(category) {
   return [...new Set(combined)];
 }
 
+function ctOpt(list, placeholder) {
+  return `<option value="">${placeholder}</option>${list.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join("")}`;
+}
+
 function openCreateTicketModal() {
   const categories = ["Problem with the Answer", "I Have a Doubt", "Can't See Something", "Problem with this Question", "Others"];
+  const todayStr = new Date().toISOString().split("T")[0];
   el.modalScrim.hidden = false;
   el.configModal.setAttribute("open", "");
-  el.configModal.innerHTML = `<div class="modal-head"><strong>Create Support Ticket</strong><button data-close-modal>✕</button></div>
-    <div class="modal-body">
-      <p class="create-ticket-intro">For queries received via WhatsApp or call. Ticket ID is auto-generated.</p>
-      <div class="resolution-form create-ticket-form">
-        <div class="create-form-row">
-          <label>Student Name <span class="field-required">*</span>
-            <input class="text-input" id="ctStudentName" type="text" placeholder="Student's full name...">
-          </label>
-          <label>Question Number
-            <input class="text-input" id="ctQuestionId" type="text" placeholder="e.g. 84291 (optional)">
-          </label>
-        </div>
+  el.configModal.className = "config-modal ct-wide-modal";
+  el.configModal.innerHTML = `
+  <div class="modal-head"><strong>Create Support Ticket</strong><button data-close-modal>✕</button></div>
+  <div class="modal-body">
+    <div class="ct-form">
+      <div class="ct-row-2">
+        <label>Student Name <span class="field-required">*</span>
+          <input class="text-input" id="ctStudentName" type="text" placeholder="Student's full name...">
+        </label>
         <label>Category <span class="field-required">*</span>
           <select id="ctCategory">
-            <option value="">Choose category...</option>
-            ${categories.map((cat) => `<option value="${escapeAttr(cat)}">${escapeHtml(cat)}</option>`).join("")}
+            ${ctOpt(categories, "Choose category...")}
           </select>
-        </label>
-        <label id="ctSubOptionWrap" hidden>Sub-option
-          <select id="ctSubOption"><option value="">Choose sub-option...</option></select>
-        </label>
-        <label>Student's Query <span class="field-required">*</span>
-          <textarea id="ctQuery" placeholder="Describe what the student shared via WhatsApp or call..."></textarea>
-        </label>
-        <label>Priority <span class="field-required">*</span>
-          <select id="ctPriority">
-            <option value="">Set priority...</option>
-            ${["Highest", "High", "Medium", "Low"].map((p) => `<option>${p}</option>`).join("")}
-          </select>
-        </label>
-        <label>Internal Remarks
-          <textarea id="ctRemarks" placeholder="Notes for the resolver team — not shown to the student..."></textarea>
         </label>
       </div>
-      <div class="form-actions create-ticket-actions">
+
+      <div class="ct-source-block">
+        <span class="ct-field-label">Source <span class="field-required">*</span></span>
+        <div class="ct-toggle-group">
+          <button type="button" class="ct-toggle-btn" data-ct-source="QBank">QBank</button>
+          <button type="button" class="ct-toggle-btn" data-ct-source="Test">Tests</button>
+        </div>
+      </div>
+
+      <div id="ctQBankSection" class="ct-conditional" hidden>
+        <div class="ct-row-2">
+          <label>Subject <span class="field-required">*</span>
+            <select id="ctSubject">${ctOpt(CT_DATA.subjects, "Select subject...")}</select>
+          </label>
+          <label>Chapter <span class="field-required">*</span>
+            <select id="ctChapter" disabled><option value="">Select subject first...</option></select>
+          </label>
+        </div>
+        <div class="ct-row-2">
+          <label>Topic <span class="field-required">*</span>
+            <select id="ctTopic" disabled><option value="">Select chapter first...</option></select>
+          </label>
+          <label>Test Name <span class="field-required">*</span>
+            <select id="ctQBankTest">${ctOpt(CT_DATA.qbankTests, "Select test set...")}</select>
+          </label>
+        </div>
+        <div class="ct-row-half">
+          <label>Question Number <span class="field-required">*</span>
+            <input class="text-input" id="ctQBankQNum" type="number" min="1" max="99999" placeholder="e.g. 47">
+          </label>
+        </div>
+      </div>
+
+      <div id="ctTestSection" class="ct-conditional" hidden>
+        <label>Test Type <span class="field-required">*</span>
+          <select id="ctTestType">
+            <option value="">Select test type...</option>
+            <option value="live">Live Test</option>
+            <option value="pyq">PYQ Test</option>
+            <option value="subject">Subject Test</option>
+            <option value="mini">Mini Test</option>
+            <option value="daily">Daily Test</option>
+          </select>
+        </label>
+        <div id="ctTestTypeFields"></div>
+      </div>
+
+      <label>Student Query <span class="field-required">*</span>
+        <textarea id="ctQueryText" rows="3" placeholder="Describe the student's doubt or issue as shared via WhatsApp or call..."></textarea>
+      </label>
+
+      <div class="ct-source-block">
+        <span class="ct-field-label">Raised On <span class="field-required">*</span></span>
+        <div class="ct-toggle-group">
+          <button type="button" class="ct-toggle-btn active" data-ct-raised="today">Today</button>
+          <button type="button" class="ct-toggle-btn" data-ct-raised="custom">Pick a Date</button>
+        </div>
+        <input class="date-input ct-date-picker" id="ctRaisedDate" type="date" max="${todayStr}" value="${todayStr}" hidden>
+      </div>
+
+      <label>Internal Remarks <small class="ct-optional">(optional)</small>
+        <input class="text-input" id="ctRemarks" type="text" placeholder="Context for the resolver team — not shown to the student...">
+      </label>
+
+      <div class="form-actions">
         <button class="primary" data-submit-new-ticket>Create Ticket</button>
         <button class="ghost" data-close-modal>Cancel</button>
       </div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
-function updateCreateModalSuboptions(category) {
-  const suboptions = categorySuboptions(category);
-  const select = document.querySelector("#ctSubOption");
-  const wrap = document.querySelector("#ctSubOptionWrap");
-  if (!select || !wrap) return;
-  if (!suboptions.length) {
-    wrap.hidden = true;
-    select.value = "";
-    return;
+function updateCtTestTypeFields(testType) {
+  const container = document.querySelector("#ctTestTypeFields");
+  if (!container) return;
+  if (testType === "live") {
+    container.innerHTML = `<div class="ct-row-2">
+      <label>Test Name <span class="field-required">*</span><select id="ctSpecificTestName">${ctOpt(CT_DATA.liveTests, "Select live test...")}</select></label>
+      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 23"></label>
+    </div>`;
+  } else if (testType === "pyq") {
+    container.innerHTML = `<div class="ct-row-2">
+      <label>Test Name <span class="field-required">*</span><select id="ctSpecificTestName">${ctOpt(CT_DATA.pyqTests, "Select PYQ paper...")}</select></label>
+      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 88"></label>
+    </div>`;
+  } else if (testType === "subject") {
+    container.innerHTML = `<div class="ct-row-2">
+      <label>Test Name <span class="field-required">*</span><select id="ctSpecificTestName">${ctOpt(CT_DATA.subjectTests, "Select subject test...")}</select></label>
+      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 15"></label>
+    </div>`;
+  } else if (testType === "mini" || testType === "daily") {
+    const label = testType === "mini" ? "Mini Test" : "Daily Test";
+    container.innerHTML = `<div class="ct-row-2">
+      <label>Test Date <span class="field-required">*</span><input class="date-input" id="ctTestDate" type="date" max="${new Date().toISOString().split("T")[0]}"></label>
+      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 5"></label>
+    </div>`;
+  } else {
+    container.innerHTML = "";
   }
-  wrap.hidden = false;
-  select.innerHTML = `<option value="">Choose sub-option...</option>${suboptions.map((sub) => `<option value="${escapeAttr(sub)}">${escapeHtml(sub)}</option>`).join("")}`;
 }
 
 function submitNewTicket() {
   const studentName = document.querySelector("#ctStudentName")?.value.trim() || "";
-  const questionIdRaw = document.querySelector("#ctQuestionId")?.value.trim() || "";
   const category = document.querySelector("#ctCategory")?.value || "";
-  const subOption = document.querySelector("#ctSubOption")?.value || "";
-  const queryText = document.querySelector("#ctQuery")?.value.trim() || "";
-  const priority = document.querySelector("#ctPriority")?.value || "";
+  const queryText = document.querySelector("#ctQueryText")?.value.trim() || "";
   const remarks = document.querySelector("#ctRemarks")?.value.trim() || "";
   if (!studentName) { toast("Student name is required."); return; }
-  if (!category) { toast("Choose a category before creating the ticket."); return; }
-  if (!queryText || queryText.length < 10) { toast("Query needs at least 10 characters."); return; }
-  if (!priority) { toast("Set a priority before creating the ticket."); return; }
-  const questionId = questionIdRaw ? (Number(questionIdRaw.replace(/\D/g, "")) || 0) : Math.floor(90000 + Math.random() * 9000);
+  if (!category) { toast("Choose a category."); return; }
+  if (!queryText || queryText.length < 10) { toast("Student Query needs at least 10 characters."); return; }
+
+  const activeSource = document.querySelector("[data-ct-source].active")?.dataset.ctSource;
+  if (!activeSource) { toast("Select a source — QBank or Tests."); return; }
+
+  let subject = "", topic = "", questionId = 0, subOption = "General support query", sourceLabel = activeSource;
+
+  if (activeSource === "QBank") {
+    subject = document.querySelector("#ctSubject")?.value || "";
+    const chapter = document.querySelector("#ctChapter")?.value || "";
+    topic = document.querySelector("#ctTopic")?.value || "";
+    const testName = document.querySelector("#ctQBankTest")?.value || "";
+    const qNum = Number(document.querySelector("#ctQBankQNum")?.value || 0);
+    if (!subject || !chapter || !topic) { toast("Select Subject, Chapter, and Topic for QBank."); return; }
+    if (!testName) { toast("Select a QBank Test Name."); return; }
+    if (!qNum) { toast("Enter a Question Number."); return; }
+    questionId = qNum;
+    subOption = chapter;
+    sourceLabel = `QBank · ${testName}`;
+  } else {
+    const testType = document.querySelector("#ctTestType")?.value || "";
+    if (!testType) { toast("Select a test type."); return; }
+    if (testType === "live" || testType === "pyq" || testType === "subject") {
+      const testName = document.querySelector("#ctSpecificTestName")?.value || "";
+      const qNum = Number(document.querySelector("#ctTestQNum")?.value || 0);
+      if (!testName) { toast("Select a Test Name."); return; }
+      if (!qNum) { toast("Enter a Question Number."); return; }
+      questionId = qNum;
+      subOption = testName;
+      const typeLabel = testType === "live" ? "Live Test" : testType === "pyq" ? "PYQ Test" : "Subject Test";
+      sourceLabel = `${typeLabel} · ${testName}`;
+    } else {
+      const testDate = document.querySelector("#ctTestDate")?.value || "";
+      const qNum = Number(document.querySelector("#ctTestQNum")?.value || 0);
+      if (!testDate) { toast("Select the test date."); return; }
+      if (!qNum) { toast("Enter a Question Number."); return; }
+      questionId = qNum;
+      const typeLabel = testType === "mini" ? "Mini Test" : "Daily Test";
+      subOption = `${typeLabel} · ${testDate}`;
+      sourceLabel = subOption;
+    }
+  }
+
+  const raisedCustom = document.querySelector("[data-ct-raised].active")?.dataset.ctRaised === "custom";
+  let raisedAt = new Date().toISOString();
+  if (raisedCustom) {
+    const customDate = document.querySelector("#ctRaisedDate")?.value;
+    if (!customDate) { toast("Pick a date for 'Raised On'."); return; }
+    raisedAt = new Date(customDate + "T12:00:00").toISOString();
+  }
+
   const id = nextSupportTicketId();
   const ticket = createTicket({
-    id,
-    questionId,
-    student: studentName,
-    category,
-    subOption: subOption || "General support query",
-    queryText,
-    studentDoubt: queryText,
-    priority,
-    ageHours: 0,
-    status: "Unclaimed",
-    timelineStatus: "raised",
+    id, questionId, student: studentName, category,
+    subOption, queryText, studentDoubt: queryText,
+    ageHours: 0, status: "Unclaimed", timelineStatus: "raised",
+    source: sourceLabel, subject, topic, raisedAt,
   });
-  if (remarks) {
-    ticket.internalNotes = [{ author: current.manager, text: remarks, at: new Date().toISOString() }];
-  }
+  if (remarks) ticket.internalNotes = [{ author: current.manager, text: remarks, at: new Date().toISOString() }];
   ticket.history.unshift(eventLine(current.manager, "Ticket created by support team from WhatsApp/call"));
   db.tickets.unshift(ticket);
   pushNotification("Support", `Support ticket created: #${id} — ${studentName}`, id);
@@ -3574,7 +3751,20 @@ document.addEventListener("change", (event) => {
     return;
   }
   if (event.target?.id === "profileSwitcher") openProfile(event.target.value);
-  if (event.target?.id === "ctCategory") updateCreateModalSuboptions(event.target.value);
+  const tid = event.target?.id;
+  if (tid === "ctSubject") {
+    const chapters = CT_DATA.chapters[event.target.value] || [];
+    const chSel = document.querySelector("#ctChapter");
+    const tpSel = document.querySelector("#ctTopic");
+    if (chSel) { chSel.innerHTML = ctOpt(chapters, "Select chapter..."); chSel.disabled = !chapters.length; }
+    if (tpSel) { tpSel.innerHTML = `<option value="">Select chapter first...</option>`; tpSel.disabled = true; }
+  }
+  if (tid === "ctChapter") {
+    const topics = CT_DATA.topics[event.target.value] || [];
+    const tpSel = document.querySelector("#ctTopic");
+    if (tpSel) { tpSel.innerHTML = ctOpt(topics, "Select topic..."); tpSel.disabled = !topics.length; }
+  }
+  if (tid === "ctTestType") updateCtTestTypeFields(event.target.value);
 });
 
 document.addEventListener("click", (event) => {
@@ -3699,6 +3889,23 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-export-all-csv]")) { exportAllCsv(); return; }
   if (target.closest("[data-create-ticket-modal]")) { openCreateTicketModal(); return; }
   if (target.closest("[data-submit-new-ticket]")) { submitNewTicket(); return; }
+  const ctSource = target.closest("[data-ct-source]");
+  if (ctSource) {
+    document.querySelectorAll("[data-ct-source]").forEach(b => b.classList.toggle("active", b === ctSource));
+    const isQBank = ctSource.dataset.ctSource === "QBank";
+    const qbSec = document.querySelector("#ctQBankSection");
+    const tsSec = document.querySelector("#ctTestSection");
+    if (qbSec) qbSec.hidden = !isQBank;
+    if (tsSec) tsSec.hidden = isQBank;
+    return;
+  }
+  const ctRaised = target.closest("[data-ct-raised]");
+  if (ctRaised) {
+    document.querySelectorAll("[data-ct-raised]").forEach(b => b.classList.toggle("active", b === ctRaised));
+    const picker = document.querySelector("#ctRaisedDate");
+    if (picker) picker.hidden = ctRaised.dataset.ctRaised !== "custom";
+    return;
+  }
   const managerAlert = target.closest("[data-manager-alert]");
   if (managerAlert) {
     const type = managerAlert.dataset.managerAlert;
