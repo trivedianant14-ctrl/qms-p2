@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v25";
+const STORE_KEY = "nprep-qms-phase2-prototype-v26";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -339,7 +339,7 @@ function createTicket(input) {
     topic,
     routedTo,
     facultyAssigned: input.facultyAssigned || null,
-    facultyAssignedAt: input.facultyAssigned ? new Date(now - 4 * 3600000).toISOString() : null,
+    facultyAssignedAt: input.facultyAssignedAt || null,
     claimedBy: input.claimedBy || null,
     status: normalizedStatus,
     timelineStatus: input.timelineStatus || "raised",
@@ -1113,7 +1113,8 @@ function normalizeTimeline(targetDb) {
     ticket.history = ticket.history || [];
     upsertTimelineEvent(ticket, "SYSTEM", "Ticket created from student query", ticket.raisedAt, (item) => /ticket created from student query/i.test(item.text || ""));
     const hasOwnerEvent = ticket.history.some((item) => /claimed|assigned|auto-assigned/i.test(item.text || "") && (item.actor === ticket.facultyAssigned || item.actor === ticket.claimedBy || item.text.includes(ticket.facultyAssigned || ticket.claimedBy || "__none__")));
-    const claimAt = ticket.facultyAssignedAt || timelineBeforeResolved(ticket, 75, 30);
+    const rawClaimAt = ticket.facultyAssignedAt || timelineBeforeResolved(ticket, 75, 30);
+    const claimAt = new Date(Math.max(new Date(rawClaimAt).getTime(), new Date(ticket.raisedAt).getTime() + 20 * 60000)).toISOString();
     if (ticket.facultyAssigned && !hasOwnerEvent) {
       ticket.history.push(eventLine(ticket.facultyAssigned, "Claimed this ticket as owner", claimAt));
     }
@@ -1128,43 +1129,45 @@ function normalizeTimeline(targetDb) {
 function normalizeResolutionTimeline(ticket) {
   if (!ticket.resolutionText && !ticket.finalResolutionText && ticket.status !== "Closed" && !ticket.feedbackType) return;
   const ownerName = ticket.facultyAssigned || ticket.claimedBy || "Team Queue";
+  const raisedMs = new Date(ticket.raisedAt).getTime();
+  const resolvedMs = ticket.resolvedAt ? new Date(ticket.resolvedAt).getTime() : null;
   if (ticket.resolutionText) {
     const resolutionText = ticket.routedTo === "content" && !ticket.facultyAssigned
       ? "Submitted student-facing resolution; resolution is now locked"
       : "Submitted resolution for review; resolution is now locked";
-    // Ensure submit event is always placed AFTER the claim event
     const claimItem = ticket.history.find(item => /claimed this ticket|claimed ticket/i.test(item.text || ""));
     const claimMs = claimItem?.at ? new Date(claimItem.at).getTime() : null;
-    let submitAt = timelineBeforeResolved(ticket, 45, 90);
+    let submitAt = timelineBeforeResolved(ticket, 45, 60);
     if (claimMs && new Date(submitAt).getTime() <= claimMs) {
       submitAt = new Date(claimMs + 20 * 60000).toISOString();
     }
-    ensureTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution/i.test(item.text || ""));
   }
   if (ticket.finalResolutionText && ticket.finalResolutionText !== ticket.resolutionText) {
-    ensureTimelineEvent(ticket, ownerName, "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 110), (item) => /finalized student-facing resolution|closed ticket with code/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ownerName, "Finalized student-facing resolution", timelineBeforeResolved(ticket, 25, 80), (item) => /finalized student-facing resolution/i.test(item.text || ""));
   }
   if (isEngineeringEscalated(ticket)) {
-    ensureTimelineEvent(ticket, ownerName, "Escalated this ticket to Engineering", timelineBeforeResolved(ticket, 35, 70), (item) => /escalated this ticket to engineering/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ownerName, "Escalated this ticket to Engineering", timelineBeforeResolved(ticket, 35, 50), (item) => /escalated this ticket to engineering/i.test(item.text || ""));
   }
   if (ticket.feedbackType === "thumbs_down") {
-    ensureTimelineEvent(ticket, ticket.student, "Marked resolution as unclear", ticket.escalationRaisedAt || timelineBeforeResolved(ticket, 10, 120), (item) => /marked resolution as unclear/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ticket.student, "Marked resolution as unclear", ticket.escalationRaisedAt || timelineBeforeResolved(ticket, 10, 80), (item) => /marked resolution as unclear/i.test(item.text || ""));
   }
   if (ticket.feedbackType === "escalation_resolved" || ticket.escalationResolved) {
-    ensureTimelineEvent(ticket, ticket.student, "Marked resolution as unclear", ticket.escalationRaisedAt || timelineBeforeResolved(ticket, 60, 120), (item) => /marked resolution as unclear/i.test(item.text || ""));
-    ensureTimelineEvent(ticket, ownerName, "Resolved escalation through outreach", ticket.escalationResolvedAt || timelineBeforeResolved(ticket, 12, 150), (item) => /resolved escalation/i.test(item.text || ""));
-    ensureTimelineEvent(ticket, ticket.student, ticket.escalationRating ? `Rated escalation ${ticket.escalationRating}/3` : "Confirmed escalation resolved", ticket.resolvedAt || timelineOffset(ticket, 180), (item) => /rated escalation|confirmed escalation resolved/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ticket.student, "Marked resolution as unclear", ticket.escalationRaisedAt || timelineBeforeResolved(ticket, 60, 80), (item) => /marked resolution as unclear/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ownerName, "Resolved escalation through outreach", ticket.escalationResolvedAt || timelineBeforeResolved(ticket, 12, 100), (item) => /resolved escalation/i.test(item.text || ""));
+    upsertTimelineEvent(ticket, ticket.student, ticket.escalationRating ? `Rated escalation ${ticket.escalationRating}/3` : "Confirmed escalation resolved", ticket.resolvedAt || timelineOffset(ticket, 150), (item) => /rated escalation|confirmed escalation resolved/i.test(item.text || ""));
   }
-  if (ticket.status === "Closed" && ticket.resolvedAt) {
+  if (ticket.status === "Closed" && resolvedMs) {
     if (ticket.feedbackType === "thumbs_up") {
-      ensureTimelineEvent(ticket, ticket.student, "Marked resolution helpful", timelineBeforeResolved(ticket, 2, 160), (item) => /marked resolution helpful/i.test(item.text || ""));
-      ensureTimelineEvent(ticket, "SYSTEM", "Ticket closed after student confirmation", ticket.resolvedAt, (item) => /ticket closed after student confirmation|closed ticket with code/i.test(item.text || ""));
+      const helpfulAt = new Date(Math.max(resolvedMs - 5 * 60000, raisedMs + 30 * 60000)).toISOString();
+      upsertTimelineEvent(ticket, ticket.student, "Marked resolution helpful", helpfulAt, (item) => /marked resolution helpful/i.test(item.text || ""));
+      upsertTimelineEvent(ticket, "SYSTEM", "Ticket closed after student confirmation", ticket.resolvedAt, (item) => /ticket closed after student confirmation/i.test(item.text || ""));
     } else if (ticket.feedbackType === "escalation_resolved") {
-      ensureTimelineEvent(ticket, "SYSTEM", "Ticket closed after escalation resolution", ticket.resolvedAt, (item) => /ticket closed after escalation resolution/i.test(item.text || ""));
+      upsertTimelineEvent(ticket, "SYSTEM", "Ticket closed after escalation resolution", ticket.resolvedAt, (item) => /ticket closed after escalation resolution/i.test(item.text || ""));
     } else if (ticket.feedbackType === "auto_closed") {
-      ensureTimelineEvent(ticket, "SYSTEM", "Ticket auto-closed after 48 hours without student response", ticket.resolvedAt, (item) => /auto-closed|auto closed/i.test(item.text || ""));
+      upsertTimelineEvent(ticket, "SYSTEM", "Ticket auto-closed after 48 hours without student response", ticket.resolvedAt, (item) => /auto-closed|auto closed/i.test(item.text || ""));
     } else {
-      ensureTimelineEvent(ticket, ownerName, `Closed ticket with code: ${ticket.resolutionCode || "Student doubt resolved"}`, ticket.resolvedAt, (item) => /closed ticket with code/i.test(item.text || ""));
+      upsertTimelineEvent(ticket, ownerName, `Closed ticket with code: ${ticket.resolutionCode || "Student doubt resolved"}`, ticket.resolvedAt, (item) => /closed ticket with code/i.test(item.text || ""));
     }
   }
 }
