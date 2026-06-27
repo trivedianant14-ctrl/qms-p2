@@ -1468,7 +1468,7 @@ function renderManagerTicketTable() {
   el.tableHead.innerHTML = checkAllHtml + visible.map(([key, label]) => headerCell(key, label)).join("");
   el.ticketTable.innerHTML = rows.map(ticket => {
     const checkCell = showCheckboxes
-      ? `<td class="check-col" onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-check-ticket="${escapeAttr(ticket.id)}" ${managerSelection.has(ticket.id) ? "checked" : ""}></td>`
+      ? `<td class="check-col"><input type="checkbox" class="row-check" data-check-ticket="${escapeAttr(ticket.id)}" ${managerSelection.has(ticket.id) ? "checked" : ""}></td>`
       : "";
     return `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${checkCell}${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`;
   }).join("");
