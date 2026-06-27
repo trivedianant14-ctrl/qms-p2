@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v27";
+const STORE_KEY = "nprep-qms-phase2-prototype-v28";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -46,6 +46,7 @@ const people = {
     { name: "Rahul M.", initials: "RM", color: "#2563eb", role: "Resolver", team: "Engineering", subjects: ALL_SUBJECTS },
     { name: "Sneha T.", initials: "ST", color: "#059669", role: "Resolver", team: "Support", subjects: ALL_SUBJECTS },
     { name: "Amit K.", initials: "AK", color: "#d97706", role: "Resolver", team: "Ops Triage", subjects: ALL_SUBJECTS },
+    { name: "Harshit", initials: "HT", color: "#dc2626", role: "Manager/Agent", team: "All", subjects: ALL_SUBJECTS },
   ],
 };
 
@@ -194,6 +195,7 @@ const state = {
 };
 
 let db = loadDb();
+let managerSelection = new Set();
 let voiceRecorderTimer = null;
 let columnResize = null;
 
@@ -915,6 +917,7 @@ function seedDb() {
 
   return {
     tickets,
+    goals: {},
     notifications: [
       note("Content Queries", "Auto-assigned to Meera Joshi: #NP-00003 - Anatomy", "NP-00003"),
       note("General", "Escalation needed: #NP-00005 - Student not satisfied", "NP-00005"),
@@ -933,6 +936,7 @@ function loadDb() {
     const saved = localStorage.getItem(STORE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      parsed.goals = parsed.goals || {};
       normalizeTicketStatuses(parsed);
       normalizeEngineeringEscalations(parsed);
       normalizeTimeline(parsed);
@@ -1018,6 +1022,10 @@ function owner(ticket) {
 }
 
 function allOperators() {
+  return people.operators.filter(p => p.name !== current.manager);
+}
+
+function allAssignees() {
   return people.operators;
 }
 
@@ -1381,23 +1389,29 @@ function renderManagerOverview() {
   const th = (k, label) => `<th><button class="sort-header${state.resolverSort.key === k ? " active" : ""}" data-resolver-sort="${k}">${label}${arrow(k)}</button></th>`;
   el.managerBackBtn.hidden = true;
   el.tableTitle.textContent = "Resolver Load";
-  el.tableSubtitle.textContent = `${resolvers.length} resolvers — tap a row to see their tickets`;
-  el.tableCols.innerHTML = `<col style="width:28%"><col style="width:15%"><col style="width:20%"><col style="width:22%"><col style="width:15%">`;
+  el.tableSubtitle.innerHTML = `${resolvers.length} agents &nbsp;<button class="ghost primary-ghost tiny" data-open-goals-modal>Set Goals</button>`;
+  el.tableCols.innerHTML = `<col style="width:22%"><col style="width:12%"><col style="width:14%"><col style="width:16%"><col style="width:18%"><col style="width:18%">`;
   const _rtbl = el.ticketTable.closest("table");
   _rtbl.style.width = "100%";
   _rtbl.style.minWidth = "0";
   _rtbl.closest(".table-wrap").style.overflowX = "hidden";
-  el.tableHead.innerHTML = `${th("name", "Name")}${th("openLoad", "Open load")}${th("resolvedToday", "Resolved today")}${th("avgTimeHours", "Avg resolution time")}${th("avgScore", "Avg score")}`;
+  el.tableHead.innerHTML = `${th("name", "Name")}${th("openLoad", "Open")}${th("resolvedToday", "Today / Goal")}${th("goal", "Goal")}${th("avgTimeHours", "Avg time")}${th("avgScore", "Avg score")}`;
   el.ticketTable.innerHTML = resolvers.map(s => {
     const scoreHtml = s.avgScore != null
       ? `<strong class="score ${scoreClass(s.avgScore)}">${s.avgScore.toFixed(1)}</strong>`
       : `<span class="muted">--</span>`;
     const timeHtml = s.avgTimeHours != null ? `${s.avgTimeHours.toFixed(1)}h` : `<span class="muted">--</span>`;
+    const goal = db.goals[s.person.name] || 0;
+    const progressHtml = goal > 0
+      ? `<span class="badge ${s.resolvedToday >= goal ? "resolved" : s.resolvedToday >= goal * 0.5 ? "warn" : "open"}">${s.resolvedToday} / ${goal}</span>`
+      : `<span class="muted">${s.resolvedToday} —</span>`;
+    const goalBadge = goal > 0 ? `<span class="badge open">${goal}</span>` : `<span class="muted">—</span>`;
     const active = state.managerFilter?.type === "resolver" && state.managerFilter?.value === s.person.name;
     return `<tr class="${active ? "selected" : ""}" data-manager-filter-resolver="${escapeAttr(s.person.name)}" style="cursor:pointer">
       <td><div class="person-cell"><span class="avatar" style="background:${s.person.color}">${s.person.initials}</span><span>${s.person.name}</span></div></td>
       <td><strong>${s.openLoad}</strong></td>
-      <td>${s.resolvedToday}</td>
+      <td>${progressHtml}</td>
+      <td>${goalBadge}</td>
       <td>${timeHtml}</td>
       <td>${scoreHtml}</td>
     </tr>`;
@@ -1448,8 +1462,17 @@ function renderManagerTicketTable() {
   el.assigneeFilter.closest("label").hidden = isResolverView;
   el.tableTitle.textContent = labels[mf.type] || "Filtered";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown`;
-  el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
-  el.ticketTable.innerHTML = rows.map(ticket => `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`).join("");
+  const isUnclaimedView = mf.type === "alert_unclaimed";
+  const showCheckboxes = state.role === "manager" && !isResolverView;
+  const checkAllHtml = showCheckboxes ? `<th class="check-col"><input type="checkbox" id="mgrCheckAll" data-check-all title="Select all"></th>` : "";
+  el.tableHead.innerHTML = checkAllHtml + visible.map(([key, label]) => headerCell(key, label)).join("");
+  el.ticketTable.innerHTML = rows.map(ticket => {
+    const checkCell = showCheckboxes
+      ? `<td class="check-col" onclick="event.stopPropagation()"><input type="checkbox" class="row-check" data-check-ticket="${escapeAttr(ticket.id)}" ${managerSelection.has(ticket.id) ? "checked" : ""}></td>`
+      : "";
+    return `<tr class="${state.selectedId === ticket.id ? "selected" : ""}" data-row-open="${ticket.id}" tabindex="0">${checkCell}${visible.map(([key]) => `<td>${cell(ticket, key)}</td>`).join("")}</tr>`;
+  }).join("");
+  updateBulkAssignBar();
 }
 
 function render() {
@@ -1539,11 +1562,15 @@ function renderStats() {
   const facultySubjects = activeFaculty?.subjects || [];
   const pool = db.tickets.filter((ticket) => ticket.routedTo === "faculty" && !ticket.facultyAssigned && inDateRange(ticket.raisedAt));
   const activeName = activeOperatorName();
+  const myResolvedToday = closed.filter(t => isAssignedTo(t, activeName) && isToday(t.resolvedAt)).length;
+  const myGoal = db.goals[activeName] || 0;
+  const goalDisplay = myGoal > 0 ? `${myResolvedToday} / ${myGoal}` : myResolvedToday;
+  const goalTone = myGoal > 0 ? (myResolvedToday >= myGoal ? "green" : myResolvedToday >= myGoal * 0.5 ? "amber" : "") : "green";
   const statSets = {
     team: [
       ["My Open", open.filter((t) => isAssignedTo(t, activeName)).length, `Assigned to ${activeName}`, ""],
+      ["Today's Progress", goalDisplay, myGoal > 0 ? `Goal: ${myGoal} tickets` : "Resolved today", goalTone],
       ["SLA Risk", breaching.length, "Breaching within 2 hours", breaching.length ? "red" : "green"],
-      ["Closed Today", closedToday.length, "Tickets closed today", "green"],
       ["Overall Closed", closed.length, "All closed tickets in this view", "green"],
       ["Avg Score", avgScore, "Satisfaction score", Number(avgScore) >= 2.5 ? "green" : "amber"],
     ],
@@ -1629,7 +1656,7 @@ function renderFilters() {
   el.dateToFilter.value = state.dateTo;
   el.resetFiltersButton.hidden = !hasActiveFilters();
   el.createTicketButton.hidden = state.role !== "manager";
-  el.pullTicketButton.hidden = state.role !== "team";
+  el.pullTicketButton.hidden = true;
 }
 
 function renderSelectFilter(select, options, selected, allLabel, labels = {}) {
@@ -2526,7 +2553,7 @@ function drawerActions(ticket) {
   const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
   const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
   if (unclaimed && state.role === "team") {
-    return `<div class="drawer-actions"><span class="muted pool-notice">This ticket is in the unclaimed pool. Use <strong>Pull Ticket</strong> from the queue to receive tickets — earliest raised first.</span></div>`;
+    return `<div class="drawer-actions"><button class="primary" data-assign-self="${ticket.id}">Claim This Ticket</button><span class="muted pool-notice">Manager will assign based on question history — or claim it directly.</span></div>`;
   }
   if (canAssignToMe(ticket)) {
     actions.push(`<button class="primary" data-assign-self="${ticket.id}">Assign to Me</button>`);
@@ -3031,8 +3058,8 @@ function sessionJsonPayloads(ticket, session) {
 }
 
 function assignmentSelect(id, selectId) {
-  const options = allOperators().map((person) => `<option value="${person.name}">${person.name} - ${person.role}</option>`).join("");
-  return `<div class="resolution-form"><select id="${selectId}">${options}</select><button class="primary" data-save-manager-assign="${id}">Assign Selected Person</button></div>`;
+  const options = allAssignees().map((person) => `<option value="${person.name}">${person.name} - ${person.role}</option>`).join("");
+  return `<div class="resolution-form"><select id="${selectId}">${options}</select><button class="primary" data-save-manager-assign="${id}">Assign</button></div>`;
 }
 
 function detailGrid(rows) {
@@ -3485,7 +3512,7 @@ function managerResolve(id) {
 function canAssignToMe(ticket) {
   if (ticket.status === "Closed") return false;
   if (owner(ticket) !== "Unclaimed") return false;
-  if (state.role === "team") return false; // team uses Pull Ticket
+  if (state.role === "team") return true;
   if (state.role === "faculty") return ticket.routedTo === "faculty" && subjectResolvers(ticket.subject).some((person) => person.name === current.faculty);
   if (state.role === "content") return ticket.routedTo === "content" || ticket.feedbackType === "thumbs_down" || ticket.status === "Escalation resolved";
   return false;
@@ -3766,6 +3793,100 @@ function updateCtTestTypeFields(testType) {
   }
 }
 
+function openGoalsModal() {
+  const rows = allAssignees().map(p => {
+    const goal = db.goals[p.name] || "";
+    return `<div class="goal-row">
+      <div class="person-cell">
+        <span class="avatar" style="background:${p.color}">${p.initials}</span>
+        <span>${p.name}</span>
+      </div>
+      <input class="goal-input" type="number" min="0" max="99" placeholder="—" value="${goal}" data-goal-agent="${escapeAttr(p.name)}" />
+    </div>`;
+  }).join("");
+  el.modalScrim.hidden = false;
+  el.configModal.setAttribute("open", "");
+  el.configModal.className = "config-modal";
+  el.configModal.innerHTML = `
+    <div class="modal-head"><strong>Set Daily Goals</strong><button data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <p class="muted">Set a daily ticket-resolution goal for each agent. Agents can exceed their goal — it's a target, not a cap.</p>
+      <div class="goal-list">${rows}</div>
+    </div>
+    <div class="modal-footer">
+      <button class="primary" data-save-goals>Save Goals</button>
+      <button class="ghost" data-close-modal>Cancel</button>
+    </div>`;
+}
+
+function saveGoals() {
+  document.querySelectorAll("[data-goal-agent]").forEach(input => {
+    const agent = input.dataset.goalAgent;
+    const val = parseInt(input.value, 10);
+    db.goals[agent] = isNaN(val) || val < 0 ? 0 : val;
+  });
+  saveDb();
+  closeModal();
+  persistAndRender();
+  toast("Daily goals saved.", "success");
+}
+
+function updateBulkAssignBar() {
+  const bar = document.getElementById("bulkAssignBar");
+  if (!bar) return;
+  const count = managerSelection.size;
+  bar.hidden = count === 0;
+  if (count === 0) return;
+  const countEl = bar.querySelector(".bulk-count");
+  if (countEl) countEl.textContent = `${count} selected`;
+  const sel = bar.querySelector("#bulkAssignSelect");
+  if (sel && !sel.options.length) {
+    sel.innerHTML = allAssignees().map(p => `<option value="${escapeAttr(p.name)}">${p.name}</option>`).join("");
+  }
+}
+
+function bulkAssignTickets() {
+  const assignee = document.querySelector("#bulkAssignSelect")?.value;
+  if (!assignee || !managerSelection.size) return;
+  const person = allAssignees().find(p => p.name === assignee);
+  if (!person) return;
+  let count = 0;
+  managerSelection.forEach(id => {
+    const ticket = ticketById(id);
+    if (!ticket || ticket.status === "Closed") return;
+    ticket.facultyAssigned = assignee;
+    ticket.claimedBy = null;
+    ticket.facultyAssignedAt = new Date().toISOString();
+    if (ticket.status === "Unclaimed") {
+      ticket.status = "Working on";
+      ticket.timelineStatus = "being_worked_on";
+    }
+    addHistory(ticket, current.manager, `Assigned to ${assignee} by manager`);
+    count++;
+  });
+  managerSelection.clear();
+  saveDb();
+  persistAndRender();
+  toast(`${count} ticket${count === 1 ? "" : "s"} assigned to ${assignee}.`, "success");
+}
+
+function autoRouteByQuestionId(ticket) {
+  if (!ticket.questionId) return false;
+  const prior = db.tickets
+    .filter(t => t.questionId === ticket.questionId && t.id !== ticket.id && (t.facultyAssigned || t.claimedBy))
+    .sort((a, b) => new Date(b.raisedAt) - new Date(a.raisedAt));
+  if (!prior.length) return false;
+  const assignee = prior[0].facultyAssigned || prior[0].claimedBy;
+  const person = allAssignees().find(p => p.name === assignee);
+  if (!person) return false;
+  ticket.facultyAssigned = assignee;
+  ticket.status = "Working on";
+  ticket.timelineStatus = "being_worked_on";
+  ticket.facultyAssignedAt = new Date().toISOString();
+  addHistory(ticket, "SYSTEM", `Auto-routed to ${assignee} — handled question #${ticket.questionId} before`);
+  return true;
+}
+
 function submitNewTicket() {
   const studentName = document.querySelector("#ctStudentName")?.value.trim() || "";
   const category = document.querySelector("#ctCategory")?.value || "";
@@ -3834,10 +3955,15 @@ function submitNewTicket() {
   if (remarks) ticket.internalNotes = [{ author: current.manager, text: remarks, at: new Date().toISOString() }];
   ticket.history.unshift(eventLine(current.manager, "Ticket created by support team from WhatsApp/call"));
   db.tickets.unshift(ticket);
+  const wasAutoRouted = autoRouteByQuestionId(ticket);
   pushNotification("Support", `Support ticket created: #${id} — ${studentName}`, id);
   closeModal();
   persistAndRender(id);
-  toast(`Ticket #${id} created for ${studentName}.`, "success");
+  if (wasAutoRouted) {
+    toast(`Ticket #${id} auto-routed to ${ticket.facultyAssigned} (question #${ticket.questionId} history).`, "success");
+  } else {
+    toast(`Ticket #${id} created — no question history found. Assign it from the manager view.`, "success");
+  }
 }
 
 function statusCell(ticket, options = {}) {
@@ -4241,6 +4367,26 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-export-all-csv]")) { exportAllCsv(); return; }
   if (target.closest("[data-create-ticket-modal]")) { openCreateTicketModal(); return; }
   if (target.closest("[data-submit-new-ticket]")) { submitNewTicket(); return; }
+  if (target.closest("[data-open-goals-modal]")) { openGoalsModal(); return; }
+  if (target.closest("[data-save-goals]")) { saveGoals(); return; }
+  if (target.closest("[data-bulk-assign]")) { bulkAssignTickets(); return; }
+  if (target.closest("[data-clear-selection]")) { managerSelection.clear(); renderManagerTicketTable(); return; }
+  const checkAll = target.closest("[data-check-all]");
+  if (checkAll) {
+    const checked = checkAll.checked;
+    document.querySelectorAll(".row-check[data-check-ticket]").forEach(cb => {
+      cb.checked = checked;
+      if (checked) managerSelection.add(cb.dataset.checkTicket);
+      else managerSelection.delete(cb.dataset.checkTicket);
+    });
+    updateBulkAssignBar(); return;
+  }
+  const checkTicket = target.closest("[data-check-ticket]");
+  if (checkTicket) {
+    const id = checkTicket.dataset.checkTicket;
+    if (checkTicket.checked) managerSelection.add(id); else managerSelection.delete(id);
+    updateBulkAssignBar(); return;
+  }
   const ctSource = target.closest("[data-ct-source]");
   if (ctSource) {
     document.querySelectorAll("[data-ct-source]").forEach(b => b.classList.toggle("active", b === ctSource));
@@ -4277,6 +4423,7 @@ document.addEventListener("click", (event) => {
   }
   if (target.closest("[data-manager-filter-clear]")) {
     state.managerFilter = null;
+    managerSelection.clear();
     render(); return;
   }
   const resolverSort = target.closest("[data-resolver-sort]");
@@ -4310,6 +4457,7 @@ el.modalScrim.addEventListener("click", (event) => {
     closeModal();
     renderTable();
   }
+  if (event.target.closest("[data-save-goals]")) { saveGoals(); return; }
 });
 
 render();

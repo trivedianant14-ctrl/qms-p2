@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NPrep QMS Support Dashboard</title>
-    <link rel="stylesheet" href="./styles.css?v=53" />
+    <link rel="stylesheet" href="./styles.css?v=54" />
   </head>
   <body>
     <main class="qms-shell">
@@ -81,7 +81,13 @@
               <strong id="tableTitle">Team Queries Queue</strong>
               <span id="tableSubtitle">All open and closed tickets assigned to the selected login.</span>
             </div>
-            <div class="table-wrap">
+            <div class="bulk-assign-bar" id="bulkAssignBar" hidden>
+            <span class="bulk-count"></span>
+            <select id="bulkAssignSelect"></select>
+            <button class="primary tiny" data-bulk-assign>Assign</button>
+            <button class="ghost tiny" data-clear-selection>Clear</button>
+          </div>
+          <div class="table-wrap">
               <table>
                 <colgroup id="tableCols"></colgroup>
                 <thead>
@@ -108,6 +114,6 @@
 
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-    <script src="./app.js?v=53"></script>
+    <script src="./app.js?v=54"></script>
   </body>
 </html>
