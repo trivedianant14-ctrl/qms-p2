@@ -357,6 +357,7 @@ function createTicket(input) {
     resolutionReference: input.resolutionReference || "",
     resolutionImageName: input.resolutionImageName || "",
     resolutionImageData: input.resolutionImageData || "",
+    resolutionVideoName: input.resolutionVideoName || "",
     facultyVoiceNote: input.facultyVoiceNote || "",
     studentVoiceNote: input.studentVoiceNote || "",
     studentReference: input.studentReference || "",
@@ -2684,7 +2685,7 @@ function facultyPanel(ticket) {
   const revisionBanner = ticket.revisionRequested
     ? `<div class="revision-notice">Manager has requested a revision. Please update your resolution and send again.</div>`
     : "";
-  return `<section class="drawer-card" id="facultyResolution"><h3>${ticket.revisionRequested ? "Revision Requested" : "Write Resolution"}</h3>${revisionBanner}<div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-open-send-to-review="${ticket.id}">Send to Manager Review</button><button class="ghost" data-submit-resolution-direct="${ticket.id}">Submit Resolution</button></div><p class="muted ct-optional">Min 30 characters. Submit directly to student, or send to manager for review first.</p></div></section>`;
+  return `<section class="drawer-card" id="facultyResolution"><h3>${ticket.revisionRequested ? "Revision Requested" : "Write Resolution"}</h3>${revisionBanner}<div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${resolutionVideoMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-open-send-to-review="${ticket.id}">Send to Manager Review</button><button class="ghost" data-submit-resolution-direct="${ticket.id}">Submit Resolution</button></div><p class="muted ct-optional">Min 30 characters. Submit directly to student, or send to manager for review first.</p></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -2864,6 +2865,83 @@ function clearResolutionImage() {
   preview.innerHTML = "<span>No image attached</span>";
 }
 
+function resolutionVideoMarkup(ticket) {
+  const name = ticket.resolutionVideoName || "";
+  return `<div class="video-attach" data-resolution-video>
+    <input id="resolutionVideoFile" type="file" accept="video/*" hidden>
+    <input id="resolutionVideoName" type="hidden" value="${escapeAttr(name)}">
+    <div class="video-attach-head">
+      <div class="video-attach-info">
+        <span class="video-icon-badge">VIDEO</span>
+        <div><strong>Attach video</strong><p data-resolution-video-status>${name ? escapeHtml(name) : "Attach a screen recording or explanation clip"}</p></div>
+      </div>
+      <div class="video-attach-actions">
+        <button type="button" class="ghost" data-trigger-resolution-video>${name ? "Replace Video" : "Attach Video"}</button>
+        <button type="button" class="soft-button" data-play-resolution-video ${name ? "" : "disabled"}>Preview</button>
+        <button type="button" class="ghost" data-clear-resolution-video ${name ? "" : "disabled"}>Clear</button>
+      </div>
+    </div>
+    ${name ? `<div class="video-attached-pill"><span>&#9654; ${escapeHtml(name)}</span></div>` : ""}
+  </div>`;
+}
+
+function triggerResolutionVideoPicker() {
+  document.querySelector("#resolutionVideoFile")?.click();
+}
+
+function handleResolutionVideoChange(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("video/")) {
+    toast("Attach a video file only (mp4, mov, webm…).");
+    input.value = "";
+    return;
+  }
+  if (file.size > 200 * 1024 * 1024) {
+    toast("Video must be under 200 MB.");
+    input.value = "";
+    return;
+  }
+  setResolutionVideo(file.name);
+}
+
+function setResolutionVideo(name) {
+  const root = document.querySelector("[data-resolution-video]");
+  if (!root) return;
+  root.querySelector("#resolutionVideoName").value = name;
+  root.querySelector("[data-resolution-video-status]").textContent = name;
+  root.querySelector("[data-trigger-resolution-video]").textContent = "Replace Video";
+  root.querySelector("[data-play-resolution-video]").disabled = false;
+  root.querySelector("[data-clear-resolution-video]").disabled = false;
+  let pill = root.querySelector(".video-attached-pill");
+  if (!pill) {
+    pill = document.createElement("div");
+    pill.className = "video-attached-pill";
+    root.appendChild(pill);
+  }
+  pill.innerHTML = `<span>&#9654; ${escapeHtml(name)}</span>`;
+  toast(`Video attached: ${name}`);
+}
+
+function clearResolutionVideo() {
+  const root = document.querySelector("[data-resolution-video]");
+  if (!root) return;
+  root.querySelector("#resolutionVideoFile").value = "";
+  root.querySelector("#resolutionVideoName").value = "";
+  root.querySelector("[data-resolution-video-status]").textContent = "Attach a screen recording or explanation clip";
+  root.querySelector("[data-trigger-resolution-video]").textContent = "Attach Video";
+  root.querySelector("[data-play-resolution-video]").disabled = true;
+  root.querySelector("[data-clear-resolution-video]").disabled = true;
+  root.querySelector(".video-attached-pill")?.remove();
+}
+
+function playResolutionVideo() {
+  const root = document.querySelector("[data-resolution-video]");
+  const name = root?.querySelector("#resolutionVideoName")?.value;
+  if (!name) return;
+  toast(`Preview: ${name} (video playback is simulated in this prototype).`);
+}
+
 function stopVoiceTimer() {
   if (voiceRecorderTimer) {
     window.clearInterval(voiceRecorderTimer);
@@ -2926,10 +3004,11 @@ function managerPanel(ticket) {
 function resolutionPanel(ticket) {
   if (!ticket.resolutionText && !ticket.finalResolutionText) return "";
   const image = ticket.resolutionImageName ? ` <button type="button" class="soft-button tiny" data-view-resolution-image="${ticket.id}">View Image</button><button type="button" class="soft-button tiny" data-download-resolution-image="${ticket.id}">Download Image</button>` : "";
+  const video = ticket.resolutionVideoName ? `<div class="video-attached-pill attached-read"><span>&#9654; ${escapeHtml(ticket.resolutionVideoName)}</span></div>` : "";
   const refLine = ticket.resolutionReference
-    ? `<p class="muted">${ticket.resolutionReference}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>`
-    : `<p><span class="no-ref">No reference attached</span>${ticket.resolutionImageName ? `<span class="muted"> - Image: ${escapeHtml(ticket.resolutionImageName)}</span>` : ""}${ticket.facultyVoiceNote ? `<span class="muted"> - Voice: ${ticket.facultyVoiceNote}</span>` : ""}${image}</p>`;
-  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p>${refLine}${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
+    ? `<p class="muted">${ticket.resolutionReference}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.resolutionVideoName ? ` - Video: ${escapeHtml(ticket.resolutionVideoName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>`
+    : `<p><span class="no-ref">No reference attached</span>${ticket.resolutionImageName ? `<span class="muted"> - Image: ${escapeHtml(ticket.resolutionImageName)}</span>` : ""}${ticket.resolutionVideoName ? `<span class="muted"> - Video: ${escapeHtml(ticket.resolutionVideoName)}</span>` : ""}${ticket.facultyVoiceNote ? `<span class="muted"> - Voice: ${ticket.facultyVoiceNote}</span>` : ""}${image}</p>`;
+  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p>${video}${refLine}${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
 }
 
 function escalationPanel(ticket) {
@@ -3297,6 +3376,7 @@ function submitFacultyResolution(id) {
   ticket.resolutionReference = document.querySelector("#resolutionRef")?.value.trim() || "";
   ticket.resolutionImageName = document.querySelector("#resolutionImageName")?.value.trim() || "";
   ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
+  ticket.resolutionVideoName = document.querySelector("#resolutionVideoName")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.revisionRequested = false;
   ticket.status = "Being reviewed";
@@ -3318,6 +3398,7 @@ function submitResolutionDirect(id) {
   ticket.resolutionReference = document.querySelector("#resolutionRef")?.value.trim() || "";
   ticket.resolutionImageName = document.querySelector("#resolutionImageName")?.value.trim() || "";
   ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
+  ticket.resolutionVideoName = document.querySelector("#resolutionVideoName")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.revisionRequested = false;
   ticket.status = "Being reviewed";
@@ -4215,6 +4296,10 @@ document.addEventListener("change", (event) => {
     handleResolutionImageChange(event.target);
     return;
   }
+  if (event.target?.id === "resolutionVideoFile") {
+    handleResolutionVideoChange(event.target);
+    return;
+  }
   const reportDate = event.target.closest?.("[data-report-date]");
   if (reportDate) {
     if (reportDate.dataset.reportDate === "from") state.dateFrom = reportDate.value;
@@ -4302,6 +4387,9 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-assign-faculty]")) assignToFaculty(target.closest("[data-assign-faculty]").dataset.assignFaculty);
   if (target.closest("[data-trigger-resolution-image]")) triggerResolutionImagePicker();
   if (target.closest("[data-clear-resolution-image]")) clearResolutionImage();
+  if (target.closest("[data-trigger-resolution-video]")) { triggerResolutionVideoPicker(); return; }
+  if (target.closest("[data-play-resolution-video]")) { playResolutionVideo(); return; }
+  if (target.closest("[data-clear-resolution-video]")) { clearResolutionVideo(); return; }
   if (target.closest("[data-toggle-voice-recording]")) toggleVoiceRecording();
   if (target.closest("[data-play-voice-note]")) playVoiceNote();
   if (target.closest("[data-clear-voice-note]")) clearVoiceNote();
