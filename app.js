@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v28";
+const STORE_KEY = "nprep-qms-phase2-prototype-v29";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -992,9 +992,6 @@ function stuckTickets() {
   });
 }
 
-function inReviewTickets() {
-  return db.tickets.filter(t => t.status === "Being reviewed");
-}
 
 function closedTodayTickets() {
   return db.tickets.filter(t => t.status === "Closed");
@@ -1107,6 +1104,12 @@ function addHistory(ticket, actor, text) {
 function normalizeTicketStatuses(targetDb) {
   targetDb.tickets.forEach((ticket) => {
     ticket.status = normalizeStatus(ticket.status);
+    if (ticket.status === "Being reviewed" && ticket.resolutionText) {
+      ticket.status = "Awaiting feedback";
+      ticket.timelineStatus = "awaiting_feedback";
+      ticket.finalResolutionText = ticket.resolutionText;
+      if (!ticket.resolvedAt) ticket.resolvedAt = new Date().toISOString();
+    }
   });
 }
 
@@ -1142,7 +1145,7 @@ function normalizeResolutionTimeline(ticket) {
   if (ticket.resolutionText) {
     const resolutionText = ticket.routedTo === "content" && !ticket.facultyAssigned
       ? "Wrote and saved student-facing resolution"
-      : "Wrote resolution — sent to manager for approval";
+      : "Wrote resolution — sent to student";
     const claimItem = ticket.history.find(item => /claimed this ticket|claimed ticket/i.test(item.text || ""));
     const claimMs = claimItem?.at ? new Date(claimItem.at).getTime() : null;
     let submitAt = timelineBeforeResolved(ticket, 45, 60);
@@ -1150,15 +1153,6 @@ function normalizeResolutionTimeline(ticket) {
       submitAt = new Date(claimMs + 20 * 60000).toISOString();
     }
     upsertTimelineEvent(ticket, ownerName, resolutionText, submitAt, (item) => /submitted .*resolution|wrote.*resolution|wrote and saved/i.test(item.text || ""));
-  }
-  const managerApproved = ticket.resolutionText &&
-    (ticket.status === "Awaiting feedback" ||
-      ((ticket.status === "Closed" || ticket.finalResolutionText) && ticket.feedbackType !== "escalation_resolved" && !ticket.escalationResolved));
-  if (managerApproved) {
-    const approvalAt = ticket.resolvedAt
-      ? new Date(new Date(ticket.resolvedAt).getTime() - 6 * 60000).toISOString()
-      : timelineBeforeResolved(ticket, 10, 80);
-    upsertTimelineEvent(ticket, current.manager, "Manager approved — resolution sent to student", approvalAt, (item) => /manager approved.*sent to student|finalized student-facing/i.test(item.text || ""));
   }
   if (isEngineeringEscalated(ticket)) {
     upsertTimelineEvent(ticket, ownerName, "Escalated this ticket to Engineering", timelineBeforeResolved(ticket, 35, 50), (item) => /escalated this ticket to engineering/i.test(item.text || ""));
@@ -1300,7 +1294,6 @@ function filteredTickets() {
       if (!t.history?.length) return false;
       return (Date.now() - Math.max(...t.history.map(h => new Date(h.at).getTime()))) > 6 * 3600000;
     });
-    else if (mf.type === "alert_in_review") rows = rows.filter(t => t.status === "Being reviewed");
     else if (mf.type === "alert_my_tickets") rows = rows.filter(t => owner(t) === current.manager);
     else if (mf.type === "alert_closed_today") rows = rows.filter(t => t.status === "Closed");
     else if (mf.type === "alert_escalation") rows = rows.filter(t => t.status === "Escalation" || t.status === "Escalation resolved");
@@ -1343,7 +1336,6 @@ function renderFireAlerts() {
   const breaching = breachingTickets();
   const unclaimed = oldUnclaimedTickets();
   const stuck = stuckTickets();
-  const inReview = inReviewTickets();
   const closedToday = closedTodayTickets();
   const escalations = escalationTickets();
   const myManagerTickets = db.tickets.filter(t => owner(t) === current.manager);
@@ -1359,7 +1351,6 @@ function renderFireAlerts() {
     mk("alert_unclaimed", unclaimed.length, "unclaimed", "older than 4 hours", "amber"),
     mk("alert_stuck", stuck.length, "stuck", "no update in 6+ hours", "orange"),
     mk("alert_escalation", escalations.length, "escalation", "active & resolved", "red"),
-    mk("alert_in_review", inReview.length, "pending my review", "sent for approval", "purple"),
     mk("alert_my_tickets", myManagerTickets.length, "my tickets", "tickets I've claimed", "blue"),
     mk("alert_closed_today", closedToday.length, "closed", "resolved & confirmed", "green"),
   ];
@@ -1441,7 +1432,6 @@ function renderManagerTicketTable() {
     alert_unclaimed: "Unclaimed — older than 4 hours",
     alert_stuck: "Stuck — no update in 6+ hours",
     alert_escalation: "Escalation tickets — active & resolved",
-    alert_in_review: "Pending my review — sent for approval",
     alert_my_tickets: `My Tickets — ${current.manager}`,
     alert_closed_today: "Closed tickets",
     question: `All tickets for question #${mf.value}`,
@@ -2566,7 +2556,6 @@ function drawerActions(ticket) {
   if (contentOwnedByMe && ticket.status !== "Closed") actions.push(`<button class="ghost" data-show-panel="internalNote">Add Internal Note</button>`);
   if (contentOwnedByMe && ticket.routedTo === "faculty" && !ticket.facultyAssigned) actions.push(`<button class="primary" data-assign-faculty="${ticket.id}">Assign Resolver</button>`);
   if (contentOwnedByMe && ticket.facultyAssigned && ticket.status !== "Closed") actions.push(`<button class="ghost" data-recall="${ticket.id}">Recall from Resolver</button>`);
-  if (contentOwnedByMe && ticket.resolutionText && ticket.status === "Awaiting feedback") actions.push(`<button class="primary" data-approve-resolution="${ticket.id}">Approve Resolution</button>`, `<button class="ghost" data-send-revision="${ticket.id}">Send Back for Revision</button>`);
   if (contentOwnedByMe && ticket.status !== "Closed") {
     actions.push(`<button class="ghost" data-show-panel="finalResolution">Finalize Student Resolution</button>`);
   }
@@ -2584,7 +2573,7 @@ function engineeringEscalationPanel(ticket) {
   const teamOwnedByMe = state.role === "team" && activeOwnsTicket(ticket);
   const contentOwnedByMe = state.role === "content" && ticket.claimedBy === current.resolver;
   const managerView = state.role === "manager";
-  if ((!teamOwnedByMe && !contentOwnedByMe && !managerView) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Being reviewed" || ticket.status === "Escalation resolved" || ticket.status === "Awaiting feedback") return "";
+  if ((!teamOwnedByMe && !contentOwnedByMe && !managerView) || ticket.technicalEscalation || ticket.status === "Closed" || ticket.status === "Escalation resolved" || ticket.status === "Awaiting feedback") return "";
   return `<section class="drawer-card engg-escalation-panel">
     <h3>Escalate to Engineering</h3>
     <p class="muted engg-escalation-desc">Only escalate if you've confirmed this is a platform or technical issue. Describe your analysis, then type <strong>yes</strong> and confirm.</p>
@@ -2673,19 +2662,10 @@ function facultyPanel(ticket) {
     ? activeOwnsTicket(ticket) && ticket.status !== "Closed"
     : ticket.facultyAssigned === facultyActorName() && ticket.status !== "Closed";
   if (!canUseFacultyFlow) return "";
-  if (ticket.finalResolutionText) {
-    return `<section class="drawer-card"><h3>Resolution Locked</h3><div class="next-step"><span class="label">Approved &amp; sent</span><p>This resolution was approved by the manager and sent to the student.</p></div></section>`;
+  if (ticket.finalResolutionText || ticket.status === "Awaiting feedback") {
+    return `<section class="drawer-card"><h3>Awaiting Student Feedback</h3><div class="next-step"><span class="label">Resolution sent</span><p>Your resolution was sent directly to the student. Awaiting their confirmation within 48 hours.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText || ticket.finalResolutionText)}</blockquote></section>`;
   }
-  if (ticket.status === "Being reviewed" && !ticket.revisionRequested) {
-    return `<section class="drawer-card"><h3>Sent to Manager Review</h3><div class="next-step"><span class="label">Awaiting approval</span><p>Your resolution has been submitted for manager review. You'll be notified if a revision is requested.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
-  }
-  if (ticket.status === "Awaiting feedback" && !ticket.finalResolutionText && !ticket.revisionRequested) {
-    return `<section class="drawer-card"><h3>Awaiting Student Feedback</h3><div class="next-step"><span class="label">Resolution sent</span><p>Your resolution was sent to the student. Awaiting their confirmation within 48 hours.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText)}</blockquote></section>`;
-  }
-  const revisionBanner = ticket.revisionRequested
-    ? `<div class="revision-notice">Manager has requested a revision. Please update your resolution and send again.</div>`
-    : "";
-  return `<section class="drawer-card" id="facultyResolution"><h3>${ticket.revisionRequested ? "Revision Requested" : "Write Resolution"}</h3>${revisionBanner}<div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${resolutionVideoMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-open-send-to-review="${ticket.id}">Send to Manager Review</button><button class="ghost" data-submit-resolution-direct="${ticket.id}">Submit Resolution</button></div><p class="muted ct-optional">Min 30 characters. Submit directly to student, or send to manager for review first.</p></div></section>`;
+  return `<section class="drawer-card" id="facultyResolution"><h3>Write Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${resolutionVideoMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution-direct="${ticket.id}">Send to Student</button></div><p class="muted ct-optional">Min 30 characters. Your resolution will be sent directly to the student.</p></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -2962,43 +2942,9 @@ function contentPanel(ticket) {
 
 function managerPanel(ticket) {
   const canReassign = ticket.status !== "Closed";
-  const reassignmentControls = canReassign
+  return canReassign
     ? `<section class="drawer-card"><h3>Manager Controls</h3><p class="muted">Use this to reassign unclaimed or stalled work. The selected person becomes the ticket owner immediately and the change is written to the timeline.</p>${assignmentSelect(ticket.id, "managerAssignee")}</section>`
     : "";
-
-  let resolutionControls = "";
-  const needsManagerReview = ticket.status === "Being reviewed" && ticket.resolutionText && !ticket.finalResolutionText;
-  if (needsManagerReview) {
-    const fromReviewer = ticket.status === "Being reviewed";
-    const ref = ticket.resolutionReference ? `<p class="muted small">${escapeHtml(ticket.resolutionReference)}</p>` : "";
-    resolutionControls = `<section class="drawer-card manager-review-card">
-      <h3>Review Resolution</h3>
-      <p class="muted">${fromReviewer ? "The resolver has sent this for your review." : "Resolution submitted by resolver — review before it goes to the student."} Approve as-is or edit before sending.</p>
-      <div id="mgr-res-preview-${ticket.id}" class="res-preview-block">
-        <p class="review-preview-text">${escapeHtml(ticket.resolutionText)}</p>${ref}
-      </div>
-      <div id="mgr-res-edit-${ticket.id}" hidden>
-        <label class="engg-escalation-label">Edit Resolution
-          <textarea id="managerReviewText" rows="6">${escapeHtml(ticket.resolutionText)}</textarea>
-        </label>
-      </div>
-      <div class="form-actions" id="mgr-res-actions-${ticket.id}">
-        <button class="primary" data-manager-approve-resolution="${ticket.id}">Approve &amp; Send to Student</button>
-        <button class="ghost" data-manager-edit-resolution="${ticket.id}">Edit</button>
-        ${fromReviewer ? `<button class="ghost danger-ghost" data-send-revision="${ticket.id}">Request Revision</button>` : ""}
-      </div>
-      <div class="form-actions" id="mgr-res-confirm-${ticket.id}" hidden>
-        <button class="primary" data-manager-confirm-edit-resolution="${ticket.id}">Confirm &amp; Send to Student</button>
-        <button class="ghost" data-manager-cancel-edit="${ticket.id}">Cancel</button>
-      </div>
-    </section>`;
-  } else if (ticket.status === "Closed" || ticket.finalResolutionText) {
-    const lockedResolution = ticket.finalResolutionText || ticket.resolutionText || "No resolution text.";
-    resolutionControls = `<section class="drawer-card"><h3>Manager Resolution</h3><div class="next-step"><span class="label">Resolution locked</span><p>Approved and sent to student. Cannot be edited.</p></div><p class="review-preview-text">${escapeHtml(lockedResolution)}</p></section>`;
-  } else {
-    resolutionControls = `<section class="drawer-card"><h3>Manager Resolution</h3><p class="muted">If nobody claims the ticket, the manager can take ownership and close it with a student-facing resolution.</p><div class="resolution-form"><textarea id="managerResolutionText" placeholder="Write the resolution the learner will see..."></textarea><select id="managerResolutionCode"><option>Manager resolved</option><option>Content corrected</option><option>Explanation clarified</option><option>Technical issue fixed</option></select><button class="primary" data-manager-resolve="${ticket.id}">Claim and Resolve</button></div></section>`;
-  }
-  return `${reassignmentControls}${resolutionControls}`;
 }
 
 function resolutionPanel(ticket) {
@@ -3342,49 +3288,6 @@ function facultyClaim(id) {
   persistAndRender(id);
 }
 
-function openSendToReviewModal(id) {
-  const text = document.querySelector("#resolutionText")?.value.trim() || "";
-  if (text.length < 30) { toast("Resolution needs at least 30 characters before sending."); return; }
-  el.modalScrim.hidden = false;
-  el.configModal.setAttribute("open", "");
-  el.configModal.innerHTML = `<div class="modal-head"><strong>Send to Manager Review</strong><button data-close-modal>✕</button></div>
-    <div class="modal-body">
-      <p class="muted review-modal-intro">Once sent, you cannot edit the resolution. The manager will review it and either approve (sent to student) or request a revision.</p>
-      <div class="review-preview-box">
-        <span class="label">Your resolution</span>
-        <p class="review-preview-text">${escapeHtml(text)}</p>
-      </div>
-      <div class="form-actions">
-        <button class="primary" data-confirm-send-to-review="${escapeAttr(id)}">Confirm &amp; Send to Manager</button>
-        <button class="ghost" data-close-modal>Cancel</button>
-      </div>
-    </div>`;
-}
-
-function submitFacultyResolution(id) {
-  const ticket = ticketById(id);
-  if (ticket.resolutionText || ticket.finalResolutionText) {
-    toast("Resolution has already been submitted and is locked.");
-    return;
-  }
-  const text = document.querySelector("#resolutionText")?.value.trim() || "";
-  if (text.length < 30) {
-    toast("Resolution needs at least 30 characters.");
-    return;
-  }
-  ticket.resolutionText = text;
-  ticket.resolutionReference = document.querySelector("#resolutionRef")?.value.trim() || "";
-  ticket.resolutionImageName = document.querySelector("#resolutionImageName")?.value.trim() || "";
-  ticket.resolutionImageData = document.querySelector("#resolutionImageData")?.value.trim() || "";
-  ticket.resolutionVideoName = document.querySelector("#resolutionVideoName")?.value.trim() || "";
-  ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
-  ticket.revisionRequested = false;
-  ticket.status = "Being reviewed";
-  ticket.timelineStatus = "in_review";
-  addHistory(ticket, facultyActorName(), "Sent resolution to manager for review");
-  pushNotification("General", `Resolution pending review: #${ticket.id} — ${facultyActorName()}`, ticket.id);
-  persistAndRender(id);
-}
 
 function submitResolutionDirect(id) {
   const ticket = ticketById(id);
@@ -3401,70 +3304,17 @@ function submitResolutionDirect(id) {
   ticket.resolutionVideoName = document.querySelector("#resolutionVideoName")?.value.trim() || "";
   ticket.facultyVoiceNote = document.querySelector("#resolutionVoice")?.value.trim() || "";
   ticket.revisionRequested = false;
-  ticket.status = "Being reviewed";
-  ticket.timelineStatus = "in_review";
-  addHistory(ticket, facultyActorName(), "Wrote resolution — sent to manager for approval");
-  pushNotification("General", `Resolution submitted for review: #${ticket.id}`, ticket.id);
-  toast(`Resolution submitted for manager review: #${id}.`, "success");
-  persistAndRender(id);
-}
-
-
-function approveFacultyResolution(id) {
-  const ticket = ticketById(id);
-  ticket.finalResolutionText = ticket.resolutionText;
-  ticket.status = "Awaiting feedback";
-  ticket.revisionRequested = false;
-  addHistory(ticket, resolverActorName(), "Approved submitted resolution and moved to finalization");
-  persistAndRender(id);
-}
-
-function sendRevision(id) {
-  const ticket = ticketById(id);
-  ticket.status = "Working on";
-  ticket.revisionRequested = true;
-  ticket.resolutionText = "";
-  addHistory(ticket, current.manager, "Requested revision — resolution sent back to agent");
-  pushNotification("General", `Revision requested on #${ticket.id} — please update your resolution`, ticket.id);
-  persistAndRender(id);
-  toast("Revision requested. Agent will be notified.");
-}
-
-function managerApproveResolution(id) {
-  const ticket = ticketById(id);
-  const text = ticket.resolutionText;
-  if (!text || text.length < 20) { toast("Resolution needs at least 20 characters before approving."); return; }
   ticket.finalResolutionText = text;
   ticket.status = "Awaiting feedback";
-  ticket.timelineStatus = "resolution_submitted";
+  ticket.timelineStatus = "awaiting_feedback";
   ticket.resolvedAt = new Date().toISOString();
-  addHistory(ticket, current.manager, "Manager approved resolution — sent to student as-is");
-  pushNotification("General", `Resolution approved and sent to student: #${ticket.id}`, ticket.id);
-  toast("Resolution approved and sent to student.", "success");
+  addHistory(ticket, facultyActorName(), "Wrote resolution — sent to student");
+  pushNotification("General", `Resolution sent to student: #${ticket.id}`, ticket.id);
+  toast(`Resolution submitted and sent to student.`, "success");
   persistAndRender(id);
 }
 
-function managerToggleEdit(id, show) {
-  document.getElementById(`mgr-res-preview-${id}`).hidden = show;
-  document.getElementById(`mgr-res-edit-${id}`).hidden = !show;
-  document.getElementById(`mgr-res-actions-${id}`).hidden = show;
-  document.getElementById(`mgr-res-confirm-${id}`).hidden = !show;
-}
 
-function managerConfirmEditResolution(id) {
-  const ticket = ticketById(id);
-  const text = document.querySelector("#managerReviewText")?.value.trim() || "";
-  if (text.length < 20) { toast("Resolution needs at least 20 characters."); return; }
-  ticket.resolutionText = text;
-  ticket.finalResolutionText = text;
-  ticket.status = "Awaiting feedback";
-  ticket.timelineStatus = "resolution_submitted";
-  ticket.resolvedAt = new Date().toISOString();
-  addHistory(ticket, current.manager, "Manager edited and sent resolution to student");
-  pushNotification("General", `Manager-edited resolution sent to student: #${ticket.id}`, ticket.id);
-  toast("Edited resolution sent to student.", "success");
-  persistAndRender(id);
-}
 
 function closeTicket(id) {
   const ticket = ticketById(id);
@@ -3698,12 +3548,10 @@ function nextStepText(ticket) {
   if (owner(ticket) === "Unclaimed") return "Assign this ticket to yourself or route it to the right expert before doing resolution work.";
   if (state.role === "team") {
     if (!activeOwnsTicket(ticket)) return `This ticket is already claimed by ${owner(ticket)}. Only the manager can reassign it.`;
-    if (ticket.revisionRequested) return "Manager requested a revision. Update your resolution and send to review again.";
-    if (ticket.status === "Being reviewed") return "Resolution sent to manager for review. Awaiting approval or revision request.";
     if (ticket.status === "Awaiting feedback") return "Resolution sent to student. They have 48 hours to confirm — ticket auto-closes on no response.";
-    if (!ticket.resolutionText) return "Write your resolution, then either submit directly to the student or send to manager for review first.";
+    if (!ticket.resolutionText) return "Write your resolution and send it directly to the student.";
     if (ticket.feedbackType === "thumbs_down" && !ticket.escalationResolved) return "Student was not satisfied. Complete outreach, then mark the escalation resolved so the student can rate it.";
-    return "Resolution is submitted and awaiting manager approval.";
+    return "Resolution submitted and sent to student.";
   }
   const ownedByAnotherFaculty = state.role === "faculty" && ticket.facultyAssigned && ticket.facultyAssigned !== current.faculty;
   const ownedByAnotherResolver = state.role === "content" && ticket.claimedBy && ticket.claimedBy !== current.resolver;
@@ -4393,15 +4241,7 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-toggle-voice-recording]")) toggleVoiceRecording();
   if (target.closest("[data-play-voice-note]")) playVoiceNote();
   if (target.closest("[data-clear-voice-note]")) clearVoiceNote();
-  if (target.closest("[data-open-send-to-review]")) { openSendToReviewModal(target.closest("[data-open-send-to-review]").dataset.openSendToReview); return; }
-  if (target.closest("[data-confirm-send-to-review]")) { const id = target.closest("[data-confirm-send-to-review]").dataset.confirmSendToReview; closeModal(); submitFacultyResolution(id); return; }
   if (target.closest("[data-submit-resolution-direct]")) { submitResolutionDirect(target.closest("[data-submit-resolution-direct]").dataset.submitResolutionDirect); return; }
-
-  if (target.closest("[data-manager-approve-resolution]")) { managerApproveResolution(target.closest("[data-manager-approve-resolution]").dataset.managerApproveResolution); return; }
-  if (target.closest("[data-manager-edit-resolution]")) { managerToggleEdit(target.closest("[data-manager-edit-resolution]").dataset.managerEditResolution, true); return; }
-  if (target.closest("[data-manager-cancel-edit]")) { managerToggleEdit(target.closest("[data-manager-cancel-edit]").dataset.managerCancelEdit, false); return; }
-  if (target.closest("[data-manager-confirm-edit-resolution]")) { managerConfirmEditResolution(target.closest("[data-manager-confirm-edit-resolution]").dataset.managerConfirmEditResolution); return; }
-  if (target.closest("[data-submit-resolution]")) submitFacultyResolution(target.closest("[data-submit-resolution]").dataset.submitResolution);
   if (target.closest("[data-save-note]")) {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);
     const text = document.querySelector("#noteText")?.value.trim();
@@ -4418,8 +4258,6 @@ document.addEventListener("click", (event) => {
     addHistory(ticket, resolverActorName(), "Recalled from resolver");
     persistAndRender(ticket.id);
   }
-  if (target.closest("[data-approve-resolution]")) approveFacultyResolution(target.closest("[data-approve-resolution]").dataset.approveResolution);
-  if (target.closest("[data-send-revision]")) sendRevision(target.closest("[data-send-revision]").dataset.sendRevision);
   if (target.closest("[data-close-ticket]")) closeTicket(target.closest("[data-close-ticket]").dataset.closeTicket);
   if (target.closest("[data-confirm-escalate-engineering]")) {
     const ticketId = target.closest("[data-confirm-escalate-engineering]").dataset.confirmEscalateEngineering;
