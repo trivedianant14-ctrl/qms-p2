@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v29";
+const STORE_KEY = "nprep-qms-phase2-prototype-v30";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -319,6 +319,13 @@ function buildSessionDetails(input, raisedAt) {
   };
 }
 
+function generateFakePhone() {
+  const pfx = ["98765","87654","99123","76543","91234","80765","70987","95432"];
+  const p = pfx[Math.floor(Math.random() * pfx.length)];
+  const s = String(Math.floor(Math.random() * 100000)).padStart(5, "0");
+  return `+91 ${p} ${s}`;
+}
+
 function createTicket(input) {
   const subject = input.subject || deriveSubject(input.questionId);
   const topic = input.topic || deriveTopic(subject, input.questionId);
@@ -368,8 +375,17 @@ function createTicket(input) {
     escalationRating: input.escalationRating || null,
     escalationReview: input.escalationReview || "",
     escalationResolved: input.escalationResolved || false,
+    studentPhone: input.studentPhone || generateFakePhone(),
     callRequested: input.callRequested || false,
     followupText: input.followupText || "",
+    escalationCallConfirmed: input.escalationCallConfirmed || false,
+    escalationCallNumber: input.escalationCallNumber || null,
+    escalationCallNumberChanged: input.escalationCallNumberChanged || false,
+    escalationCallNumberOTPVerified: input.escalationCallNumberOTPVerified || false,
+    escalationCallSlot: input.escalationCallSlot || null,
+    escalationCallScheduledAt: input.escalationCallScheduledAt || null,
+    escalationCallCompleted: input.escalationCallCompleted || false,
+    escalationInternalNote: input.escalationInternalNote || "",
     returnedByFaculty: input.returnedByFaculty || false,
     revisionRequested: input.revisionRequested || false,
     technicalEscalation: input.technicalEscalation || false,
@@ -2533,6 +2549,7 @@ function drawerHtml(ticket) {
       ${sessionDetailPanel(ticket)}
       ${state.role === "team" || state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${escalationPanel(ticket)}
+      ${escalationCallPanel(ticket)}
       ${resolutionPanel(ticket)}
       <section class="drawer-card"><h3>Timeline</h3><div class="timeline">${ticket.history.map((item) => `<div class="timeline-item"><span class="timeline-dot">${item.actor.slice(0, 1)}</span><div><strong>${item.actor}</strong><p class="timeline-text">${item.text}</p><p class="timeline-meta">${absoluteDate(item.at)} - ${relativeTime(item.at)}</p></div></div>`).join("")}</div></section>
     </div>`;
@@ -2960,13 +2977,141 @@ function resolutionPanel(ticket) {
 function escalationPanel(ticket) {
   const isEscalation = ticket.status === "Escalation" || ticket.status === "Escalation resolved" || ticket.feedbackType === "thumbs_down" || ticket.escalationResolved;
   if (!isEscalation) return "";
+  const callStatus = ticket.escalationCallCompleted
+    ? "Call completed — ticket closed"
+    : ticket.escalationCallScheduledAt
+      ? `Scheduled — ${ticket.escalationCallSlot?.label || ""}`
+      : ticket.callRequested ? "Requested — pending scheduling" : "Not yet scheduled";
   return `<section class="drawer-card"><h3>Escalation Intake</h3>${detailGrid([
     ["Student response", ticket.followupText || "No written follow-up captured"],
-    ["Call requested", ticket.callRequested ? "Yes" : "No"],
+    ["Call status", callStatus],
     ["Escalation output", ticket.escalationResolved ? "Escalation resolved" : "Needs outreach"],
     ["Student understood", ticket.escalationRating ? `${ticket.escalationRating}/3 rating` : "Pending"],
     ["Student review", ticket.escalationReview || "None"],
   ])}</section>`;
+}
+
+function getCallDays() {
+  const D = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmt = d => `${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`;
+  const today = new Date();
+  const nxt = new Date(today);
+  nxt.setDate(today.getDate() + 1);
+  if (nxt.getDay() === 0) nxt.setDate(nxt.getDate() + 1);
+  const nxtLabel = nxt.getDate() === today.getDate() + 1 ? "Tomorrow" : fmt(nxt);
+  return [
+    { dateStr: today.toISOString().slice(0, 10), label: `Today — ${fmt(today)}` },
+    { dateStr: nxt.toISOString().slice(0, 10), label: `${nxtLabel} — ${fmt(nxt)}` },
+  ];
+}
+
+function callSlots() {
+  const fh = h => h < 12 ? `${h} AM` : h === 12 ? `12 PM` : `${h - 12} PM`;
+  const result = [];
+  for (let h = 10; h < 19; h++) result.push({ value: `${String(h).padStart(2, "0")}:00`, label: `${fh(h)} – ${fh(h + 1)}` });
+  return result;
+}
+
+function escalationCallPanel(ticket) {
+  const isEscalationOwner =
+    (state.role === "team" && activeOwnsTicket(ticket)) ||
+    (state.role === "content" && ticket.claimedBy === current.resolver) ||
+    state.role === "manager" ||
+    (state.role === "faculty" && ticket.facultyAssigned === facultyActorName());
+  if (ticket.status !== "Escalation" || !isEscalationOwner) return "";
+
+  const phone = ticket.escalationCallNumber || ticket.studentPhone || "+91 98765 43210";
+
+  if (ticket.escalationCallCompleted) {
+    return `<section class="drawer-card esc-call-card" data-ticket-id="${ticket.id}">
+      <h3>Escalation Call <span class="badge closed">Completed</span></h3>
+      <div class="esc-call-summary">
+        <div class="call-detail-row"><span class="call-detail-label">Slot</span><span>${escapeHtml(ticket.escalationCallSlot?.label || "—")}</span></div>
+        <div class="call-detail-row"><span class="call-detail-label">Number</span><span>${escapeHtml(phone)}${ticket.escalationCallNumberChanged ? ` <span class="badge work">Changed &amp; verified</span>` : ""}</span></div>
+      </div>
+      ${ticket.escalationInternalNote ? `<div class="call-internal-note"><strong>Call Notes</strong><p>${escapeHtml(ticket.escalationInternalNote)}</p></div>` : ""}
+    </section>`;
+  }
+
+  if (ticket.escalationCallScheduledAt) {
+    return `<section class="drawer-card esc-call-card" data-ticket-id="${ticket.id}">
+      <h3>Escalation Call <span class="badge work">Scheduled</span></h3>
+      <div class="esc-call-summary">
+        <div class="call-detail-row"><span class="call-detail-label">Slot</span><span>${escapeHtml(ticket.escalationCallSlot?.label || "—")}</span></div>
+        <div class="call-detail-row"><span class="call-detail-label">Number</span><span>${escapeHtml(phone)}${ticket.escalationCallNumberChanged ? ` <span class="badge work">Changed</span>` : ""}</span></div>
+      </div>
+      <div class="esc-close-form">
+        <label class="engg-escalation-label">Call notes — internal only
+          <textarea id="escalationCallNote" rows="3" placeholder="Summarise what was discussed, commitments made, and next steps…">${escapeHtml(ticket.escalationInternalNote || "")}</textarea>
+        </label>
+        <div class="form-actions">
+          <button class="primary" data-close-escalation-call="${ticket.id}">Mark Call Done &amp; Close Ticket</button>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  const days = getCallDays();
+  const slots = callSlots();
+
+  const dayBtns = days.map(d =>
+    `<button type="button" class="slot-day-btn" data-call-day="${d.dateStr}">${escapeHtml(d.label)}</button>`
+  ).join("");
+
+  const timeBtns = slots.map(s =>
+    `<button type="button" class="slot-time-btn slot-disabled" disabled data-call-time="${s.value}">${escapeHtml(s.label)}</button>`
+  ).join("");
+
+  const phoneSection = ticket.escalationCallNumberOTPVerified
+    ? `<div class="call-phone-row">
+        <span class="call-phone-number">${escapeHtml(phone)}</span>
+        <span class="badge closed">OTP Verified ✓</span>
+      </div>`
+    : `<div class="call-phone-row">
+        <span class="call-phone-number">${escapeHtml(phone)}</span>
+        <button type="button" class="ghost tiny" data-change-call-number="${ticket.id}">Change</button>
+      </div>
+      <div id="otpSection-${ticket.id}" hidden>
+        <div class="otp-input-row">
+          <input class="text-input" id="newCallNumber-${ticket.id}" type="tel" placeholder="+91 98765 43210">
+          <button type="button" class="soft-button" data-send-call-otp="${ticket.id}">Send OTP</button>
+        </div>
+        <div id="otpVerifyRow-${ticket.id}" class="otp-input-row" hidden>
+          <input class="text-input otp-field" id="otpInput-${ticket.id}" type="text" placeholder="Enter OTP" maxlength="6">
+          <button type="button" class="primary" data-verify-call-otp="${ticket.id}">Verify OTP</button>
+        </div>
+      </div>`;
+
+  return `<section class="drawer-card esc-call-card" data-ticket-id="${ticket.id}">
+    <h3>Schedule Escalation Call</h3>
+    <p class="muted">Confirm details with the student before booking the slot.</p>
+
+    <div class="call-section">
+      <div class="call-section-head">Student Confirmation</div>
+      <label class="call-confirm-check">
+        <input type="checkbox" id="callConfirmed-${ticket.id}" ${ticket.escalationCallConfirmed ? "checked" : ""}>
+        Student confirmed they want a call back
+      </label>
+    </div>
+
+    <div class="call-section">
+      <div class="call-section-head">Contact Number</div>
+      ${phoneSection}
+    </div>
+
+    <div class="call-section">
+      <div class="call-section-head">Available Slots</div>
+      <p class="muted" style="font-size:12px;margin-bottom:8px">Select a day first, then pick a time.</p>
+      <div class="slot-day-row">${dayBtns}</div>
+      <div class="slot-time-grid">${timeBtns}</div>
+      <p class="slot-selected-summary" id="slotSummary-${ticket.id}" hidden></p>
+    </div>
+
+    <div class="form-actions">
+      <button class="primary" data-schedule-escalation-call="${ticket.id}">Schedule Call</button>
+    </div>
+  </section>`;
 }
 
 function sessionDetailPanel(ticket) {
@@ -4242,6 +4387,119 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-play-voice-note]")) playVoiceNote();
   if (target.closest("[data-clear-voice-note]")) clearVoiceNote();
   if (target.closest("[data-submit-resolution-direct]")) { submitResolutionDirect(target.closest("[data-submit-resolution-direct]").dataset.submitResolutionDirect); return; }
+
+  // Escalation call flow
+  if (target.closest("[data-change-call-number]")) {
+    const id = target.closest("[data-change-call-number]").dataset.changeCallNumber;
+    const s = document.getElementById(`otpSection-${id}`);
+    if (s) s.hidden = false;
+    return;
+  }
+  if (target.closest("[data-send-call-otp]")) {
+    const id = target.closest("[data-send-call-otp]").dataset.sendCallOtp;
+    const num = document.getElementById(`newCallNumber-${id}`)?.value.trim();
+    if (!num || num.replace(/\D/g, "").length < 10) { toast("Enter a valid 10-digit mobile number."); return; }
+    const row = document.getElementById(`otpVerifyRow-${id}`);
+    if (row) row.hidden = false;
+    toast(`OTP sent to ${num} (mock — accept any 4+ digits)`);
+    return;
+  }
+  if (target.closest("[data-verify-call-otp]")) {
+    const id = target.closest("[data-verify-call-otp]").dataset.verifyCallOtp;
+    const otp = document.getElementById(`otpInput-${id}`)?.value.trim();
+    if (!otp || otp.replace(/\D/g, "").length < 4) { toast("Enter the OTP (4+ digits)."); return; }
+    const num = document.getElementById(`newCallNumber-${id}`)?.value.trim();
+    const ticket = ticketById(id);
+    ticket.escalationCallNumber = num;
+    ticket.escalationCallNumberChanged = true;
+    ticket.escalationCallNumberOTPVerified = true;
+    const actor = state.role === "manager" ? current.manager : activeOperatorName();
+    addHistory(ticket, actor, "Updated escalation contact number — OTP verified");
+    toast("Number verified and updated.", "success");
+    persistAndRender(id);
+    return;
+  }
+  if (target.closest("[data-call-day]")) {
+    const card = target.closest(".esc-call-card");
+    if (!card) return;
+    card.querySelectorAll("[data-call-day]").forEach(b => b.classList.remove("slot-active"));
+    target.closest("[data-call-day]").classList.add("slot-active");
+    card.querySelectorAll("[data-call-time]").forEach(b => {
+      b.disabled = false;
+      b.classList.remove("slot-active", "slot-disabled");
+    });
+    const summary = card.querySelector(".slot-selected-summary");
+    if (summary) { summary.hidden = true; summary.textContent = ""; }
+    return;
+  }
+  if (target.closest("[data-call-time]")) {
+    const card = target.closest(".esc-call-card");
+    if (!card) return;
+    card.querySelectorAll("[data-call-time]").forEach(b => b.classList.remove("slot-active"));
+    const btn = target.closest("[data-call-time]");
+    btn.classList.add("slot-active");
+    const activeDayBtn = card.querySelector("[data-call-day].slot-active");
+    const days = getCallDays();
+    const slots = callSlots();
+    const dayInfo = days.find(d => d.dateStr === activeDayBtn?.dataset.callDay);
+    const slotInfo = slots.find(s => s.value === btn.dataset.callTime);
+    const summary = card.querySelector(".slot-selected-summary");
+    if (summary && dayInfo && slotInfo) {
+      summary.hidden = false;
+      summary.innerHTML = `Selected: <strong>${escapeHtml(dayInfo.label)}</strong> · <strong>${escapeHtml(slotInfo.label)}</strong>`;
+    }
+    return;
+  }
+  if (target.closest("[data-schedule-escalation-call]")) {
+    const id = target.closest("[data-schedule-escalation-call]").dataset.scheduleEscalationCall;
+    const card = document.querySelector(`.esc-call-card[data-ticket-id="${id}"]`);
+    const confirmed = document.getElementById(`callConfirmed-${id}`)?.checked;
+    if (!confirmed) { toast("Confirm that the student agreed to a call back first."); return; }
+    const activeDayBtn = card?.querySelector("[data-call-day].slot-active");
+    if (!activeDayBtn) { toast("Select an available date."); return; }
+    const activeTimeBtn = card?.querySelector("[data-call-time].slot-active");
+    if (!activeTimeBtn) { toast("Select a time slot."); return; }
+    const days = getCallDays();
+    const slots = callSlots();
+    const dayInfo = days.find(d => d.dateStr === activeDayBtn.dataset.callDay);
+    const slotInfo = slots.find(s => s.value === activeTimeBtn.dataset.callTime);
+    const ticket = ticketById(id);
+    ticket.escalationCallConfirmed = true;
+    ticket.escalationCallSlot = {
+      date: activeDayBtn.dataset.callDay,
+      time: activeTimeBtn.dataset.callTime,
+      label: `${dayInfo?.label || activeDayBtn.dataset.callDay} · ${slotInfo?.label || activeTimeBtn.dataset.callTime}`,
+    };
+    ticket.escalationCallScheduledAt = new Date().toISOString();
+    const actor = state.role === "manager" ? current.manager : activeOperatorName();
+    addHistory(ticket, actor, `Escalation call scheduled: ${ticket.escalationCallSlot.label}`);
+    pushNotification("General", `Call scheduled for #${id}: ${ticket.escalationCallSlot.label}`, id);
+    toast("Call scheduled successfully.", "success");
+    persistAndRender(id);
+    return;
+  }
+  if (target.closest("[data-close-escalation-call]")) {
+    const id = target.closest("[data-close-escalation-call]").dataset.closeEscalationCall;
+    const note = document.getElementById("escalationCallNote")?.value.trim() || "";
+    if (note.length < 10) { toast("Add call notes (min 10 characters) before closing."); return; }
+    const ticket = ticketById(id);
+    const actor = state.role === "manager" ? current.manager : activeOperatorName();
+    ticket.escalationCallCompleted = true;
+    ticket.escalationInternalNote = note;
+    ticket.escalationResolved = true;
+    ticket.escalationResolvedAt = new Date().toISOString();
+    ticket.feedbackType = "escalation_resolved";
+    ticket.satisfactionScore = satisfactionScore("escalation_resolved", null);
+    ticket.status = "Closed";
+    ticket.timelineStatus = "resolved";
+    ticket.resolvedAt = new Date().toISOString();
+    ticket.internalNotes.unshift({ author: actor, text: `[Escalation Call] ${note}`, at: new Date().toISOString() });
+    addHistory(ticket, actor, "Escalation call completed — ticket closed");
+    pushNotification("General", `Escalation resolved: #${id}`, id);
+    toast("Escalation closed and ticket marked resolved.", "success");
+    persistAndRender(id);
+    return;
+  }
   if (target.closest("[data-save-note]")) {
     const ticket = ticketById(target.closest("[data-save-note]").dataset.saveNote);
     const text = document.querySelector("#noteText")?.value.trim();
