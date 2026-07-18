@@ -2978,7 +2978,7 @@ function facultyPanel(ticket) {
   if (ticket.finalResolutionText || ticket.status === "Awaiting feedback") {
     return `<section class="drawer-card"><h3>Awaiting Student Feedback</h3><div class="next-step"><span class="label">Resolution sent</span><p>Your resolution was sent directly to the student. Awaiting their confirmation within 48 hours.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText || ticket.finalResolutionText)}</blockquote></section>`;
   }
-  return `<section class="drawer-card" id="facultyResolution"><h3>Write Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${resolutionVideoMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution-direct="${ticket.id}">Send to Student via WhatsApp</button></div><p class="muted ct-optional">Min 30 characters. This saves your resolution and opens WhatsApp with it pre-filled to send to the student directly — the phase-1 delivery channel until in-app tracking is live.</p></div></section>`;
+  return `<section class="drawer-card" id="facultyResolution"><h3>Write Resolution</h3><div class="resolution-form"><textarea id="resolutionText" placeholder="Write your explanation here..."></textarea><input class="text-input" id="resolutionRef" placeholder="Paste a link or reference source" value="">${resolutionImageMarkup(ticket)}${resolutionVideoMarkup(ticket)}${voiceRecorderMarkup(ticket)}<div class="form-actions"><button class="primary" data-submit-resolution-direct="${ticket.id}">Send to Student</button></div><p class="muted ct-optional">Min 30 characters. Your resolution will be sent directly to the student in their My Doubts tracker.</p></div></section>`;
 }
 
 function studentReferenceCell(ticket) {
@@ -3267,31 +3267,7 @@ function resolutionPanel(ticket) {
   const refLine = ticket.resolutionReference
     ? `<p class="muted">${ticket.resolutionReference}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.resolutionVideoName ? ` - Video: ${escapeHtml(ticket.resolutionVideoName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>`
     : `<p><span class="no-ref">No reference attached</span>${ticket.resolutionImageName ? `<span class="muted"> - Image: ${escapeHtml(ticket.resolutionImageName)}</span>` : ""}${ticket.resolutionVideoName ? `<span class="muted"> - Video: ${escapeHtml(ticket.resolutionVideoName)}</span>` : ""}${ticket.facultyVoiceNote ? `<span class="muted"> - Voice: ${ticket.facultyVoiceNote}</span>` : ""}${image}</p>`;
-  const whatsappBtn = ticket.studentPhone
-    ? `<div class="form-actions" style="margin-top:10px"><button class="ghost tiny" data-send-whatsapp="${ticket.id}">Resend via WhatsApp</button></div>`
-    : "";
-  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p>${video}${refLine}${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}${whatsappBtn}</section>`;
-}
-
-// Phase 1 delivery channel: there's no in-app "My Doubts" tracker for the student to check yet, so
-// the resolution composed in this dashboard has to actually reach them somewhere real — WhatsApp.
-function openWhatsAppWithResolution(ticket, text) {
-  const digits = (ticket.studentPhone || "").replace(/\D/g, "");
-  if (!digits) { toast("No phone number on file for this student."); return false; }
-  const message = `Hi ${ticket.student}, here's an update on your NPrep query #${ticket.id}:\n\n${text}`;
-  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, "_blank");
-  return true;
-}
-
-function sendResolutionViaWhatsApp(id) {
-  const ticket = ticketById(id);
-  const text = ticket.finalResolutionText || ticket.resolutionText;
-  if (!text) { toast("Write a resolution before sending it on WhatsApp."); return; }
-  if (!openWhatsAppWithResolution(ticket, text)) return;
-  addHistory(ticket, resolverActorName(), "Resolution re-sent to student via WhatsApp");
-  pushNotification("General", `Resolution re-sent via WhatsApp: #${ticket.id}`, ticket.id);
-  toast("Opening WhatsApp with the resolution pre-filled.", "success");
-  persistAndRender(id);
+  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p>${video}${refLine}${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
 }
 
 function escalationPanel(ticket) {
@@ -3857,10 +3833,9 @@ function submitResolutionDirect(id) {
   ticket.status = "Awaiting feedback";
   ticket.timelineStatus = "awaiting_feedback";
   ticket.resolvedAt = new Date().toISOString();
-  const sentViaWhatsApp = openWhatsAppWithResolution(ticket, text);
-  addHistory(ticket, facultyActorName(), sentViaWhatsApp ? "Wrote resolution — sent to student via WhatsApp" : "Wrote resolution — saved, but no phone number on file to send via WhatsApp");
-  pushNotification("General", `Resolution ${sentViaWhatsApp ? "sent to student via WhatsApp" : "saved (no phone on file)"}: #${ticket.id}`, ticket.id);
-  toast(sentViaWhatsApp ? "Resolution saved and opened in WhatsApp to send." : "Resolution saved. No phone number on file — use Resend via WhatsApp once one's added.", "success");
+  addHistory(ticket, facultyActorName(), "Wrote resolution — sent to student");
+  pushNotification("General", `Resolution sent to student: #${ticket.id}`, ticket.id);
+  toast(`Resolution submitted and sent to student.`, "success");
   persistAndRender(id);
 }
 
@@ -4527,10 +4502,6 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-save-question-content]")) {
     const id = target.closest("[data-save-question-content]").dataset.saveQuestionContent;
     saveQuestionContent(id);
-    return;
-  }
-  if (target.closest("[data-send-whatsapp]")) {
-    sendResolutionViaWhatsApp(target.closest("[data-send-whatsapp]").dataset.sendWhatsapp);
     return;
   }
   if (target.closest("[data-open-question-page]")) {
