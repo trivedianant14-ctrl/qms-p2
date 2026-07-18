@@ -1,4 +1,4 @@
-const STORE_KEY = "nprep-qms-phase2-prototype-v30";
+const STORE_KEY = "nprep-qms-phase2-prototype-v31";
 const COLUMN_WIDTH_KEY = "nprep-qms-column-widths-v1";
 
 const FACULTY_ROUTED = {
@@ -25,6 +25,65 @@ const CONTENT_ROUTED = {
     "Option text is missing or has symbols",
     "Explanation / table / formula is not showing",
     "Question is cut off or incomplete",
+  ],
+  "Problem with this Question": [
+    "The question itself is wrong",
+    "I've already seen this question",
+    "Question is in the wrong language",
+    "This is not in my syllabus",
+    "This belongs to a different topic or chapter",
+  ],
+};
+
+const MOCK_QUESTIONS = {
+  "Anatomy": [
+    { q: "A patient presents with wrist drop following a mid-shaft humeral fracture. Which nerve is most likely damaged?", opts: { A: "Median nerve", B: "Ulnar nerve", C: "Radial nerve", D: "Axillary nerve" }, ans: "C", rat: "The radial nerve winds around the humerus in the spiral groove and is vulnerable in mid-shaft humeral fractures. It supplies the wrist extensors, and its injury produces the classic 'wrist drop'. The median nerve is injured in supracondylar fractures; the ulnar nerve at the medial epicondyle." },
+    { q: "Which structure passes through the carpal tunnel alongside the flexor tendons?", opts: { A: "Ulnar nerve", B: "Radial artery", C: "Median nerve", D: "Anterior interosseous nerve" }, ans: "C", rat: "The carpal tunnel contains the median nerve and nine flexor tendons. The ulnar nerve and artery pass through Guyon's canal, medial to the carpal tunnel." },
+    { q: "A patient cannot initiate shoulder abduction. The first 0–15° of abduction is primarily performed by which muscle?", opts: { A: "Deltoid", B: "Infraspinatus", C: "Teres major", D: "Supraspinatus" }, ans: "D", rat: "Supraspinatus initiates the first 15° of abduction; the deltoid then takes over from 15–90°. Supraspinatus is the most commonly injured rotator cuff muscle." },
+  ],
+  "Pharmacology": [
+    { q: "A patient with T2DM develops CKD stage 4 (eGFR 22 mL/min). What is the most appropriate action regarding metformin?", opts: { A: "Continue at the same dose", B: "Halve the dose and monitor monthly", C: "Discontinue metformin immediately", D: "Add insulin and continue metformin at reduced dose" }, ans: "C", rat: "Metformin is contraindicated when eGFR < 30 mL/min due to risk of lactic acidosis from drug accumulation. It should be discontinued. Dose reduction is considered for eGFR 30–60 (CKD stage 3)." },
+    { q: "Atropine is given as a pre-anaesthetic agent primarily to:", opts: { A: "Reduce blood pressure", B: "Reduce bronchospasm", C: "Reduce secretions and prevent vagal bradycardia", D: "Induce sedation" }, ans: "C", rat: "Atropine is a muscarinic antagonist used pre-operatively to dry secretions and prevent vagally-mediated bradycardia during laryngoscopy and surgical stimulation." },
+    { q: "Which antiepileptic drug shows zero-order (saturation) kinetics at therapeutic doses, necessitating careful therapeutic drug monitoring?", opts: { A: "Valproate", B: "Carbamazepine", C: "Phenytoin", D: "Levetiracetam" }, ans: "C", rat: "Phenytoin displays zero-order kinetics at therapeutic levels — small dose increases lead to disproportionate plasma level rises. Therapeutic range is 10–20 mg/L. Toxicity: nystagmus, ataxia, gingival hyperplasia." },
+  ],
+  "Medical Surgical Nursing": [
+    { q: "A COPD patient on 4 L/min O₂ develops increasing drowsiness and rising PaCO₂. The most likely cause is:", opts: { A: "Pulmonary embolism", B: "Oxygen-induced hypercapnia (hypoxic drive suppression)", C: "Acute bronchospasm", D: "Spontaneous pneumothorax" }, ans: "B", rat: "Chronic CO₂ retainers in COPD rely on hypoxic drive. High-flow O₂ suppresses this drive, causing hypoventilation and CO₂ retention. Target SpO₂ in COPD is 88–92%." },
+    { q: "A post-MI patient has JVD, S3 gallop, and bilateral basal crackles. Which complication is most likely?", opts: { A: "Right ventricular failure", B: "Left ventricular failure", C: "Cardiac tamponade", D: "Ventricular septal rupture" }, ans: "B", rat: "S3 gallop + bilateral pulmonary crackles + JVD indicate LV failure with pulmonary oedema. Tamponade shows Beck's triad. RV failure produces peripheral oedema without pulmonary crackles." },
+  ],
+  "Community Health Nursing": [
+    { q: "What is the recommended population coverage for one Primary Health Centre (PHC) in plain areas as per Indian public health norms?", opts: { A: "5,000", B: "10,000", C: "20,000", D: "30,000" }, ans: "D", rat: "One PHC covers 30,000 population in plain areas (20,000 in hilly/tribal). Sub-centres cover 5,000 in plains and 3,000 in hilly areas." },
+    { q: "APGAR scoring is done at 1 and 5 minutes. What does the acronym APGAR stand for?", opts: { A: "Airway, Pulse, Grimace, Appearance, Respiration", B: "Activity, Pulse, Grimace, Appearance, Respiration", C: "Activity, Pulse, Grimace, Alertness, Reflex", D: "Airway, Pulse, Gag, Alertness, Reflex" }, ans: "B", rat: "APGAR = Activity (muscle tone), Pulse (heart rate), Grimace (reflex), Appearance (colour), Respiration. Score 7–10 = normal; 4–6 = moderate depression; 0–3 = severe, requires resuscitation." },
+  ],
+  "Pediatrics": [
+    { q: "A 3-year-old child copies a circle but cannot copy a square or triangle. This is consistent with:", opts: { A: "Developmental delay", B: "Normal milestones for age 3", C: "Advanced development for age 3", D: "Normal milestones for age 4" }, ans: "B", rat: "Copying milestones: 2 yr = vertical line, 3 yr = circle, 4 yr = cross, 5 yr = square, 6 yr = triangle. Copying a circle at 3 years is a normal Denver II milestone." },
+  ],
+  "Obstetrics & Gynecology": [
+    { q: "A primigravida at 38 weeks has BP 156/100 mmHg and epigastric pain. First-line acute antihypertensive for this presentation:", opts: { A: "Oral methyldopa", B: "IV labetalol", C: "Oral nifedipine (long-acting)", D: "IV enalapril" }, ans: "B", rat: "IV labetalol is first-line per ACOG for acute severe hypertension in pregnancy (BP ≥ 160/110). Methyldopa is for long-term control. ACE inhibitors are contraindicated in pregnancy." },
+  ],
+  "Psychiatry": [
+    { q: "A patient on clozapine develops fever, sore throat, and WBC 1,800/µL. What is the immediate priority?", opts: { A: "Administer broad-spectrum antibiotics", B: "Withhold clozapine and notify physician immediately", C: "Give paracetamol and observe", D: "Increase clozapine dose to maintain therapeutic effect" }, ans: "B", rat: "Agranulocytosis (WBC < 3,000 or ANC < 1,500) is a life-threatening clozapine side effect. Stop the drug immediately and notify the physician. Mandatory weekly WBC monitoring is required. Reinstatement after agranulocytosis is contraindicated." },
+  ],
+};
+
+const CT_SUBOPTIONS = {
+  "Problem with the Answer": [
+    "The answer shown is wrong",
+    "Explanation / rationale doesn't match the answer",
+    "My book / teacher says something different",
+    "I answered this but it shows unattempted",
+    "More than 1 option looks correct",
+    "I selected the right answer but it's marked wrong",
+  ],
+  "Can't See Something": [
+    "Image in the question is not loading",
+    "Option text is missing or has symbols",
+    "Explanation / table / formula is not showing",
+    "Question is cut off or incomplete",
+  ],
+  "I Have a Doubt": [
+    "Why is this the correct answer?",
+    "I didn't understand the explanation",
+    "Why is this option wrong?",
   ],
   "Problem with this Question": [
     "The question itself is wrong",
@@ -145,6 +204,7 @@ const columns = [
   ["student", "Student"],
   ["status", "Current Status"],
   ["source", "Source"],
+
   ["category", "Category"],
   ["subOption", "Sub Category"],
   ["subject", "Subject"],
@@ -153,9 +213,10 @@ const columns = [
   ["sla", "SLA"],
   ["priority", "Priority"],
   ["score", "Score"],
+  ["resTime", "Res. Time"],
 ];
 
-const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "source", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score"]);
+const sortableColumns = new Set(["id", "questionId", "raisedAt", "status", "source", "category", "subOption", "subject", "topic", "owner", "sla", "priority", "score", "resTime"]);
 const DEFAULT_COLUMN_WIDTHS = {
   id: 122,
   questionId: 118,
@@ -171,6 +232,7 @@ const DEFAULT_COLUMN_WIDTHS = {
   sla: 120,
   priority: 130,
   score: 92,
+  resTime: 92,
 };
 
 const state = {
@@ -188,10 +250,11 @@ const state = {
   selectedId: "NP-00003",
   sortKey: "raisedAt",
   sortDir: "desc",
-  visibleColumns: columns.map(([key]) => key),
+  visibleColumns: ["id", "raisedAt", "category", "subject", "subOption", "questionId", "source", "sla"],
   managerFilter: null,
   resolverSort: { key: "avgScore", dir: "desc" },
   columnWidths: loadColumnWidths(),
+  questionPageFor: null,
 };
 
 let db = loadDb();
@@ -230,16 +293,12 @@ const el = {
   modalScrim: document.querySelector("#modalScrim"),
   configModal: document.querySelector("#configModal"),
   toastStack: document.querySelector("#toastStack"),
-  createTicketButton: document.querySelector("#createTicketButton"),
   pullTicketButton: document.querySelector("#pullTicketButton"),
   resetFiltersButton: document.querySelector("#resetFiltersButton"),
   fireAlerts: document.querySelector("#fireAlerts"),
 };
 
 function deriveRouting(category, subOption) {
-  if (FACULTY_ROUTED[category]?.includes(subOption)) return "faculty";
-  if (CONTENT_ROUTED[category]?.includes(subOption)) return "content";
-  if (category === "Others") return "support";
   return "content";
 }
 
@@ -275,10 +334,10 @@ function deriveTopic(subject, questionId) {
 }
 
 function satisfactionScore(feedbackType, rating) {
-  if (feedbackType === "thumbs_up") return 3.0;
-  if (feedbackType === "auto_closed") return 2.0;
-  if (feedbackType === "thumbs_down") return 1.0;
-  if (feedbackType === "escalation_resolved") return Math.min(3, rating || 2.0);
+  if (feedbackType === "thumbs_up") return 4.5;
+  if (feedbackType === "auto_closed") return 3.5;
+  if (feedbackType === "thumbs_down") return 1.5;
+  if (feedbackType === "escalation_resolved") return rating || 3;
   return null;
 }
 
@@ -385,6 +444,8 @@ function createTicket(input) {
     escalationCallSlot: input.escalationCallSlot || null,
     escalationCallScheduledAt: input.escalationCallScheduledAt || null,
     escalationCallCompleted: input.escalationCallCompleted || false,
+    escalationCallMissed: input.escalationCallMissed || false,
+    escalationCallMissedCount: input.escalationCallMissedCount || 0,
     escalationInternalNote: input.escalationInternalNote || "",
     returnedByFaculty: input.returnedByFaculty || false,
     revisionRequested: input.revisionRequested || false,
@@ -392,6 +453,10 @@ function createTicket(input) {
     source: input.source || deriveSource(input.category),
     studentConfirmed: input.studentConfirmed || false,
     sessionDetails: input.sessionDetails || buildSessionDetails(input, raisedAt),
+    questionData: input.questionData || null,
+    contentCorrected: input.contentCorrected || false,
+    contentCorrectedAt: input.contentCorrectedAt || null,
+    escalationCallDiff: input.escalationCallDiff || "",
     history: input.history || [
       eventLine("SYSTEM", "Ticket created from student query", raisedAt),
     ],
@@ -486,6 +551,8 @@ function seedDb() {
       escalationResolved: false,
       callRequested: true,
       followupText: "I still do not understand why priority changes here.",
+      escalationCallSlot: { label: "Thu 3 Jul · 3 PM – 4 PM" },
+      escalationCallNumber: "+91 98765 43210",
     }),
     createTicket({
       id: "NP-00006",
@@ -673,6 +740,9 @@ function seedDb() {
       studentDoubt: "I cannot attempt this question without the image. Needs technical fix.", priority: "High", ageHours: 5,
       status: "Escalation", timelineStatus: "escalated", routedTo: "content", claimedBy: "Priya S.",
       technicalEscalation: "Image asset missing from CDN. Session JSON: img-ref-isc-404. Escalated to engineering.",
+      escalationCallSlot: { label: "Fri 4 Jul · 10 AM – 11 AM" },
+      escalationCallNumber: "+91 99887 76655",
+      callRequested: true,
       subject: "Community Health Nursing", topic: "Immunisation Programme" }),
 
     createTicket({ id: "NP-00020", questionId: 84504, student: "Dev S.", category: "Problem with this Question", subOption: "The question itself is wrong",
@@ -1081,10 +1151,32 @@ function pushNotification(channel, message, ticketId) {
   toast(`${channel}: ${message}`);
 }
 
+function priorResolverForQuestion(ticket, allTickets = db.tickets) {
+  const solved = allTickets
+    .filter((item) => item.id !== ticket.id && item.questionId === ticket.questionId
+      && (item.resolutionText || item.finalResolutionText) && owner(item) !== "Unclaimed")
+    .sort((a, b) => new Date(b.resolvedAt || b.raisedAt) - new Date(a.resolvedAt || a.raisedAt));
+  return solved.length ? owner(solved[0]) : null;
+}
+
 function applyAutoAssignments(targetDb = db, shouldNotify = true, shouldPersist = true) {
   let changed = false;
   targetDb.tickets.forEach((ticket) => {
-    if (ticket.status === "Closed" || owner(ticket) !== "Unclaimed" || ticketAgeHours(ticket) < 24) return;
+    if (ticket.status === "Closed" || owner(ticket) !== "Unclaimed") return;
+    const priorResolver = priorResolverForQuestion(ticket, targetDb.tickets);
+    if (priorResolver) {
+      ticket.facultyAssigned = priorResolver;
+      ticket.claimedBy = null;
+      ticket.facultyAssignedAt = new Date().toISOString();
+      ticket.status = "Working on";
+      ticket.timelineStatus = "being_worked_on";
+      ticket.history.unshift(eventLine("SYSTEM", `Auto-assigned to ${priorResolver} — this question was already resolved by them on another ticket`));
+      targetDb.notifications.unshift(note("General", `Auto-assigned #${ticket.id} to ${priorResolver} (question #${ticket.questionId} precedent)`, ticket.id));
+      changed = true;
+      if (shouldNotify) toast(`Auto-assigned #${ticket.id} to ${priorResolver} — same question resolved before`);
+      return;
+    }
+    if (ticketAgeHours(ticket) < 24) return;
     const assignee = leastLoadedAssignee(ticket, targetDb.tickets);
     if (!assignee) return;
     ticket.facultyAssigned = assignee;
@@ -1126,6 +1218,7 @@ function normalizeTicketStatuses(targetDb) {
       ticket.finalResolutionText = ticket.resolutionText;
       if (!ticket.resolvedAt) ticket.resolvedAt = new Date().toISOString();
     }
+    if (ticket.routedTo === "faculty") ticket.routedTo = "content";
   });
 }
 
@@ -1179,7 +1272,8 @@ function normalizeResolutionTimeline(ticket) {
   if (ticket.feedbackType === "escalation_resolved" || ticket.escalationResolved) {
     upsertTimelineEvent(ticket, ticket.student, "Marked resolution as unclear", ticket.escalationRaisedAt || timelineBeforeResolved(ticket, 60, 80), (item) => /marked resolution as unclear/i.test(item.text || ""));
     upsertTimelineEvent(ticket, ownerName, "Resolved escalation through outreach", ticket.escalationResolvedAt || timelineBeforeResolved(ticket, 12, 100), (item) => /resolved escalation/i.test(item.text || ""));
-    upsertTimelineEvent(ticket, ticket.student, ticket.escalationRating ? `Rated escalation ${ticket.escalationRating}/3` : "Confirmed escalation resolved", ticket.resolvedAt || timelineOffset(ticket, 150), (item) => /rated escalation|confirmed escalation resolved/i.test(item.text || ""));
+    const ratingEmoji = ticket.escalationRating === 1 ? "😔" : ticket.escalationRating === 5 ? "😊" : "😐";
+    upsertTimelineEvent(ticket, ticket.student, ticket.escalationRating ? `Rated escalation ${ratingEmoji}` : "Confirmed escalation resolved", ticket.resolvedAt || timelineOffset(ticket, 150), (item) => /rated escalation|confirmed escalation resolved/i.test(item.text || ""));
   }
   if (ticket.status === "Closed" && resolvedMs) {
     if (ticket.feedbackType === "thumbs_up") {
@@ -1373,7 +1467,7 @@ function renderFireAlerts() {
   const backBtn = state.managerFilter
     ? `<button class="back-btn fire-back" data-manager-filter-clear>← Overview</button>`
     : "";
-  const createBtn = `<button class="primary fire-create-btn" data-create-ticket-modal>+ Create Ticket</button>`;
+  const createBtn = "";
   const exportBtn = !state.managerFilter
     ? `<button class="ghost fire-export-btn" data-export-all-csv>Export CSV</button>`
     : "";
@@ -1463,7 +1557,6 @@ function renderManagerTicketTable() {
   _dtbl.style.minWidth = "";
   _dtbl.closest(".table-wrap").style.overflowX = "";
   el.managerBackBtn.hidden = false;
-  el.createTicketButton.hidden = true;
   el.pullTicketButton.hidden = true;
   el.exportCsvButton.hidden = isResolverView;
   el.assigneeFilter.closest("label").hidden = isResolverView;
@@ -1536,8 +1629,8 @@ function renderModeControls() {
   }
   el.roleToggle.setAttribute("aria-label", "Login role");
   el.roleToggle.innerHTML = [
-    ["team", "Team Queue"],
-    ["manager", "Manager"],
+    ["team", "Resolver"],
+    ["manager", "Admin"],
   ].map(([role, label]) => `<button class="${state.role === role ? "active" : ""}" data-role="${role}">${label}</button>`).join("");
 }
 
@@ -1626,12 +1719,22 @@ function renderReportStats() {
   const topicTop = topCount(rows, "topic");
   const categoryTop = topCount(rows, "category");
   const suboptionTop = topCount(rows, "subOption");
+  const hasDateFilter = state.dateFrom || state.dateTo;
+  const periodLabel = hasDateFilter
+    ? (state.dateFrom && state.dateTo ? `${state.dateFrom} – ${state.dateTo}` : state.dateFrom ? `From ${state.dateFrom}` : `Until ${state.dateTo}`)
+    : null;
+  const rowsEscalated = rows.filter(t => t.status === "Escalation" || t.status === "Escalation resolved" || t.feedbackType === "thumbs_down" || t.escalationResolved);
+  const slaAtRisk = open.filter((ticket) => hoursLeft(ticket) <= 2);
   const statSets = {
     manager: [
-      ["This Week", weeklyTickets().length, "Queries raised in last 7 days", ""],
-      ["This Month", monthlyTickets().length, "Queries raised in last 30 days", ""],
-      ["Escalations", escalationTickets().length, "Active + resolved escalation tickets", escalationTickets().filter(t => t.status === "Escalation").length ? "red" : "amber"],
-      ["SLA Risk", open.filter((ticket) => hoursLeft(ticket) <= 2).length, "Breaching within 2 hours", open.filter((ticket) => hoursLeft(ticket) <= 2).length ? "red" : "green"],
+      hasDateFilter
+        ? ["In Period", rows.length, periodLabel, ""]
+        : ["This Week", weeklyTickets().length, "Queries raised in last 7 days", ""],
+      hasDateFilter
+        ? ["Open in Period", open.length, "Still unresolved in selected range", open.length > 5 ? "red" : ""]
+        : ["This Month", monthlyTickets().length, "Queries raised in last 30 days", ""],
+      ["Escalations", rowsEscalated.length, hasDateFilter ? `In selected period` : "Active + resolved escalation tickets", rowsEscalated.filter(t => t.status === "Escalation").length ? "red" : "amber"],
+      ["SLA Risk", slaAtRisk.length, "Breaching within 2 hours", slaAtRisk.length ? "red" : "green"],
       ["Avg Resolution", avgResolutionHours(rows), "Closed ticket cycle time", "green"],
       ["Avg Score", averageScore(rows), "Resolved CSAT", "green"],
     ],
@@ -1662,7 +1765,6 @@ function renderFilters() {
   el.dateFromFilter.value = state.dateFrom;
   el.dateToFilter.value = state.dateTo;
   el.resetFiltersButton.hidden = !hasActiveFilters();
-  el.createTicketButton.hidden = state.role !== "manager";
   el.pullTicketButton.hidden = true;
 }
 
@@ -1704,6 +1806,7 @@ function sortValue(ticket, key) {
     sla: ticket.status === "Closed" ? Number.POSITIVE_INFINITY : hoursLeft(ticket),
     priority: owner(ticket) === "Unclaimed" || !ticket.priority ? 99 : priorityRank[ticket.priority] || 99,
     score: ticket.satisfactionScore == null ? -1 : ticket.satisfactionScore,
+    resTime: ticketResolutionMs(ticket) ?? Number.POSITIVE_INFINITY,
   };
   return values[key] ?? "";
 }
@@ -1742,7 +1845,7 @@ function renderTable() {
   _ntbl.closest(".table-wrap").style.overflowX = "";
   el.managerBackBtn.hidden = true;
   el.exportCsvButton.hidden = false;
-  el.assigneeFilter.closest("label").hidden = false;
+  el.assigneeFilter.closest("label").hidden = state.role === "team";
   el.tableTitle.textContent = state.role === "team" ? "Team Queries Queue" : state.role === "faculty" ? "Faculty Queries" : state.role === "content" ? "Content Queries Queue" : "Team Ticket Queue";
   el.tableSubtitle.textContent = `${rows.length} ticket${rows.length === 1 ? "" : "s"} shown${dateRangeLabel()}`;
   el.tableHead.innerHTML = visible.map(([key, label]) => headerCell(key, label)).join("");
@@ -1835,6 +1938,23 @@ function autoFitColumn(key) {
   renderTable();
 }
 
+function resTimeFmt(ms) {
+  if (!ms || ms < 0) return "—";
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  if (hours < 24) return remMins ? `${hours}h ${remMins}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const remHours = hours % 24;
+  return remHours ? `${days}d ${remHours}h` : `${days}d`;
+}
+
+function ticketResolutionMs(ticket) {
+  if (!ticket.resolvedAt) return null;
+  return new Date(ticket.resolvedAt) - new Date(ticket.raisedAt);
+}
+
 function cell(ticket, key) {
   const value = {
     id: `<button class="ticket-link" data-open="${ticket.id}">#${ticket.id}</button>`,
@@ -1852,6 +1972,7 @@ function cell(ticket, key) {
     sla: ticket.status === "Closed" ? `<span class="badge resolved">Closed</span>` : (() => { const h = hoursLeft(ticket); return h < 0 ? `<span class="badge breached">-${Math.abs(h).toFixed(1)}h</span>` : `<span class="badge ${slaClass(ticket)}">${h.toFixed(1)}h left</span>`; })(),
     priority: owner(ticket) === "Unclaimed" || !ticket.priority ? `<span class="muted">--</span>` : `<span class="priority ${priorityClass(ticket.priority)}">${ticket.priority}</span>`,
     score: ticket.satisfactionScore == null ? `<span class="muted">--</span>` : `<strong class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)}</strong>`,
+    resTime: (() => { const ms = ticketResolutionMs(ticket); return ms == null ? `<span class="muted">—</span>` : `<span class="res-time-cell">${resTimeFmt(ms)}</span>`; })(),
   };
   return value[key] || "";
 }
@@ -1873,6 +1994,7 @@ function rawCell(ticket, key) {
     sla: ticket.status === "Closed" ? "Closed" : `${hoursLeft(ticket).toFixed(1)}h left`,
     priority: owner(ticket) === "Unclaimed" || !ticket.priority ? "" : ticket.priority,
     score: ticket.satisfactionScore == null ? "" : ticket.satisfactionScore.toFixed(1),
+    resTime: (() => { const ms = ticketResolutionMs(ticket); return ms == null ? "" : resTimeFmt(ms); })(),
   };
   return value[key] ?? "";
 }
@@ -2134,12 +2256,11 @@ function resolutionFunnel(tickets) {
     </div>
     <div class="fn-stages">
       <div class="fn-col-labels"><span>Stage</span><span>Progress (% of total raised)</span><span>Count</span></div>
-      ${row("Total Raised",          "All queries in last 30 days",      total,     "fn-blue",    false)}
-      ${row("Assigned",              `${unclaimed} still unclaimed`,      assigned,  "fn-purple",  false)}
-      ${row("Working On",            "Agent actively resolving",          workingOn, "fn-amber",   false)}
-      ${row("Sent to Manager",       "Under manager review",             reviewing, "fn-indigo",  false)}
-      ${row("Resolution Submitted",  "Sent directly to student",         submitted, "fn-teal",    false)}
-      ${row("Closed",                "Fully resolved &amp; closed",      closed,    "fn-green",   true)}
+      ${row("Total Raised",            "All queries in last 30 days",        total,     "fn-blue",    false)}
+      ${row("Assigned",              `${unclaimed} still unclaimed`,        assigned,  "fn-purple",  false)}
+      ${row("Working On",            "Agent actively resolving",            workingOn, "fn-amber",   false)}
+      ${row("Sent to Student",       "Resolution delivered, awaiting reply", submitted, "fn-teal",   false)}
+      ${row("Closed",                "Fully resolved &amp; closed",         closed,    "fn-green",   true)}
     </div>
     ${escalated ? `<div class="fn-escalation-bar"><span class="badge escalated">⚡ Escalation</span><span>${escalated} ticket${escalated > 1 ? "s" : ""} escalated this month — ${pct(escalated)}% of total. Review and resolve promptly.</span></div>` : ""}`;
 }
@@ -2168,6 +2289,9 @@ function managerReportDashboard(rows) {
       <article class="chart-card"><div class="chart-head"><div><span class="label">Systemic Signal</span><h3>Repeated Questions</h3></div></div>${qList}</article>
       <article class="chart-card"><div class="chart-head"><div><span class="label">Systemic Signal</span><h3>Subject Breakdown</h3></div></div>${barList(subjectLeaders, rows.length)}</article>
       <article class="chart-card"><div class="chart-head"><div><span class="label">Systemic Signal</span><h3>Category Breakdown</h3></div></div>${barList(categoryLeaders, rows.length)}</article>
+      <article class="chart-card chart-full"><div class="chart-head"><div><span class="label">Query Intake Frequency</span><h3>Category &amp; Sub-option Breakdown — Most to Least</h3></div></div>${queryFrequencyTable(rows)}</article>
+      <article class="chart-card chart-full"><div class="chart-head"><div><span class="label">Team Performance</span><h3>Agent Performance Metrics</h3></div></div>${agentPerformanceTable(rows)}</article>
+      <article class="chart-card chart-full"><div class="chart-head"><div><span class="label">Student Feedback</span><h3>CSAT &amp; Satisfaction Scores</h3></div></div>${studentFeedbackSection(rows)}</article>
     </section>`;
 }
 
@@ -2194,6 +2318,8 @@ function productReportDashboard(rows) {
         <li>Review low-CSAT and SLA-risk tickets together during product standup.</li>
         <li>Create a correction backlog from recurring topic and question-ID hotspots.</li>
       </ul></article>
+      <article class="chart-card chart-full"><div class="chart-head"><div><span class="label">Query Intake Frequency</span><h3>Category &amp; Sub-option Breakdown — Most to Least</h3></div></div>${queryFrequencyTable(rows)}</article>
+      <article class="chart-card chart-full"><div class="chart-head"><div><span class="label">Student Feedback</span><h3>CSAT &amp; Satisfaction Scores</h3></div></div>${studentFeedbackSection(rows)}</article>
     </section>`;
 }
 
@@ -2477,6 +2603,138 @@ function suboptionByCategory(rows) {
   }).join("")}</div>`;
 }
 
+function queryFrequencyTable(rows) {
+  const total = rows.length;
+  if (!total) return `<p class="muted">No query data available.</p>`;
+  const categories = topCounts(rows, "category", 20);
+  return `<div class="qfreq-list">${categories.map((cat, ci) => {
+    const catRows = rows.filter(t => t.category === cat.label);
+    const catPct = Math.round(cat.count / total * 100);
+    const subs = topCounts(catRows, "subOption", 20);
+    const subHtml = subs.map(sub => {
+      const subPct = Math.round(sub.count / cat.count * 100);
+      return `<div class="qfreq-sub">
+        <span class="qfreq-sub-name">${escapeHtml(sub.label)}</span>
+        <div class="qfreq-sub-track"><span style="width:${Math.max(subPct, 3)}%"></span></div>
+        <span class="qfreq-sub-num">${sub.count}</span>
+        <span class="muted qfreq-sub-pct">${subPct}%</span>
+      </div>`;
+    }).join("");
+    return `<div class="qfreq-cat">
+      <div class="qfreq-cat-head">
+        <span class="qfreq-rank">#${ci + 1}</span>
+        <strong class="qfreq-cat-name">${escapeHtml(cat.label)}</strong>
+        <div class="qfreq-cat-bar"><span style="width:${Math.max(catPct, 3)}%"></span></div>
+        <span class="qfreq-cat-count">${cat.count} tickets</span>
+        <span class="muted qfreq-cat-pct">${catPct}%</span>
+      </div>
+      ${subHtml ? `<div class="qfreq-subs">${subHtml}</div>` : ""}
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function studentFeedbackSection(rows) {
+  const scored = rows.filter(t => t.satisfactionScore != null);
+  if (!scored.length) return `<p class="muted">No feedback data in this period.</p>`;
+  const avg = scored.reduce((s, t) => s + t.satisfactionScore, 0) / scored.length;
+  const types = [
+    { type: "thumbs_up",          label: "Thumbs Up",            emoji: "👍", color: "#059669" },
+    { type: "auto_closed",        label: "Auto-closed (no reply)",emoji: "⏱", color: "#6366f1" },
+    { type: "escalation_resolved",label: "Escalation Resolved",   emoji: "📞", color: "#0ea5e9" },
+    { type: "thumbs_down",        label: "Thumbs Down",           emoji: "👎", color: "#ef4444" },
+  ];
+  const typeStats = types.map(t => {
+    const items = rows.filter(r => r.feedbackType === t.type);
+    const sc = items.filter(r => r.satisfactionScore != null);
+    const typeAvg = sc.length ? (sc.reduce((s, r) => s + r.satisfactionScore, 0) / sc.length).toFixed(1) : null;
+    return { ...t, count: items.length, avg: typeAvg };
+  });
+  const maxCount = Math.max(...typeStats.map(t => t.count), 1);
+  const recent = [...scored]
+    .sort((a, b) => new Date(b.resolvedAt || b.raisedAt) - new Date(a.resolvedAt || a.raisedAt))
+    .slice(0, 8);
+  return `<div class="fb-section">
+    <div class="fb-summary">
+      <div class="fb-avg">
+        <span class="fb-avg-num">${avg.toFixed(1)}</span>
+        <div><strong>Avg CSAT</strong><p class="muted">${scored.length} response${scored.length === 1 ? "" : "s"}</p></div>
+      </div>
+      <div class="fb-breakdown">
+        ${typeStats.map(t => `<div class="fb-type-row">
+          <span class="fb-type-label">${t.emoji} ${t.label}</span>
+          <div class="fb-type-bar"><span style="width:${t.count ? Math.max((t.count / maxCount) * 100, 2) : 0}%;background:${t.color}"></span></div>
+          <span class="fb-type-count">${t.count}</span>
+          <span class="fb-type-score" style="color:${t.color}">${t.avg ? t.avg + " pts" : "—"}</span>
+        </div>`).join("")}
+      </div>
+    </div>
+    <div class="fb-recent">
+      <div class="fb-recent-head">Recent Responses</div>
+      ${recent.map(t => {
+        const icon = t.feedbackType === "thumbs_up" ? "👍" : t.feedbackType === "thumbs_down" ? "👎" : t.feedbackType === "auto_closed" ? "⏱" : "📞";
+        return `<div class="fb-recent-row">
+          <span class="fb-recent-icon">${icon}</span>
+          <span class="fb-recent-id">#${t.id}</span>
+          <span class="fb-recent-student">${escapeHtml(t.student)}</span>
+          <span class="fb-recent-cat">${escapeHtml(t.category)}</span>
+          <strong class="score ${scoreClass(t.satisfactionScore)}">${t.satisfactionScore.toFixed(1)}</strong>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+function agentPerformanceTable(rows) {
+  const agents = allOperators();
+  const stats = agents.map(person => {
+    const mine = rows.filter(t => t.claimedBy === person.name || t.facultyAssigned === person.name);
+    const resolved = mine.filter(t => t.resolvedAt);
+    const open = mine.filter(t => t.status !== "Closed");
+    const scores = mine.filter(t => t.satisfactionScore != null);
+    const avgTime = resolved.length
+      ? resolved.reduce((s, t) => s + (new Date(t.resolvedAt) - new Date(t.raisedAt)) / 3600000, 0) / resolved.length
+      : null;
+    const avgScore = scores.length
+      ? scores.reduce((s, t) => s + t.satisfactionScore, 0) / scores.length
+      : null;
+    const escalations = mine.filter(t => hasEscalation(t)).length;
+    const breaches = resolved.filter(t =>
+      (new Date(t.resolvedAt) - new Date(t.raisedAt)) / 3600000 > (t.slaHours || 48)
+    ).length;
+    return { person, total: mine.length, open: open.length, resolved: resolved.length, avgTime, avgScore, escalations, breaches };
+  }).sort((a, b) => b.resolved - a.resolved || b.total - a.total);
+
+  if (!stats.some(s => s.total > 0)) return `<p class="muted">No agent activity in this date range.</p>`;
+
+  const scoreClass = v => v >= 4 ? "perf-good" : v < 3 ? "perf-bad" : "";
+
+  return `<div class="perf-wrap">
+    <div class="perf-head">
+      <span>Agent</span>
+      <span>Assigned</span>
+      <span>Resolved</span>
+      <span>Open</span>
+      <span>Avg Time</span>
+      <span>CSAT</span>
+      <span>Escalations</span>
+      <span>SLA Breaches</span>
+    </div>
+    ${stats.map(s => `<div class="perf-row">
+      <div class="perf-agent">
+        <span class="avatar" style="background:${s.person.color};width:28px;height:28px;font-size:11px;flex-shrink:0">${s.person.initials}</span>
+        <div><strong>${s.person.name}</strong><p class="muted">${s.person.team.length > 26 ? s.person.team.slice(0, 26) + "…" : s.person.team}</p></div>
+      </div>
+      <span class="perf-num">${s.total || "—"}</span>
+      <span class="perf-num perf-good">${s.resolved || "—"}</span>
+      <span class="perf-num">${s.open || "—"}</span>
+      <span class="perf-num">${s.avgTime != null ? `${s.avgTime.toFixed(1)}h` : "—"}</span>
+      <span class="perf-num ${s.avgScore != null ? scoreClass(s.avgScore) : ""}">${s.avgScore != null ? s.avgScore.toFixed(1) : "—"}</span>
+      <span class="perf-num ${s.escalations > 0 ? "perf-bad" : ""}">${s.escalations || "—"}</span>
+      <span class="perf-num ${s.breaches > 0 ? "perf-warn" : ""}">${s.breaches || "—"}</span>
+    </div>`).join("")}
+  </div>`;
+}
+
 function averageScore(rows) {
   const scores = rows.map((ticket) => ticket.satisfactionScore).filter((score) => score != null);
   return scores.length ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1) : "--";
@@ -2524,6 +2782,7 @@ function openTicket(id) {
   if (!ticket) return;
   stopVoiceTimer();
   state.selectedId = id;
+  state.questionPageFor = null;
   el.drawerScrim.hidden = false;
   el.drawer.classList.add("open");
   el.drawer.setAttribute("aria-hidden", "false");
@@ -2543,6 +2802,7 @@ function drawerHtml(ticket) {
       ${drawerActions(ticket)}
       ${engineeringEscalationPanel(ticket)}
       ${workflowPanel(ticket)}
+      ${questionInfoPanel(ticket)}
       ${state.role === "team" || state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
       <section class="drawer-card"><h3>Student's Query</h3>${detailGrid(studentQueryRows(ticket))}</section>
@@ -2607,6 +2867,8 @@ function engineeringEscalationPanel(ticket) {
 function studentQueryRows(ticket) {
   const rows = [
     ["Student", ticket.student],
+    ["Category", ticket.category],
+    ["Sub-option", ticket.subOption],
     ["Subject", ticket.subject],
     ["Topic", ticket.topic],
     ["Question ID", `#${ticket.questionId}`],
@@ -2676,8 +2938,8 @@ function workflowPanel(ticket) {
 
 function facultyPanel(ticket) {
   const canUseFacultyFlow = state.role === "team"
-    ? activeOwnsTicket(ticket) && ticket.status !== "Closed"
-    : ticket.facultyAssigned === facultyActorName() && ticket.status !== "Closed";
+    ? activeOwnsTicket(ticket) && ticket.status !== "Closed" && ticket.status !== "Escalation"
+    : ticket.facultyAssigned === facultyActorName() && ticket.status !== "Closed" && ticket.status !== "Escalation";
   if (!canUseFacultyFlow) return "";
   if (ticket.finalResolutionText || ticket.status === "Awaiting feedback") {
     return `<section class="drawer-card"><h3>Awaiting Student Feedback</h3><div class="next-step"><span class="label">Resolution sent</span><p>Your resolution was sent directly to the student. Awaiting their confirmation within 48 hours.</p></div><blockquote class="review-pending-quote">${escapeHtml(ticket.resolutionText || ticket.finalResolutionText)}</blockquote></section>`;
@@ -2971,7 +3233,24 @@ function resolutionPanel(ticket) {
   const refLine = ticket.resolutionReference
     ? `<p class="muted">${ticket.resolutionReference}${ticket.resolutionImageName ? ` - Image: ${escapeHtml(ticket.resolutionImageName)}` : ""}${ticket.resolutionVideoName ? ` - Video: ${escapeHtml(ticket.resolutionVideoName)}` : ""}${ticket.facultyVoiceNote ? ` - Voice: ${ticket.facultyVoiceNote}` : ""}${image}</p>`
     : `<p><span class="no-ref">No reference attached</span>${ticket.resolutionImageName ? `<span class="muted"> - Image: ${escapeHtml(ticket.resolutionImageName)}</span>` : ""}${ticket.resolutionVideoName ? `<span class="muted"> - Video: ${escapeHtml(ticket.resolutionVideoName)}</span>` : ""}${ticket.facultyVoiceNote ? `<span class="muted"> - Voice: ${ticket.facultyVoiceNote}</span>` : ""}${image}</p>`;
-  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p>${video}${refLine}${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}</section>`;
+  const whatsappBtn = ticket.studentPhone
+    ? `<div class="form-actions" style="margin-top:10px"><button class="ghost tiny" data-send-whatsapp="${ticket.id}">Send via WhatsApp</button></div>`
+    : "";
+  return `<section class="drawer-card"><h3>${ticket.finalResolutionText ? "Final Resolution" : "Submitted Resolution"}</h3><p>${ticket.finalResolutionText || ticket.resolutionText}</p>${video}${refLine}${ticket.satisfactionScore ? `<p class="score ${scoreClass(ticket.satisfactionScore)}">${ticket.satisfactionScore.toFixed(1)} satisfaction score</p>` : ""}${whatsappBtn}</section>`;
+}
+
+function sendResolutionViaWhatsApp(id) {
+  const ticket = ticketById(id);
+  const text = ticket.finalResolutionText || ticket.resolutionText;
+  if (!text) { toast("Write a resolution before sending it on WhatsApp."); return; }
+  const digits = (ticket.studentPhone || "").replace(/\D/g, "");
+  if (!digits) { toast("No phone number on file for this student."); return; }
+  const message = `Hi ${ticket.student}, here's an update on your NPrep query #${ticket.id}:\n\n${text}`;
+  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, "_blank");
+  addHistory(ticket, resolverActorName(), "Resolution sent to student via WhatsApp");
+  pushNotification("General", `Resolution sent via WhatsApp: #${ticket.id}`, ticket.id);
+  toast("Opening WhatsApp with the resolution pre-filled.", "success");
+  persistAndRender(id);
 }
 
 function escalationPanel(ticket) {
@@ -2979,14 +3258,23 @@ function escalationPanel(ticket) {
   if (!isEscalation) return "";
   const callStatus = ticket.escalationCallCompleted
     ? "Call completed — ticket closed"
-    : ticket.escalationCallScheduledAt
-      ? `Scheduled — ${ticket.escalationCallSlot?.label || ""}`
-      : ticket.callRequested ? "Requested — pending scheduling" : "Not yet scheduled";
+    : ticket.escalationCallMissed
+      ? `No answer${ticket.escalationCallMissedCount > 1 ? ` (${ticket.escalationCallMissedCount}x)` : ""} — awaiting reschedule`
+      : ticket.escalationCallScheduledAt
+        ? `Scheduled — ${ticket.escalationCallSlot?.label || ""}`
+        : ticket.callRequested ? "Requested — pending scheduling" : "Not yet scheduled";
+  const slotRow = ticket.escalationCallSlot
+    ? [["Scheduled slot", escapeHtml(ticket.escalationCallSlot.label || "—")]]
+    : [];
+  const contactRow = ticket.escalationCallNumber
+    ? [["Contact number", escapeHtml(ticket.escalationCallNumber)]]
+    : [];
   return `<section class="drawer-card"><h3>Escalation Intake</h3>${detailGrid([
-    ["Student response", ticket.followupText || "No written follow-up captured"],
     ["Call status", callStatus],
+    ...slotRow,
+    ...contactRow,
     ["Escalation output", ticket.escalationResolved ? "Escalation resolved" : "Needs outreach"],
-    ["Student understood", ticket.escalationRating ? `${ticket.escalationRating}/3 rating` : "Pending"],
+    ["Student understood", ticket.escalationRating ? (ticket.escalationRating === 1 ? "😔 Not satisfied" : ticket.escalationRating === 3 ? "😐 Neutral" : "😊 Satisfied") : "Pending"],
     ["Student review", ticket.escalationReview || "None"],
   ])}</section>`;
 }
@@ -2995,14 +3283,36 @@ function getCallDays() {
   const D = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmt = d => `${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()]}`;
+  const addDays = (d, n) => { const r = new Date(d); r.setDate(d.getDate() + n); return r; };
   const today = new Date();
-  const nxt = new Date(today);
-  nxt.setDate(today.getDate() + 1);
-  if (nxt.getDay() === 0) nxt.setDate(nxt.getDate() + 1);
-  const nxtLabel = nxt.getDate() === today.getDate() + 1 ? "Tomorrow" : fmt(nxt);
+  const dow = today.getDay(); // 0=Sun 1=Mon … 5=Fri 6=Sat
+  const hour = today.getHours();
+  let d1, d2;
+  if (dow === 0) {          // Sunday
+    d1 = addDays(today, 1); // Mon
+    d2 = addDays(today, 2); // Tue
+  } else if (dow === 5) {   // Friday
+    d1 = addDays(today, 1); // Sat
+    d2 = addDays(today, 3); // Mon
+  } else if (dow === 6) {   // Saturday
+    if (hour < 19) {
+      d1 = today;           // Sat (today)
+      d2 = addDays(today, 2); // Mon
+    } else {
+      d1 = addDays(today, 2); // Mon
+      d2 = addDays(today, 3); // Tue
+    }
+  } else {                  // Mon–Thu
+    d1 = today;
+    d2 = addDays(today, 1);
+  }
+  const d1IsToday = d1.toISOString().slice(0, 10) === today.toISOString().slice(0, 10);
+  const label1 = d1IsToday ? `Today — ${fmt(d1)}` : fmt(d1);
+  const label2 = !d1IsToday && d2.toISOString().slice(0, 10) === addDays(today, 1).toISOString().slice(0, 10)
+    ? `Tomorrow — ${fmt(d2)}` : fmt(d2);
   return [
-    { dateStr: today.toISOString().slice(0, 10), label: `Today — ${fmt(today)}` },
-    { dateStr: nxt.toISOString().slice(0, 10), label: `${nxtLabel} — ${fmt(nxt)}` },
+    { dateStr: d1.toISOString().slice(0, 10), label: label1, isToday: d1IsToday },
+    { dateStr: d2.toISOString().slice(0, 10), label: label2, isToday: false },
   ];
 }
 
@@ -3014,104 +3324,153 @@ function callSlots() {
 }
 
 function escalationCallPanel(ticket) {
-  const isEscalationOwner =
-    (state.role === "team" && activeOwnsTicket(ticket)) ||
-    (state.role === "content" && ticket.claimedBy === current.resolver) ||
-    state.role === "manager" ||
-    (state.role === "faculty" && ticket.facultyAssigned === facultyActorName());
-  if (ticket.status !== "Escalation" || !isEscalationOwner) return "";
+  if (ticket.status !== "Escalation" || !(state.role === "team" && activeOwnsTicket(ticket))) return "";
 
   const phone = ticket.escalationCallNumber || ticket.studentPhone || "+91 98765 43210";
+  const prevResolution = ticket.finalResolutionText || ticket.resolutionText || "";
 
   if (ticket.escalationCallCompleted) {
     return `<section class="drawer-card esc-call-card" data-ticket-id="${ticket.id}">
       <h3>Escalation Call <span class="badge closed">Completed</span></h3>
       <div class="esc-call-summary">
-        <div class="call-detail-row"><span class="call-detail-label">Slot</span><span>${escapeHtml(ticket.escalationCallSlot?.label || "—")}</span></div>
-        <div class="call-detail-row"><span class="call-detail-label">Number</span><span>${escapeHtml(phone)}${ticket.escalationCallNumberChanged ? ` <span class="badge work">Changed &amp; verified</span>` : ""}</span></div>
+        ${ticket.escalationCallSlot ? `<div class="call-detail-row"><span class="call-detail-label">Slot</span><span>${escapeHtml(ticket.escalationCallSlot.label || "—")}</span></div>` : ""}
+        <div class="call-detail-row"><span class="call-detail-label">Number</span><span>${escapeHtml(phone)}</span></div>
       </div>
-      ${ticket.escalationInternalNote ? `<div class="call-internal-note"><strong>Call Notes</strong><p>${escapeHtml(ticket.escalationInternalNote)}</p></div>` : ""}
+      ${ticket.escalationInternalNote ? `<div class="call-internal-note"><strong>Call Resolution</strong><p>${escapeHtml(ticket.escalationInternalNote)}</p></div>` : ""}
+      ${ticket.escalationCallDiff ? `<div class="call-internal-note" style="margin-top:8px"><strong>How it differed from original resolution</strong><p>${escapeHtml(ticket.escalationCallDiff)}</p></div>` : ""}
     </section>`;
   }
 
-  if (ticket.escalationCallScheduledAt) {
-    return `<section class="drawer-card esc-call-card" data-ticket-id="${ticket.id}">
-      <h3>Escalation Call <span class="badge work">Scheduled</span></h3>
-      <div class="esc-call-summary">
-        <div class="call-detail-row"><span class="call-detail-label">Slot</span><span>${escapeHtml(ticket.escalationCallSlot?.label || "—")}</span></div>
-        <div class="call-detail-row"><span class="call-detail-label">Number</span><span>${escapeHtml(phone)}${ticket.escalationCallNumberChanged ? ` <span class="badge work">Changed</span>` : ""}</span></div>
-      </div>
-      <div class="esc-close-form">
-        <label class="engg-escalation-label">Call notes — internal only
-          <textarea id="escalationCallNote" rows="3" placeholder="Summarise what was discussed, commitments made, and next steps…">${escapeHtml(ticket.escalationInternalNote || "")}</textarea>
-        </label>
-        <div class="form-actions">
-          <button class="primary" data-close-escalation-call="${ticket.id}">Mark Call Done &amp; Close Ticket</button>
-        </div>
-      </div>
-    </section>`;
-  }
+  const slotBlock = ticket.escalationCallSlot
+    ? `<div class="call-detail-row"><span class="call-detail-label">Slot booked</span><span>${escapeHtml(ticket.escalationCallSlot.label || "—")}</span></div>`
+    : `<div class="call-detail-row"><span class="call-detail-label">Slot</span><span class="muted">Not scheduled yet — student picks via app</span></div>`;
 
-  const days = getCallDays();
-  const slots = callSlots();
-
-  const dayBtns = days.map(d =>
-    `<button type="button" class="slot-day-btn" data-call-day="${d.dateStr}">${escapeHtml(d.label)}</button>`
-  ).join("");
-
-  const timeBtns = slots.map(s =>
-    `<button type="button" class="slot-time-btn slot-disabled" disabled data-call-time="${s.value}">${escapeHtml(s.label)}</button>`
-  ).join("");
-
-  const phoneSection = ticket.escalationCallNumberOTPVerified
-    ? `<div class="call-phone-row">
-        <span class="call-phone-number">${escapeHtml(phone)}</span>
-        <span class="badge closed">OTP Verified ✓</span>
-      </div>`
-    : `<div class="call-phone-row">
-        <span class="call-phone-number">${escapeHtml(phone)}</span>
-        <button type="button" class="ghost tiny" data-change-call-number="${ticket.id}">Change</button>
-      </div>
-      <div id="otpSection-${ticket.id}" hidden>
-        <div class="otp-input-row">
-          <input class="text-input" id="newCallNumber-${ticket.id}" type="tel" placeholder="+91 98765 43210">
-          <button type="button" class="soft-button" data-send-call-otp="${ticket.id}">Send OTP</button>
-        </div>
-        <div id="otpVerifyRow-${ticket.id}" class="otp-input-row" hidden>
-          <input class="text-input otp-field" id="otpInput-${ticket.id}" type="text" placeholder="Enter OTP" maxlength="6">
-          <button type="button" class="primary" data-verify-call-otp="${ticket.id}">Verify OTP</button>
-        </div>
-      </div>`;
+  const missedBadge = ticket.escalationCallMissed
+    ? `<span class="badge escalated">No Answer${ticket.escalationCallMissedCount > 1 ? ` (${ticket.escalationCallMissedCount}x)` : ""}</span>`
+    : "";
 
   return `<section class="drawer-card esc-call-card" data-ticket-id="${ticket.id}">
-    <h3>Schedule Escalation Call</h3>
-    <p class="muted">Confirm details with the student before booking the slot.</p>
-
-    <div class="call-section">
-      <div class="call-section-head">Student Confirmation</div>
-      <label class="call-confirm-check">
-        <input type="checkbox" id="callConfirmed-${ticket.id}" ${ticket.escalationCallConfirmed ? "checked" : ""}>
-        Student confirmed they want a call back
-      </label>
+    <h3>Escalation Call ${missedBadge}</h3>
+    <p class="muted" style="margin-bottom:10px">Student schedules a slot via the app. Once you've called them, record the resolution below to close the ticket.</p>
+    <div class="esc-call-summary">
+      ${slotBlock}
+      <div class="call-detail-row"><span class="call-detail-label">Number</span><span>${escapeHtml(phone)}</span></div>
     </div>
-
-    <div class="call-section">
-      <div class="call-section-head">Contact Number</div>
-      ${phoneSection}
-    </div>
-
-    <div class="call-section">
-      <div class="call-section-head">Available Slots</div>
-      <p class="muted" style="font-size:12px;margin-bottom:8px">Select a day first, then pick a time.</p>
-      <div class="slot-day-row">${dayBtns}</div>
-      <div class="slot-time-grid">${timeBtns}</div>
-      <p class="slot-selected-summary" id="slotSummary-${ticket.id}" hidden></p>
-    </div>
-
-    <div class="form-actions">
-      <button class="primary" data-schedule-escalation-call="${ticket.id}">Schedule Call</button>
+    <div class="esc-close-form">
+      ${prevResolution ? `<div class="call-internal-note" style="margin-bottom:12px"><strong>Original resolution sent to student</strong><p class="muted" style="margin:4px 0 0;font-size:12px">${escapeHtml(prevResolution)}</p></div>` : ""}
+      <div class="esc-internal-block">
+        <div class="esc-internal-header"><span class="esc-internal-badge">🔒 Internal Only — not shared with student</span></div>
+        <label class="engg-escalation-label">Call Resolution <span class="field-required">*</span>
+          <textarea id="escalationCallNote-${ticket.id}" rows="3" placeholder="Summarise what was discussed and resolved on the call — logged internally only."></textarea>
+        </label>
+        <label class="engg-escalation-label" style="margin-top:10px">How does this differ from the original resolution? <small class="ct-optional">(optional)</small>
+          <textarea id="escalationCallDiff-${ticket.id}" rows="2" placeholder="Note any change in explanation or approach from the original response…"></textarea>
+        </label>
+      </div>
+      <div class="form-actions" style="margin-top:14px">
+        <button class="primary" data-close-escalation-call="${ticket.id}">Mark Call Done &amp; Close Ticket</button>
+        <button class="ghost" data-mark-call-missed="${ticket.id}">Mark as No Answer</button>
+      </div>
     </div>
   </section>`;
+}
+
+function questionDataFor(ticket) {
+  if (ticket.questionData) return ticket.questionData;
+  const bank = MOCK_QUESTIONS[ticket.subject] || MOCK_QUESTIONS["Anatomy"];
+  const idx = (Number(String(ticket.questionId).slice(-2)) || 0) % bank.length;
+  return { ...bank[idx], source: "mock" };
+}
+
+function questionInfoPanel(ticket) {
+  const qd = questionDataFor(ticket);
+  if (!qd) return "";
+  const correctedBadge = ticket.contentCorrected
+    ? `<span class="badge closed" style="font-size:10px;margin-left:6px">Content corrected</span>` : "";
+  return `<section class="drawer-card qi-card">
+    <div class="qi-head">
+      <span class="qi-head-title"><strong>Question Info</strong><small>#${ticket.questionId} · ${escapeHtml(ticket.subject)}${correctedBadge}</small></span>
+    </div>
+    <div class="qi-body">
+      <p class="qi-question-text qi-question-preview">${escapeHtml(qd.q)}</p>
+      <div class="form-actions" style="margin-top:10px">
+        <button class="primary tiny" data-open-question-page="${ticket.id}">View Full Question →</button>
+      </div>
+    </div>
+  </section>`;
+}
+
+function questionPageHtml(ticket) {
+  const qd = questionDataFor(ticket);
+  const canEdit = (state.role === "team" && activeOwnsTicket(ticket) && ticket.status !== "Closed") || state.role === "manager";
+  const correctedBadge = ticket.contentCorrected
+    ? `<span class="badge closed" style="font-size:10px;margin-left:6px">Content corrected</span>` : "";
+  const opts = qd?.opts || {};
+  const optionsHtml = ["A","B","C","D"].map(letter =>
+    `<div class="qi-option${qd?.ans === letter ? " qi-correct" : ""}">
+      <span class="qi-opt-letter">${letter}</span>
+      <span class="qi-opt-text">${escapeHtml(opts[letter] || "—")}</span>
+      ${qd?.ans === letter ? `<span class="qi-opt-check">✓</span>` : ""}
+    </div>`
+  ).join("");
+  return `<div class="drawer-head"><button class="ghost tiny" data-close-question-page="${ticket.id}">← Back to #${ticket.id}</button><button data-close-drawer>x</button></div>
+    <div class="drawer-body">
+      <section>
+        <div class="drawer-title"><h2>Question #${ticket.questionId}</h2>${correctedBadge}</div>
+        <p class="muted">${escapeHtml(ticket.subject)} · Ticket #${ticket.id}</p>
+      </section>
+      <section class="drawer-card qi-card">
+        <div class="qi-body">
+          ${qd ? `<p class="qi-question-text">${escapeHtml(qd.q)}</p>
+          <div class="qi-options">${optionsHtml}</div>
+          <div class="qi-rationale-block">
+            <div class="qi-rationale-label">Rationale / Explanation</div>
+            <p class="qi-rationale-text">${escapeHtml(qd.rat)}</p>
+          </div>
+          ${canEdit ? `<div class="form-actions" style="margin-top:12px"><button class="ghost tiny" data-edit-question-content="${ticket.id}">Edit Question Content</button></div>` : ""}
+          <div class="qi-edit-form" id="qiEditForm-${ticket.id}" hidden>
+            <div class="qi-field"><label class="qi-field-label">Question Text <textarea id="qiQ-${ticket.id}" rows="3" class="text-input" style="width:100%">${escapeHtml(qd.q)}</textarea></label></div>
+            ${["A","B","C","D"].map(l => `<div class="qi-field"><label class="qi-field-label">Option ${l} <input class="text-input" id="qiOpt${l}-${ticket.id}" type="text" value="${escapeHtml(opts[l] || "")}"></label></div>`).join("")}
+            <div class="qi-field"><label class="qi-field-label">Correct Answer
+              <select id="qiAns-${ticket.id}">${["A","B","C","D"].map(l => `<option value="${l}"${qd.ans === l ? " selected" : ""}>${l}</option>`).join("")}</select>
+            </label></div>
+            <div class="qi-field"><label class="qi-field-label">Rationale <textarea id="qiRat-${ticket.id}" rows="4" class="text-input" style="width:100%">${escapeHtml(qd.rat)}</textarea></label></div>
+            <div class="form-actions">
+              <button class="primary" data-save-question-content="${ticket.id}">Save Changes</button>
+              <button class="ghost" data-cancel-question-edit="${ticket.id}">Cancel</button>
+            </div>
+            <p class="muted" style="font-size:11px;margin-top:4px">Saving flags this ticket as content-corrected and logs the change.</p>
+          </div>` : `<p class="muted">No question content available for this ticket.</p>`}
+        </div>
+      </section>
+    </div>`;
+}
+
+function openQuestionPage(id) {
+  const ticket = ticketById(id);
+  if (!ticket) return;
+  stopVoiceTimer();
+  state.questionPageFor = id;
+  el.drawer.innerHTML = questionPageHtml(ticket);
+}
+
+function saveQuestionContent(id) {
+  const ticket = ticketById(id);
+  const q = document.getElementById(`qiQ-${id}`)?.value.trim();
+  const optA = document.getElementById(`qiOptA-${id}`)?.value.trim();
+  const optB = document.getElementById(`qiOptB-${id}`)?.value.trim();
+  const optC = document.getElementById(`qiOptC-${id}`)?.value.trim();
+  const optD = document.getElementById(`qiOptD-${id}`)?.value.trim();
+  const ans = document.getElementById(`qiAns-${id}`)?.value;
+  const rat = document.getElementById(`qiRat-${id}`)?.value.trim();
+  if (!q || !optA || !optB || !optC || !optD || !rat) { toast("Fill in all question fields before saving."); return; }
+  ticket.questionData = { q, opts: { A: optA, B: optB, C: optC, D: optD }, ans, rat };
+  ticket.contentCorrected = true;
+  ticket.contentCorrectedAt = new Date().toISOString();
+  const actor = state.role === "manager" ? current.manager : activeOperatorName();
+  addHistory(ticket, actor, "Corrected question content — question text, options, or rationale updated");
+  toast("Question content saved and marked as corrected.", "success");
+  persistAndRender(id);
 }
 
 function sessionDetailPanel(ticket) {
@@ -3369,6 +3728,7 @@ function openColumnModal() {
 
 function closeDrawer() {
   stopVoiceTimer();
+  state.questionPageFor = null;
   el.drawer.classList.remove("open");
   el.drawer.setAttribute("aria-hidden", "true");
   el.drawerScrim.hidden = true;
@@ -3383,7 +3743,10 @@ function closeModal() {
 function persistAndRender(openId) {
   saveDb();
   render();
-  if (openId) openTicket(openId);
+  if (openId) {
+    if (state.questionPageFor === openId) openQuestionPage(openId);
+    else openTicket(openId);
+  }
 }
 
 function claimTicket(id, assignee = resolverActorName()) {
@@ -3732,140 +4095,12 @@ function createStudentQuery() {
   persistAndRender(ticket.id);
 }
 
-function nextSupportTicketId() {
-  const existing = db.tickets.filter((t) => t.id.startsWith("NS-")).length;
-  return `NS-${String(existing + 1).padStart(4, "0")}`;
-}
 
 function categorySuboptions(category) {
   const combined = [...(FACULTY_ROUTED[category] || []), ...(CONTENT_ROUTED[category] || [])];
   return [...new Set(combined)];
 }
 
-function ctOpt(list, placeholder) {
-  return `<option value="">${placeholder}</option>${list.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join("")}`;
-}
-
-function openCreateTicketModal() {
-  const categories = ["Problem with the Answer", "I Have a Doubt", "Can't See Something", "Problem with this Question", "Others"];
-  const todayStr = new Date().toISOString().split("T")[0];
-  el.modalScrim.hidden = false;
-  el.configModal.setAttribute("open", "");
-  el.configModal.className = "config-modal ct-wide-modal";
-  el.configModal.innerHTML = `
-  <div class="modal-head"><strong>Create Support Ticket</strong><button data-close-modal>✕</button></div>
-  <div class="modal-body">
-    <div class="ct-form">
-      <div class="ct-row-2">
-        <label>Student Name <span class="field-required">*</span>
-          <input class="text-input" id="ctStudentName" type="text" placeholder="Student's full name...">
-        </label>
-        <label>Category <span class="field-required">*</span>
-          <select id="ctCategory">
-            ${ctOpt(categories, "Choose category...")}
-          </select>
-        </label>
-      </div>
-
-      <div class="ct-source-block">
-        <span class="ct-field-label">Source <span class="field-required">*</span></span>
-        <div class="ct-toggle-group">
-          <button type="button" class="ct-toggle-btn" data-ct-source="QBank">QBank</button>
-          <button type="button" class="ct-toggle-btn" data-ct-source="Test">Tests</button>
-        </div>
-      </div>
-
-      <div id="ctQBankSection" class="ct-conditional" hidden>
-        <div class="ct-row-2">
-          <label>Subject <span class="field-required">*</span>
-            <select id="ctSubject">${ctOpt(CT_DATA.subjects, "Select subject...")}</select>
-          </label>
-          <label>Chapter <span class="field-required">*</span>
-            <select id="ctChapter" disabled><option value="">Select subject first...</option></select>
-          </label>
-        </div>
-        <div class="ct-row-2">
-          <label>Topic <span class="field-required">*</span>
-            <select id="ctTopic" disabled><option value="">Select chapter first...</option></select>
-          </label>
-          <label>Test Name <span class="field-required">*</span>
-            <select id="ctQBankTest">${ctOpt(CT_DATA.qbankTests, "Select test set...")}</select>
-          </label>
-        </div>
-        <div class="ct-row-half">
-          <label>Question Number <span class="field-required">*</span>
-            <input class="text-input" id="ctQBankQNum" type="number" min="1" max="99999" placeholder="e.g. 47">
-          </label>
-        </div>
-      </div>
-
-      <div id="ctTestSection" class="ct-conditional" hidden>
-        <label>Test Type <span class="field-required">*</span>
-          <select id="ctTestType">
-            <option value="">Select test type...</option>
-            <option value="live">Live Test</option>
-            <option value="pyq">PYQ Test</option>
-            <option value="subject">Subject Test</option>
-            <option value="mini">Mini Test</option>
-            <option value="daily">Daily Test</option>
-          </select>
-        </label>
-        <div id="ctTestTypeFields"></div>
-      </div>
-
-      <label>Student Query <span class="field-required">*</span>
-        <textarea id="ctQueryText" rows="3" placeholder="Describe the student's doubt or issue as shared via WhatsApp or call..."></textarea>
-      </label>
-
-      <div class="ct-source-block">
-        <span class="ct-field-label">Raised On <span class="field-required">*</span></span>
-        <div class="ct-toggle-group">
-          <button type="button" class="ct-toggle-btn active" data-ct-raised="today">Today</button>
-          <button type="button" class="ct-toggle-btn" data-ct-raised="custom">Pick a Date</button>
-        </div>
-        <input class="date-input ct-date-picker" id="ctRaisedDate" type="date" max="${todayStr}" value="${todayStr}" hidden>
-      </div>
-
-      <label>Internal Remarks <small class="ct-optional">(optional)</small>
-        <input class="text-input" id="ctRemarks" type="text" placeholder="Context for the resolver team — not shown to the student...">
-      </label>
-
-      <div class="form-actions">
-        <button class="primary" data-submit-new-ticket>Create Ticket</button>
-        <button class="ghost" data-close-modal>Cancel</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function updateCtTestTypeFields(testType) {
-  const container = document.querySelector("#ctTestTypeFields");
-  if (!container) return;
-  if (testType === "live") {
-    container.innerHTML = `<div class="ct-row-2">
-      <label>Test Name <span class="field-required">*</span><select id="ctSpecificTestName">${ctOpt(CT_DATA.liveTests, "Select live test...")}</select></label>
-      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 23"></label>
-    </div>`;
-  } else if (testType === "pyq") {
-    container.innerHTML = `<div class="ct-row-2">
-      <label>Test Name <span class="field-required">*</span><select id="ctSpecificTestName">${ctOpt(CT_DATA.pyqTests, "Select PYQ paper...")}</select></label>
-      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 88"></label>
-    </div>`;
-  } else if (testType === "subject") {
-    container.innerHTML = `<div class="ct-row-2">
-      <label>Test Name <span class="field-required">*</span><select id="ctSpecificTestName">${ctOpt(CT_DATA.subjectTests, "Select subject test...")}</select></label>
-      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 15"></label>
-    </div>`;
-  } else if (testType === "mini" || testType === "daily") {
-    const label = testType === "mini" ? "Mini Test" : "Daily Test";
-    container.innerHTML = `<div class="ct-row-2">
-      <label>Test Date <span class="field-required">*</span><input class="date-input" id="ctTestDate" type="date" max="${new Date().toISOString().split("T")[0]}"></label>
-      <label>Question Number <span class="field-required">*</span><input class="text-input" id="ctTestQNum" type="number" min="1" placeholder="e.g. 5"></label>
-    </div>`;
-  } else {
-    container.innerHTML = "";
-  }
-}
 
 function openGoalsModal() {
   const rows = allAssignees().map(p => {
@@ -3944,101 +4179,6 @@ function bulkAssignTickets() {
   toast(`${count} ticket${count === 1 ? "" : "s"} assigned to ${assignee}.`, "success");
 }
 
-function autoRouteByQuestionId(ticket) {
-  if (!ticket.questionId) return false;
-  const prior = db.tickets
-    .filter(t => t.questionId === ticket.questionId && t.id !== ticket.id && (t.facultyAssigned || t.claimedBy))
-    .sort((a, b) => new Date(b.raisedAt) - new Date(a.raisedAt));
-  if (!prior.length) return false;
-  const assignee = prior[0].facultyAssigned || prior[0].claimedBy;
-  const person = allAssignees().find(p => p.name === assignee);
-  if (!person) return false;
-  ticket.facultyAssigned = assignee;
-  ticket.status = "Working on";
-  ticket.timelineStatus = "being_worked_on";
-  ticket.facultyAssignedAt = new Date().toISOString();
-  addHistory(ticket, "SYSTEM", `Auto-routed to ${assignee} — handled question #${ticket.questionId} before`);
-  return true;
-}
-
-function submitNewTicket() {
-  const studentName = document.querySelector("#ctStudentName")?.value.trim() || "";
-  const category = document.querySelector("#ctCategory")?.value || "";
-  const queryText = document.querySelector("#ctQueryText")?.value.trim() || "";
-  const remarks = document.querySelector("#ctRemarks")?.value.trim() || "";
-  if (!studentName) { toast("Student name is required."); return; }
-  if (!category) { toast("Choose a category."); return; }
-  if (!queryText || queryText.length < 10) { toast("Student Query needs at least 10 characters."); return; }
-
-  const activeSource = document.querySelector("[data-ct-source].active")?.dataset.ctSource;
-  if (!activeSource) { toast("Select a source — QBank or Tests."); return; }
-
-  let subject = "", topic = "", questionId = 0, subOption = "General support query", sourceLabel = activeSource;
-
-  if (activeSource === "QBank") {
-    subject = document.querySelector("#ctSubject")?.value || "";
-    const chapter = document.querySelector("#ctChapter")?.value || "";
-    topic = document.querySelector("#ctTopic")?.value || "";
-    const testName = document.querySelector("#ctQBankTest")?.value || "";
-    const qNum = Number(document.querySelector("#ctQBankQNum")?.value || 0);
-    if (!subject || !chapter || !topic) { toast("Select Subject, Chapter, and Topic for QBank."); return; }
-    if (!testName) { toast("Select a QBank Test Name."); return; }
-    if (!qNum) { toast("Enter a Question Number."); return; }
-    questionId = qNum;
-    subOption = chapter;
-    sourceLabel = `QBank · ${testName}`;
-  } else {
-    const testType = document.querySelector("#ctTestType")?.value || "";
-    if (!testType) { toast("Select a test type."); return; }
-    if (testType === "live" || testType === "pyq" || testType === "subject") {
-      const testName = document.querySelector("#ctSpecificTestName")?.value || "";
-      const qNum = Number(document.querySelector("#ctTestQNum")?.value || 0);
-      if (!testName) { toast("Select a Test Name."); return; }
-      if (!qNum) { toast("Enter a Question Number."); return; }
-      questionId = qNum;
-      subOption = testName;
-      const typeLabel = testType === "live" ? "Live Test" : testType === "pyq" ? "PYQ Test" : "Subject Test";
-      sourceLabel = `${typeLabel} · ${testName}`;
-    } else {
-      const testDate = document.querySelector("#ctTestDate")?.value || "";
-      const qNum = Number(document.querySelector("#ctTestQNum")?.value || 0);
-      if (!testDate) { toast("Select the test date."); return; }
-      if (!qNum) { toast("Enter a Question Number."); return; }
-      questionId = qNum;
-      const typeLabel = testType === "mini" ? "Mini Test" : "Daily Test";
-      subOption = `${typeLabel} · ${testDate}`;
-      sourceLabel = subOption;
-    }
-  }
-
-  const raisedCustom = document.querySelector("[data-ct-raised].active")?.dataset.ctRaised === "custom";
-  let raisedAt = new Date().toISOString();
-  if (raisedCustom) {
-    const customDate = document.querySelector("#ctRaisedDate")?.value;
-    if (!customDate) { toast("Pick a date for 'Raised On'."); return; }
-    raisedAt = new Date(customDate + "T12:00:00").toISOString();
-  }
-
-  const id = nextSupportTicketId();
-  const ticket = createTicket({
-    id, questionId, student: studentName, category,
-    subOption, queryText, studentDoubt: queryText,
-    ageHours: 0, status: "Unclaimed", timelineStatus: "raised",
-    source: sourceLabel, subject, topic, raisedAt,
-  });
-  if (remarks) ticket.internalNotes = [{ author: current.manager, text: remarks, at: new Date().toISOString() }];
-  ticket.history.unshift(eventLine(current.manager, "Ticket created by support team from WhatsApp/call"));
-  db.tickets.unshift(ticket);
-  const wasAutoRouted = autoRouteByQuestionId(ticket);
-  pushNotification("Support", `Support ticket created: #${id} — ${studentName}`, id);
-  closeModal();
-  persistAndRender(id);
-  if (wasAutoRouted) {
-    toast(`Ticket #${id} auto-routed to ${ticket.facultyAssigned} (question #${ticket.questionId} history).`, "success");
-  } else {
-    toast(`Ticket #${id} created — no question history found. Assign it from the manager view.`, "success");
-  }
-}
 
 function statusCell(ticket, options = {}) {
   const showEngineering = options.showEngineering !== false;
@@ -4301,20 +4441,6 @@ document.addEventListener("change", (event) => {
     return;
   }
   if (event.target?.id === "profileSwitcher") openProfile(event.target.value);
-  const tid = event.target?.id;
-  if (tid === "ctSubject") {
-    const chapters = CT_DATA.chapters[event.target.value] || [];
-    const chSel = document.querySelector("#ctChapter");
-    const tpSel = document.querySelector("#ctTopic");
-    if (chSel) { chSel.innerHTML = ctOpt(chapters, "Select chapter..."); chSel.disabled = !chapters.length; }
-    if (tpSel) { tpSel.innerHTML = `<option value="">Select chapter first...</option>`; tpSel.disabled = true; }
-  }
-  if (tid === "ctChapter") {
-    const topics = CT_DATA.topics[event.target.value] || [];
-    const tpSel = document.querySelector("#ctTopic");
-    if (tpSel) { tpSel.innerHTML = ctOpt(topics, "Select topic..."); tpSel.disabled = !topics.length; }
-  }
-  if (tid === "ctTestType") updateCtTestTypeFields(event.target.value);
 });
 
 document.addEventListener("click", (event) => {
@@ -4325,6 +4451,52 @@ document.addEventListener("click", (event) => {
     const icon = card?.querySelector(".session-toggle-icon");
     if (body) body.hidden = !body.hidden;
     if (icon) icon.textContent = body?.hidden ? "+" : "−";
+    return;
+  }
+  if (target.closest("[data-toggle-question-info]")) {
+    const card = target.closest(".qi-card");
+    const body = card?.querySelector(".qi-body");
+    const icon = card?.querySelector(".qi-toggle-icon");
+    const isHidden = body?.style.display === "none";
+    if (body) body.style.display = isHidden ? "" : "none";
+    if (icon) icon.textContent = isHidden ? "−" : "+";
+    return;
+  }
+  if (target.closest("[data-edit-question-content]")) {
+    const id = target.closest("[data-edit-question-content]").dataset.editQuestionContent;
+    const card = target.closest(".qi-card");
+    const body = card?.querySelector(".qi-body");
+    const form = document.getElementById(`qiEditForm-${id}`);
+    if (body) body.hidden = false;
+    const icon = card?.querySelector(".qi-toggle-icon");
+    if (icon) icon.textContent = "−";
+    if (form) form.hidden = false;
+    target.closest(".form-actions").hidden = true;
+    return;
+  }
+  if (target.closest("[data-cancel-question-edit]")) {
+    const id = target.closest("[data-cancel-question-edit]").dataset.cancelQuestionEdit;
+    const form = document.getElementById(`qiEditForm-${id}`);
+    if (form) form.hidden = true;
+    const editBtn = form?.closest(".qi-body")?.querySelector(".form-actions[hidden]");
+    if (editBtn) editBtn.hidden = false;
+    return;
+  }
+  if (target.closest("[data-save-question-content]")) {
+    const id = target.closest("[data-save-question-content]").dataset.saveQuestionContent;
+    saveQuestionContent(id);
+    return;
+  }
+  if (target.closest("[data-send-whatsapp]")) {
+    sendResolutionViaWhatsApp(target.closest("[data-send-whatsapp]").dataset.sendWhatsapp);
+    return;
+  }
+  if (target.closest("[data-open-question-page]")) {
+    openQuestionPage(target.closest("[data-open-question-page]").dataset.openQuestionPage);
+    return;
+  }
+  if (target.closest("[data-close-question-page]")) {
+    openTicket(target.closest("[data-close-question-page]").dataset.closeQuestionPage);
     return;
   }
   const open = target.closest("[data-open]");
@@ -4401,13 +4573,15 @@ document.addEventListener("click", (event) => {
     if (!num || num.replace(/\D/g, "").length < 10) { toast("Enter a valid 10-digit mobile number."); return; }
     const row = document.getElementById(`otpVerifyRow-${id}`);
     if (row) row.hidden = false;
-    toast(`OTP sent to ${num} (mock — accept any 4+ digits)`);
+    const hint = document.getElementById(`otpHint-${id}`);
+    if (hint) hint.hidden = false;
+    toast(`OTP sent to ${num}`);
     return;
   }
   if (target.closest("[data-verify-call-otp]")) {
     const id = target.closest("[data-verify-call-otp]").dataset.verifyCallOtp;
     const otp = document.getElementById(`otpInput-${id}`)?.value.trim();
-    if (!otp || otp.replace(/\D/g, "").length < 4) { toast("Enter the OTP (4+ digits)."); return; }
+    if (!otp || otp.replace(/\D/g, "").length < 4) { toast("Enter the 4-digit OTP. Demo OTP is 0000."); return; }
     const num = document.getElementById(`newCallNumber-${id}`)?.value.trim();
     const ticket = ticketById(id);
     ticket.escalationCallNumber = num;
@@ -4420,13 +4594,21 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (target.closest("[data-call-day]")) {
+    const btn = target.closest("[data-call-day]");
     const card = target.closest(".esc-call-card");
     if (!card) return;
     card.querySelectorAll("[data-call-day]").forEach(b => b.classList.remove("slot-active"));
-    target.closest("[data-call-day]").classList.add("slot-active");
+    btn.classList.add("slot-active");
+    const selectedDate = btn.dataset.callDay;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const selIsToday = selectedDate === todayStr;
+    const currentHour = new Date().getHours();
     card.querySelectorAll("[data-call-time]").forEach(b => {
-      b.disabled = false;
-      b.classList.remove("slot-active", "slot-disabled");
+      const slotHour = parseInt(b.dataset.callTime.split(":")[0], 10);
+      const isPast = selIsToday && slotHour <= currentHour;
+      b.disabled = isPast;
+      b.classList.toggle("slot-disabled", isPast);
+      b.classList.remove("slot-active");
     });
     const summary = card.querySelector(".slot-selected-summary");
     if (summary) { summary.hidden = true; summary.textContent = ""; }
@@ -4471,6 +4653,7 @@ document.addEventListener("click", (event) => {
       label: `${dayInfo?.label || activeDayBtn.dataset.callDay} · ${slotInfo?.label || activeTimeBtn.dataset.callTime}`,
     };
     ticket.escalationCallScheduledAt = new Date().toISOString();
+    ticket.escalationCallMissed = false;
     const actor = state.role === "manager" ? current.manager : activeOperatorName();
     addHistory(ticket, actor, `Escalation call scheduled: ${ticket.escalationCallSlot.label}`);
     pushNotification("General", `Call scheduled for #${id}: ${ticket.escalationCallSlot.label}`, id);
@@ -4480,12 +4663,14 @@ document.addEventListener("click", (event) => {
   }
   if (target.closest("[data-close-escalation-call]")) {
     const id = target.closest("[data-close-escalation-call]").dataset.closeEscalationCall;
-    const note = document.getElementById("escalationCallNote")?.value.trim() || "";
-    if (note.length < 10) { toast("Add call notes (min 10 characters) before closing."); return; }
+    const note = document.getElementById(`escalationCallNote-${id}`)?.value.trim() || "";
+    const diff = document.getElementById(`escalationCallDiff-${id}`)?.value.trim() || "";
+    if (note.length < 10) { toast("Add the call resolution (min 10 characters) before closing."); return; }
     const ticket = ticketById(id);
-    const actor = state.role === "manager" ? current.manager : activeOperatorName();
+    const actor = activeOperatorName();
     ticket.escalationCallCompleted = true;
     ticket.escalationInternalNote = note;
+    ticket.escalationCallDiff = diff;
     ticket.escalationResolved = true;
     ticket.escalationResolvedAt = new Date().toISOString();
     ticket.feedbackType = "escalation_resolved";
@@ -4493,10 +4678,24 @@ document.addEventListener("click", (event) => {
     ticket.status = "Closed";
     ticket.timelineStatus = "resolved";
     ticket.resolvedAt = new Date().toISOString();
-    ticket.internalNotes.unshift({ author: actor, text: `[Escalation Call] ${note}`, at: new Date().toISOString() });
-    addHistory(ticket, actor, "Escalation call completed — ticket closed");
+    ticket.internalNotes.unshift({ author: actor, text: `[Call Resolution] ${note}${diff ? `\n[Differs from original: ${diff}]` : ""}`, at: new Date().toISOString() });
+    addHistory(ticket, actor, "Escalation call completed — resolution recorded and ticket closed");
     pushNotification("General", `Escalation resolved: #${id}`, id);
     toast("Escalation closed and ticket marked resolved.", "success");
+    persistAndRender(id);
+    return;
+  }
+  if (target.closest("[data-mark-call-missed]")) {
+    const id = target.closest("[data-mark-call-missed]").dataset.markCallMissed;
+    const ticket = ticketById(id);
+    const actor = activeOperatorName();
+    ticket.escalationCallMissed = true;
+    ticket.escalationCallMissedCount = (ticket.escalationCallMissedCount || 0) + 1;
+    ticket.escalationCallSlot = null;
+    ticket.escalationCallScheduledAt = null;
+    addHistory(ticket, actor, "No answer on scheduled call — awaiting student reschedule");
+    pushNotification("General", `No answer on call: #${id} - awaiting reschedule`, id);
+    toast("Marked as no answer. Student can rebook a slot.", "success");
     persistAndRender(id);
     return;
   }
@@ -4549,8 +4748,6 @@ document.addEventListener("click", (event) => {
     openProfile(assignee);
   }
   if (target.closest("[data-export-all-csv]")) { exportAllCsv(); return; }
-  if (target.closest("[data-create-ticket-modal]")) { openCreateTicketModal(); return; }
-  if (target.closest("[data-submit-new-ticket]")) { submitNewTicket(); return; }
   if (target.closest("[data-open-goals-modal]")) { openGoalsModal(); return; }
   if (target.closest("[data-save-goals]")) { saveGoals(); return; }
   if (target.closest("[data-bulk-assign]")) { bulkAssignTickets(); return; }

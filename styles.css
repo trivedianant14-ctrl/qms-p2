@@ -2359,3 +2359,102 @@ button.danger-ghost:hover { background: rgba(192,57,43,.07); }
 .call-internal-note p { font-size: 13px; line-height: 1.55; margin: 0; white-space: pre-wrap; }
 .esc-close-form { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
 .esc-close-form textarea { width: 100%; min-height: 80px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px; font-size: 13px; resize: vertical; line-height: 1.5; }
+.esc-internal-block { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; }
+.esc-internal-header { margin-bottom: 2px; }
+.esc-internal-badge { font-size: 11px; font-weight: 700; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 20px; padding: 3px 10px; display: inline-block; }
+.esc-internal-block textarea { background: #fff; }
+
+/* === Full-width report card === */
+.chart-card.chart-full { grid-column: span 3; }
+
+/* === Query Frequency Table === */
+.qfreq-list { display: grid; gap: 12px; }
+.qfreq-cat { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.qfreq-cat-head { display: grid; grid-template-columns: 36px minmax(0, 1fr) 140px 90px 46px; gap: 10px; align-items: center; padding: 10px 14px; background: var(--surface); }
+.qfreq-rank { font-size: 13px; font-weight: 800; color: var(--muted); text-align: center; }
+.qfreq-cat-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qfreq-cat-bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.qfreq-cat-bar span { display: block; height: 100%; background: var(--blue); border-radius: 4px; transition: width 0.4s; }
+.qfreq-cat-count { font-size: 13px; font-weight: 700; text-align: right; color: var(--ink); }
+.qfreq-cat-pct { font-size: 12px; text-align: right; }
+.qfreq-subs { display: grid; gap: 0; padding: 6px 14px 10px 50px; border-top: 1px solid var(--line); }
+.qfreq-sub { display: grid; grid-template-columns: minmax(0, 1fr) 100px 40px 40px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.qfreq-sub:last-child { border-bottom: none; }
+.qfreq-sub-name { font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qfreq-sub-track { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.qfreq-sub-track span { display: block; height: 100%; background: var(--blue); opacity: 0.45; border-radius: 3px; transition: width 0.4s; }
+.qfreq-sub-num { font-size: 12px; font-weight: 600; text-align: right; color: var(--ink); }
+.qfreq-sub-pct { font-size: 11px; text-align: right; }
+
+/* === Agent Performance Table === */
+.perf-wrap { overflow-x: auto; }
+.perf-head,
+.perf-row { display: grid; grid-template-columns: minmax(180px, 1.4fr) 72px 72px 60px 76px 62px 96px 100px; gap: 8px; align-items: center; min-width: 700px; }
+.perf-head { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0 4px 10px; border-bottom: 2px solid var(--line); margin-bottom: 2px; }
+.perf-head span:not(:first-child) { text-align: center; }
+.perf-row { padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.perf-row:last-child { border-bottom: none; }
+.perf-agent { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.perf-agent > div { min-width: 0; }
+.perf-agent strong { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.perf-agent p { margin: 1px 0 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.perf-num { font-size: 13px; font-weight: 600; text-align: center; }
+.perf-good { color: #059669; }
+.perf-bad { color: var(--red); }
+.perf-warn { color: #d97706; }
+
+/* === Question Info Panel === */
+.qi-card { padding: 0; overflow: visible; }
+.qi-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; cursor: pointer; user-select: none; background: #eef2ff; border-radius: 8px 8px 0 0; border-bottom: 2px solid #6366f1; transition: background 0.15s; }
+.qi-head:hover { background: #e0e7ff; }
+.qi-head strong { font-size: 14px; color: #4338ca; }
+.qi-head-title { display: flex; flex-direction: column; gap: 2px; }
+.qi-head-title strong { font-size: 14px; }
+.qi-head-title small { font-size: 11px; color: var(--muted); }
+.qi-toggle-icon { font-size: 18px; font-weight: 300; color: #6366f1; flex-shrink: 0; }
+.qi-body { padding: 14px 16px 16px; display: grid; gap: 14px; }
+.qi-question-text { font-size: 13px; line-height: 1.6; color: var(--ink); margin: 0; font-weight: 500; }
+.qi-options { display: grid; gap: 7px; }
+.qi-option { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: 13px; }
+.qi-option.qi-correct { border-color: #059669; background: #f0fdf4; }
+.qi-opt-letter { font-weight: 800; font-size: 12px; width: 16px; flex-shrink: 0; color: var(--muted); }
+.qi-correct .qi-opt-letter { color: #059669; }
+.qi-opt-text { flex: 1; line-height: 1.4; }
+.qi-opt-check { font-size: 11px; font-weight: 700; color: #059669; flex-shrink: 0; white-space: nowrap; }
+.qi-rationale-block { padding: 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--line); }
+.qi-rationale-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 6px; }
+.qi-rationale-text { font-size: 13px; line-height: 1.6; color: var(--ink); margin: 0; }
+.qi-edit-form { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.qi-field { display: grid; gap: 4px; }
+.qi-field-label { font-size: 12px; font-weight: 600; color: var(--muted); display: grid; gap: 4px; }
+.qi-field .text-input { font-size: 13px; }
+
+/* === Resolution Time cell === */
+.res-time-cell { font-size: 12px; font-weight: 700; color: var(--ink); }
+
+/* === Student Feedback Section === */
+.fb-section { display: grid; gap: 20px; }
+.fb-summary { display: grid; grid-template-columns: 180px 1fr; gap: 20px; align-items: start; }
+.fb-avg { display: flex; align-items: center; gap: 14px; padding: 20px; background: var(--surface); border-radius: 10px; border: 1px solid var(--line); }
+.fb-avg-num { font-size: 52px; font-weight: 900; color: var(--blue); line-height: 1; }
+.fb-avg strong { font-size: 14px; }
+.fb-avg p { margin: 2px 0 0; font-size: 12px; }
+.fb-breakdown { display: grid; gap: 10px; }
+.fb-type-row { display: grid; grid-template-columns: 210px 1fr 44px 72px; gap: 10px; align-items: center; }
+.fb-type-label { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fb-type-bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.fb-type-bar span { display: block; height: 100%; border-radius: 4px; transition: width 0.4s; }
+.fb-type-count { font-size: 13px; font-weight: 700; text-align: right; }
+.fb-type-score { font-size: 12px; font-weight: 600; text-align: right; white-space: nowrap; }
+.fb-recent { border-top: 1px solid var(--line); padding-top: 16px; }
+.fb-recent-head { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 8px; }
+.fb-recent-row { display: grid; grid-template-columns: 28px 76px minmax(0,1fr) minmax(0,1fr) 50px; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.fb-recent-row:last-child { border-bottom: none; }
+.fb-recent-icon { font-size: 15px; text-align: center; }
+.fb-recent-id { font-weight: 700; color: var(--blue); font-size: 12px; }
+.fb-recent-student { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fb-recent-cat { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; }
+@media (max-width: 800px) {
+  .fb-summary { grid-template-columns: 1fr; }
+  .fb-type-row { grid-template-columns: 160px 1fr 36px 60px; }
+}
