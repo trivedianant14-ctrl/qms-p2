@@ -1,22 +1,27 @@
+/* NPrep brand system — navy primaries, cyan pulse accent, Poppins.
+   Matches the NPrep Sarthi console and the student app's sampled palette. */
 :root {
-  --bg: #f7f8fb;
+  --bg: #f5f7fc;
   --surface: #ffffff;
   --surface-2: #fbfcfe;
-  --ink: #1f2937;
+  --ink: #16181d;
   --muted: #667085;
   --soft: #98a2b3;
-  --line: #e4e7ec;
+  --line: #e7eaf2;
   --line-strong: #d0d5dd;
-  --blue: #0875be;
-  --blue-soft: #e7f2fb;
+  --navy: #131b63;
+  --navy-2: #0e1450;
+  --cyan: #15cae8;
+  --blue: #131b63;
+  --blue-soft: #f1f4ff;
   --green: #079455;
   --green-soft: #dcfae6;
   --amber: #d98b12;
   --amber-soft: #fff3d7;
   --red: #d92d20;
   --red-soft: #fee4e2;
-  --purple: #6941c6;
-  --purple-soft: #ede9fe;
+  --purple: #131b63;
+  --purple-soft: #f1f4ff;
   --shadow: 0 18px 48px rgba(16, 24, 40, 0.14);
 }
 
@@ -33,7 +38,7 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background: var(--bg);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Poppins, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   overflow-x: hidden;
 }
 
@@ -50,77 +55,134 @@ button {
 
 .qms-shell {
   min-height: 100vh;
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
 }
 
-.rail {
-  display: none;
+/* ── Side rail — navy console navigation ───────────────────────────────── */
+.side-rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--navy) 0%, var(--navy-2) 100%);
+  padding: 18px 14px;
 }
 
-.logo {
-  width: 34px;
-  height: 34px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 6px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
+  background: #ffffff;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.brand-name strong {
+  display: block;
   color: #ffffff;
-  background: var(--blue);
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
-.rail-button {
-  width: 34px;
-  height: 34px;
+.brand-name em {
+  font-style: normal;
+  color: var(--cyan);
+}
+
+.brand-name span {
+  display: block;
+  margin-top: 2px;
+  color: #8f97c9;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+  flex: 1;
+}
+
+.rail-nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
-  color: var(--muted);
-  font-weight: 800;
+  color: #a9b0d6;
+  padding: 11px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
 }
 
-.rail-button.active,
-.rail-button:hover {
-  background: var(--blue-soft);
-  color: var(--blue);
+.rail-nav button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.rail-nav button.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+.rail-foot {
+  padding: 14px 6px 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: #6d75ab;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
 }
 
 .workspace {
   min-width: 0;
 }
 
+/* ── Top bar — white with user cluster, cyan pulse ticker ──────────────── */
 .app-header {
   height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 18px;
+  padding: 0 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 
-.product-nav {
+.ticker {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  overflow-x: auto;
-}
-
-.product-nav button {
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--ink);
-  padding: 16px 10px 14px;
+  color: var(--navy);
+  font-size: 12.5px;
+  font-weight: 600;
   white-space: nowrap;
-  font-size: 13px;
+  overflow: hidden;
 }
 
-.product-nav button.active {
-  color: var(--blue);
-  border-bottom-color: var(--blue);
-  background: #f4f9fd;
+.ticker svg {
+  flex-shrink: 0;
 }
 
 .user-cluster {
@@ -168,6 +230,9 @@ p {
 h1 {
   font-size: 24px;
   line-height: 1.2;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.02em;
 }
 
 .role-toggle,
@@ -215,17 +280,19 @@ h1 {
 .drawer-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 .stat-card {
-  padding: 13px 14px;
+  padding: 14px 16px;
 }
 
 .stat-card strong {
   display: block;
-  margin-top: 5px;
-  font-size: 24px;
+  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .stat-card span:last-child {
@@ -246,6 +313,24 @@ h1 {
 
 .stat-card.amber strong {
   color: var(--amber);
+}
+
+/* Hero card — the first metric anchors the row, like the app's home hero */
+.stats-row .stat-card:first-child {
+  background: linear-gradient(150deg, var(--navy) 0%, var(--navy-2) 100%);
+  border-color: var(--navy);
+}
+
+.stats-row .stat-card:first-child .label {
+  color: #a9b0d6;
+}
+
+.stats-row .stat-card:first-child strong {
+  color: #ffffff;
+}
+
+.stats-row .stat-card:first-child span:last-child {
+  color: #8f97c9;
 }
 
 .toolbar {
@@ -408,11 +493,17 @@ textarea {
 
 .ticket-tabs .count {
   margin-left: 6px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
-  background: #f04438;
-  color: #ffffff;
+  background: rgba(19, 27, 99, 0.1);
+  color: var(--navy);
   font-size: 10px;
+  font-weight: 700;
+}
+
+.ticket-tabs button.active .count {
+  background: var(--navy);
+  color: #ffffff;
 }
 
 .main-grid {
@@ -2136,12 +2227,50 @@ tbody tr:focus-within {
   }
 }
 
+@media (max-width: 960px) {
+  .qms-shell {
+    display: block;
+  }
+
+  .side-rail {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
+  }
+
+  .brand {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .brand-name span {
+    display: none;
+  }
+
+  .rail-nav {
+    flex-direction: row;
+    padding-top: 0;
+    justify-content: flex-end;
+  }
+
+  .rail-nav button {
+    padding: 8px 12px;
+  }
+
+  .rail-foot {
+    display: none;
+  }
+}
+
 @media (max-width: 760px) {
   .qms-shell {
     min-height: 100vh;
   }
 
-  .rail {
+  .ticker {
     display: none;
   }
 
@@ -2288,10 +2417,10 @@ button.danger-ghost:hover { background: rgba(192,57,43,.07); }
 .fn-pct { font-size: 11px; color: var(--muted); }
 
 /* Funnel fill colours */
-.fn-blue   { background: #2563eb; }
-.fn-purple { background: #7c3aed; opacity: .9; }
+.fn-blue   { background: #131b63; }
+.fn-purple { background: #15cae8; opacity: .9; }
 .fn-amber  { background: #d97706; }
-.fn-indigo { background: #4f46e5; }
+.fn-indigo { background: #008dff; }
 .fn-teal   { background: #0891b2; }
 .fn-green  { background: #059669; }
 

@@ -265,6 +265,7 @@ let columnResize = null;
 const el = {
   activeUser: document.querySelector("#activeUser"),
   productNav: document.querySelector("#productNav"),
+  tickerText: document.querySelector("#tickerText"),
   pageTitle: document.querySelector(".page-head h1"),
   roleToggle: document.querySelector("#roleToggle"),
   profileSelect: document.querySelector("#profileViewSelect"),
@@ -1680,7 +1681,15 @@ function renderProfileSelect() {
   el.profileSelect.innerHTML = options.map((person) => `<option value="${person.name}" ${person.name === activeName ? "selected" : ""}>${person.name} - ${person.role}</option>`).join("");
 }
 
+function renderTicker() {
+  if (!el.tickerText) return;
+  const openCount = db.tickets.filter((ticket) => ticket.status !== "Closed").length;
+  const resolvers = allOperators().length;
+  el.tickerText.textContent = `All systems live · ${openCount} open tickets · ${resolvers} resolvers on shift`;
+}
+
 function renderStats() {
+  renderTicker();
   if (state.section === "report") {
     renderReportStats();
     return;
@@ -2510,7 +2519,7 @@ function drawLineChart(canvas, points, options = {}) {
     y: bottom - ((bottom - top) * point.value) / max,
     ...point,
   }));
-  ctx.strokeStyle = "#0875be";
+  ctx.strokeStyle = "#008dff";
   ctx.lineWidth = 3;
   ctx.beginPath();
   coords.forEach((point, index) => {
@@ -2572,7 +2581,7 @@ function productSignalItems(rows) {
 }
 
 function chartColor(index) {
-  return ["#0875be", "#079455", "#d98b12", "#6941c6", "#d92d20", "#475467", "#0e9384", "#dd2590"][index % 8];
+  return ["#008dff", "#079455", "#d98b12", "#131b63", "#d92d20", "#475467", "#15cae8", "#dd2590"][index % 8];
 }
 
 function truncate(text, length) {
