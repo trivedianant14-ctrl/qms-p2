@@ -250,7 +250,7 @@ const state = {
   selectedId: "NP-00003",
   sortKey: "raisedAt",
   sortDir: "desc",
-  visibleColumns: ["id", "raisedAt", "category", "subject", "subOption", "questionId", "source", "sla"],
+  visibleColumns: ["id", "raisedAt", "status", "category", "subject", "subOption", "questionId", "source", "sla"],
   managerFilter: null,
   resolverSort: { key: "avgScore", dir: "desc" },
   columnWidths: loadColumnWidths(),
@@ -868,6 +868,40 @@ function seedDb() {
       studentDoubt: "Looks like a character encoding issue. The option text is garbled completely.", priority: "High", ageHours: 2.5,
       status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
       subject: "Pediatrics", topic: "GI Disorders" }),
+
+    // Unclaimed demo tickets for walking the team through the assignment flow. Aged just past 4h so
+    // they show up under the Admin view's "unclaimed" fire alert (a Resolver's own view can never
+    // see unclaimed tickets — there's no live "pull from pool" path, only auto-routing or an Admin
+    // assigning them), and still comfortably under the 24h auto-assignment fallback.
+    createTicket({ id: "NP-00037", questionId: 90001, student: "Riya Sharma", category: "Problem with the Answer", subOption: "The answer shown is wrong",
+      queryText: "The answer key marks option A, but the explanation itself argues for option C.",
+      studentDoubt: "I read the rationale twice — it clearly supports C, but A is the one marked correct.", ageHours: 4.5,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "faculty",
+      subject: "Anatomy", topic: "Neuroanatomy" }),
+
+    createTicket({ id: "NP-00038", questionId: 90002, student: "Mohit P.", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
+      queryText: "I don't understand why beta-blockers are contraindicated here but not in the previous question.",
+      studentDoubt: "Both questions look like the same clinical picture to me — what's the difference?", ageHours: 5.5,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "faculty",
+      subject: "Pharmacology", topic: "Antibiotics" }),
+
+    createTicket({ id: "NP-00039", questionId: 90003, student: "Sana Ali", category: "Can't See Something", subOption: "Image in the question is not loading",
+      queryText: "The diagram for this maternal health question is just a blank grey box on my phone.",
+      studentDoubt: "Tried reloading twice, image never appears.", ageHours: 6.5,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
+      subject: "Community Health Nursing", topic: "Maternal Child Health", studentReference: "Screenshot attached" }),
+
+    createTicket({ id: "NP-00098", questionId: 90004, student: "Harsh V.", category: "Problem with this Question", subOption: "This is not in my syllabus",
+      queryText: "This question is about advanced ventilator settings — that's not part of our nursing syllabus this year.",
+      studentDoubt: "Can you confirm if this topic was recently added, or if this question shouldn't be here?", ageHours: 7.5,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
+      subject: "Medical Surgical Nursing", topic: "Respiratory Care" }),
+
+    createTicket({ id: "NP-00099", questionId: 90005, student: "Kavya N.", category: "Problem with the Audio Solution", subOption: "Audio doesn't play at all",
+      queryText: "Tapping play on the audio explanation does nothing — no spinner, no error, just silence.",
+      studentDoubt: "Tried on wifi and mobile data, same result both times.", ageHours: 8.5,
+      status: "Unclaimed", timelineStatus: "raised", routedTo: "content",
+      subject: "Anatomy", topic: "Cardiovascular System" }),
   ];
 
   const studentNames = ["Riya Sharma", "Mohit P.", "Ankit Rathore", "Neha K.", "Sana Ali", "Harsh V.", "Kavya N.", "Dev S."];
