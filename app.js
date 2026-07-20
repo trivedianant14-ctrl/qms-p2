@@ -644,7 +644,7 @@ function seedDb() {
       questionId: 84309,
       student: "Dev S.",
       category: "I Have a Doubt",
-      subOption: "Need clarification on a concept",
+      subOption: "I didn't understand the explanation",
       queryText: "The explanation says both options B and D are correct but only B is marked.",
       studentDoubt: "The explanation paragraph mentions D as well — confused whether D should also be accepted.",
       priority: "Medium",
@@ -653,6 +653,19 @@ function seedDb() {
       timelineStatus: "in_review",
       claimedBy: "Meera Joshi",
       resolutionText: "The explanation does reference D as a secondary consideration, but B is the primary answer per the exam blueprint. The wording in the explanation has been noted for editorial review. For exam purposes, B is the correct answer and students should mark it confidently.",
+    }),
+    createTicket({
+      id: "NP-00072",
+      questionId: 84410,
+      student: "Farhan A.",
+      category: "Others",
+      subOption: "Shared in their own words",
+      queryText: "Question toh theek hai but timer ke saath image late load hoti hai, isliye main answer galat select kar deta hoon. Please check karo.",
+      studentDoubt: "Student used the free-text intake — no fixed category fit. Mentions image loading lag under timed mode.",
+      priority: "Medium",
+      ageHours: 6,
+      status: "Unclaimed",
+      timelineStatus: "raised",
     }),
     createTicket({
       id: "NP-00013",
@@ -1648,6 +1661,10 @@ function render() {
 }
 
 function renderTopNav() {
+  // Reports is an Admin-only section — resolvers only get the ticket queue.
+  const reportNav = document.querySelector('#productNav [data-section="report"]');
+  if (reportNav) reportNav.hidden = state.role !== "manager";
+  if (state.role !== "manager" && state.section === "report") state.section = "ticket";
   document.querySelectorAll("#productNav [data-section]").forEach((button) => {
     button.classList.toggle("active", button.dataset.section === state.section);
   });
@@ -4872,6 +4889,7 @@ const LOGIN_ACCOUNTS = {
 
 function applySignedInRole(role) {
   state.role = role;
+  if (role !== "manager") state.section = "ticket";
   state.tab = "all";
   state.status = "all";
   state.assignee = "all";
