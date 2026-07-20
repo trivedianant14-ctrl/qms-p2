@@ -1662,11 +1662,9 @@ function renderModeControls() {
     ].map(([view, label]) => `<button class="${state.reportView === view ? "active" : ""}" data-report-view="${view}">${label}</button>`).join("");
     return;
   }
+  // Role is fixed by the signed-in account — no in-app role switching.
   el.roleToggle.setAttribute("aria-label", "Login role");
-  el.roleToggle.innerHTML = [
-    ["team", "Resolver"],
-    ["manager", "Admin"],
-  ].map(([role, label]) => `<button class="${state.role === role ? "active" : ""}" data-role="${role}">${label}</button>`).join("");
+  el.roleToggle.innerHTML = "";
 }
 
 function renderProfileSelect() {
@@ -4863,25 +4861,64 @@ el.modalScrim.addEventListener("click", (event) => {
   if (event.target.closest("[data-save-goals]")) { saveGoals(); return; }
 });
 
-// Login gate — visual only (no backend); any sign-in enters the console and
-// sticks for the browser session, so a fresh session starts at the login.
+// Login gate — the signed-in account decides the view. Resolver accounts get
+// the team queue (Tickets + Reports); the admin account gets the Admin view.
+// No backend: the account list is fixed, any password is accepted, and the
+// session sticks per browser tab session.
+const LOGIN_ACCOUNTS = {
+  "admin@nprep.in": "manager",
+  "anant@nprep.in": "team",
+};
+
+function applySignedInRole(role) {
+  state.role = role;
+  state.tab = "all";
+  state.status = "all";
+  state.assignee = "all";
+  state.questionIdSearch = "";
+  state.managerFilter = null;
+}
+
 const loginScreen = document.querySelector("#loginScreen");
-if (loginScreen && !sessionStorage.getItem("samadhanSignedIn")) {
+const signedInEmail = sessionStorage.getItem("samadhanUser");
+if (signedInEmail && LOGIN_ACCOUNTS[signedInEmail]) {
+  applySignedInRole(LOGIN_ACCOUNTS[signedInEmail]);
+} else if (loginScreen) {
   loginScreen.hidden = false;
   document.body.style.overflow = "hidden";
-  const enterConsole = () => {
-    sessionStorage.setItem("samadhanSignedIn", "1");
-    loginScreen.hidden = true;
-    document.body.style.overflow = "";
+  const errorLine = document.querySelector("#loginError");
+  const showError = (message) => {
+    errorLine.textContent = message;
+    errorLine.hidden = false;
   };
   document.querySelector("#loginForm").addEventListener("submit", (event) => {
     event.preventDefault();
-    enterConsole();
+    const email = document.querySelector("#loginEmail").value.trim().toLowerCase();
+    const password = document.querySelector("#loginPassword").value;
+    if (!email) { showError("Enter your NPrep email to sign in."); return; }
+    if (!LOGIN_ACCOUNTS[email]) { showError("This account isn't on the NPrep workspace. Ask your admin to add you."); return; }
+    if (!password) { showError("Enter your password."); return; }
+    sessionStorage.setItem("samadhanUser", email);
+    applySignedInRole(LOGIN_ACCOUNTS[email]);
+    loginScreen.hidden = true;
+    document.body.style.overflow = "";
+    closeDrawer();
+    render();
   });
-  document.querySelector("#loginGoogle").addEventListener("click", enterConsole);
+  document.querySelector("#loginGoogle").addEventListener("click", () => {
+    showError("Google sign-in isn't enabled on this preview — use your NPrep email and password.");
+  });
   document.querySelector("#loginPassToggle").addEventListener("click", () => {
     const input = document.querySelector("#loginPassword");
     input.type = input.type === "password" ? "text" : "password";
+  });
+}
+
+const signOutButton = document.querySelector("#signOutBtn");
+if (signOutButton) {
+  signOutButton.addEventListener("click", () => {
+    sessionStorage.removeItem("samadhanUser");
+    location.reload();
   });
 }
 

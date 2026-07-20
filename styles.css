@@ -269,6 +269,40 @@ button {
   line-height: 1.5;
 }
 
+.login-error {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #f5c6c8;
+  background: var(--red-soft);
+  color: #a02f33;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.role-toggle:empty {
+  display: none;
+}
+
+.sign-out {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sign-out:hover {
+  border-color: var(--line-strong);
+  color: var(--navy);
+}
+
 @media (max-width: 860px) {
   .login-screen {
     grid-template-columns: 1fr;
