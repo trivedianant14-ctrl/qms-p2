@@ -4863,4 +4863,26 @@ el.modalScrim.addEventListener("click", (event) => {
   if (event.target.closest("[data-save-goals]")) { saveGoals(); return; }
 });
 
+// Login gate — visual only (no backend); any sign-in enters the console and
+// sticks for the browser session, so a fresh session starts at the login.
+const loginScreen = document.querySelector("#loginScreen");
+if (loginScreen && !sessionStorage.getItem("samadhanSignedIn")) {
+  loginScreen.hidden = false;
+  document.body.style.overflow = "hidden";
+  const enterConsole = () => {
+    sessionStorage.setItem("samadhanSignedIn", "1");
+    loginScreen.hidden = true;
+    document.body.style.overflow = "";
+  };
+  document.querySelector("#loginForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    enterConsole();
+  });
+  document.querySelector("#loginGoogle").addEventListener("click", enterConsole);
+  document.querySelector("#loginPassToggle").addEventListener("click", () => {
+    const input = document.querySelector("#loginPassword");
+    input.type = input.type === "password" ? "text" : "password";
+  });
+}
+
 render();

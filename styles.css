@@ -53,6 +53,243 @@ button {
   cursor: pointer;
 }
 
+/* ── Login screen — split hero + sign-in, Sarthi console style ─────────── */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  grid-template-columns: minmax(0, 46%) minmax(0, 1fr);
+  background: var(--surface);
+}
+
+.login-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(160deg, #1c2470 0%, var(--navy) 45%, var(--navy-2) 100%);
+  background-size: 22px 22px, cover;
+  color: #ffffff;
+  padding: 48px 56px;
+}
+
+.login-hero-inner {
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  gap: 0;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 34px;
+}
+
+.login-brand .brand-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.login-brand-name {
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.login-brand-name em {
+  font-style: normal;
+  color: var(--cyan);
+}
+
+.login-tagline {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  margin: 0 0 42px;
+}
+
+.login-points {
+  list-style: none;
+  margin: 0 0 60px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.login-points li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14.5px;
+  color: #dfe3f7;
+}
+
+.login-point-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--cyan);
+}
+
+.login-foot {
+  color: #8f97c9;
+  font-size: 12.5px;
+}
+
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  overflow-y: auto;
+}
+
+.login-form {
+  width: min(360px, 100%);
+}
+
+.login-form h1 {
+  font-size: 28px;
+}
+
+.login-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 6px 0 26px;
+}
+
+.login-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.login-field input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.login-pass-wrap {
+  position: relative;
+  display: block;
+}
+
+.login-pass-wrap input {
+  padding-right: 42px;
+}
+
+.login-pass-wrap button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--soft);
+}
+
+.login-pass-wrap button:hover {
+  color: var(--navy);
+}
+
+.login-submit {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(150deg, var(--navy) 0%, var(--navy-2) 100%);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.login-google {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login-help {
+  margin-top: 22px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+  .login-screen {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .login-hero {
+    padding: 32px 24px;
+  }
+
+  .login-tagline {
+    font-size: 30px;
+    margin-bottom: 26px;
+  }
+
+  .login-points {
+    margin-bottom: 26px;
+    gap: 14px;
+  }
+}
+
 .qms-shell {
   min-height: 100vh;
   display: grid;
