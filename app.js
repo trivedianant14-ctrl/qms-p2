@@ -120,7 +120,6 @@ const current = {
 const STATUSES = [
   "Unclaimed",
   "Working on",
-  "Being reviewed",
   "Awaiting feedback",
   "Escalation",
   "Escalation resolved",
@@ -128,11 +127,12 @@ const STATUSES = [
 ];
 
 const STATUS_ALIASES = {
-  "In Review": "Being reviewed",
+  "In Review": "Working on",
+  "Being reviewed": "Working on",
   "Being Worked On": "Working on",
   "Worked on": "Working on",
-  "With Faculty": "Being reviewed",
-  Faculty: "Being reviewed",
+  "With Faculty": "Working on",
+  Faculty: "Working on",
   "Faculty Resolved": "Awaiting feedback",
   "Faculty resolved": "Awaiting feedback",
   Escalated: "Escalation",
@@ -633,9 +633,10 @@ function seedDb() {
       studentDoubt: "Checked three textbooks — all point to option C for initial nursing action. The marked answer seems incorrect.",
       priority: "High",
       ageHours: 5,
-      status: "Being reviewed",
-      timelineStatus: "in_review",
+      status: "Awaiting feedback",
+      timelineStatus: "awaiting_feedback",
       claimedBy: "Priya S.",
+      resolvedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
       resolutionText: "Option A is correct in the NPrep context because the question specifies immediate nursing action under exam conditions where airway takes precedence over circulation assessment. Option C applies only in post-stabilisation. The rationale has been reviewed by the content lead.",
       resolutionReference: "NPrep Exam Prep Guide, Chapter 4, pg. 87",
     }),
@@ -649,9 +650,10 @@ function seedDb() {
       studentDoubt: "The explanation paragraph mentions D as well — confused whether D should also be accepted.",
       priority: "Medium",
       ageHours: 3,
-      status: "Being reviewed",
-      timelineStatus: "in_review",
+      status: "Awaiting feedback",
+      timelineStatus: "awaiting_feedback",
       claimedBy: "Meera Joshi",
+      resolvedAt: new Date(Date.now() - 1 * 3600000).toISOString(),
       resolutionText: "The explanation does reference D as a secondary consideration, but B is the primary answer per the exam blueprint. The wording in the explanation has been noted for editorial review. For exam purposes, B is the correct answer and students should mark it confidently.",
     }),
     createTicket({
@@ -745,7 +747,7 @@ function seedDb() {
     createTicket({ id: "NP-00018", questionId: 84502, student: "Riya Sharma", category: "Problem with the Answer", subOption: "More than 1 option looks correct",
       queryText: "Options C and D both seem correct for the Pediatrics question on neonatal jaundice management.",
       studentDoubt: "My reference says phototherapy is first line but the explanation says exchange transfusion. Please verify.", priority: "High", ageHours: 20,
-      status: "Being reviewed", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Arjun Rao",
+      status: "Working on", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Arjun Rao",
       resolutionText: "Phototherapy is indeed first-line for neonatal jaundice with bilirubin 15-20 mg/dL. Exchange transfusion applies only above 20 mg/dL or with hemolysis. Option C is correct.",
       subject: "Pediatrics", topic: "Neonatal Disorders" }),
 
@@ -770,7 +772,7 @@ function seedDb() {
     createTicket({ id: "NP-00021", questionId: 84505, student: "Mohit P.", category: "I Have a Doubt", subOption: "Why is this option wrong?",
       queryText: "For the psychiatric drug question, why is haloperidol preferred over olanzapine in the acute setting?",
       studentDoubt: "NPrep says haloperidol but recent literature supports olanzapine. Exam-specific or general?", priority: "High", ageHours: 8,
-      status: "Being reviewed", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      status: "Working on", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Meera Joshi",
       resolutionText: "For exam purposes, haloperidol is the classical first-generation antipsychotic used in acute settings per standard nursing exam blueprints. Olanzapine is newer and preferred in clinical practice, but exam questions follow older protocols unless updated. Option B is correct for exam.",
       subject: "Psychiatry", topic: "Antipsychotic Therapy" }),
 
@@ -811,7 +813,7 @@ function seedDb() {
     createTicket({ id: "NP-00027", questionId: 84511, student: "Kavya N.", category: "Problem with the Answer", subOption: "My book / teacher says something different",
       queryText: "Question on Bishop score — my textbook gives different values for the favourable score threshold.",
       studentDoubt: "NPrep says ≥8 is favourable but my Dutta's Obstetrics says ≥6. Which do we follow for exam?", priority: "High", ageHours: 7,
-      status: "Being reviewed", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Meera Joshi",
+      status: "Working on", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Meera Joshi",
       resolutionText: "For standardised nursing exams in India, the conventional threshold cited is ≥8 for a favourable Bishop score. Dutta's references the original scoring but NPrep aligns with the exam-standard cutoff used by NEET PG. Option B is correct.",
       subject: "Obstetrics & Gynecology", topic: "Labour & Delivery" }),
 
@@ -873,7 +875,7 @@ function seedDb() {
     createTicket({ id: "NP-00035", questionId: 84519, student: "Kavya N.", category: "I Have a Doubt", subOption: "Why is this the correct answer?",
       queryText: "For postpartum haemorrhage management, why is oxytocin listed before bimanual compression?",
       studentDoubt: "ALSO management protocol I studied starts with bimanual uterine compression then oxytocin.", priority: "High", ageHours: 13,
-      status: "Being reviewed", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Sunita Verma",
+      status: "Working on", timelineStatus: "in_review", routedTo: "faculty", facultyAssigned: "Sunita Verma",
       resolutionText: "For exam purposes, oxytocin is listed as first-line pharmacological management per FOGSI guidelines (20-40 IU IV infusion). Bimanual compression is a mechanical adjunct used alongside, not before. The question tests pharmacological priority.",
       subject: "Obstetrics & Gynecology", topic: "Postpartum Haemorrhage" }),
 
@@ -1260,12 +1262,6 @@ function addHistory(ticket, actor, text) {
 function normalizeTicketStatuses(targetDb) {
   targetDb.tickets.forEach((ticket) => {
     ticket.status = normalizeStatus(ticket.status);
-    if (ticket.status === "Being reviewed" && ticket.resolutionText) {
-      ticket.status = "Awaiting feedback";
-      ticket.timelineStatus = "awaiting_feedback";
-      ticket.finalResolutionText = ticket.resolutionText;
-      if (!ticket.resolvedAt) ticket.resolvedAt = new Date().toISOString();
-    }
     if (ticket.routedTo === "faculty") ticket.routedTo = "content";
   });
 }
@@ -1396,11 +1392,11 @@ function roleTickets() {
 function tabsForRole(base) {
   if (state.role === "team") {
     const activeName = activeOperatorName();
-    const ACTIVE_STATUSES = ["Working on", "Being reviewed", "Escalation"];
+    const ACTIVE_STATUSES = ["Working on", "Escalation"];
     return [
       ["all", "Total", base.length],
       ["my", "My Tickets", base.filter((t) => isAssignedTo(t, activeName) && t.status !== "Closed").length],
-      ["active", "Active", base.filter((t) => ["Working on", "Being reviewed", "Escalation"].includes(t.status)).length],
+      ["active", "Active", base.filter((t) => ACTIVE_STATUSES.includes(t.status)).length],
       ["closed", "Closed", base.filter((t) => t.status === "Closed").length],
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved").length],
     ];
@@ -1417,7 +1413,6 @@ function tabsForRole(base) {
     return [
       ["all", "Total", base.length],
       ["unclaimed", "Unclaimed", base.filter((t) => owner(t) === "Unclaimed").length],
-      ["review", "Being reviewed", base.filter((t) => t.status === "Being reviewed").length],
       ["returned", "Returned", base.filter((t) => t.returnedByFaculty).length],
       ["escalated", "Escalation", base.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved").length],
     ];
@@ -1466,10 +1461,9 @@ function filteredTickets() {
   }
   if (state.tab === "pool" || state.tab === "facultyPool") rows = rows.filter((t) => t.routedTo === "faculty" && !t.facultyAssigned);
   if (state.tab === "unclaimed") rows = rows.filter((t) => owner(t) === "Unclaimed");
-  if (state.tab === "review") rows = rows.filter((t) => t.status === "Being reviewed");
   if (state.tab === "returned") rows = rows.filter((t) => t.returnedByFaculty);
   if (state.tab === "breaching") rows = rows.filter((t) => t.status !== "Closed" && hoursLeft(t) <= (state.role === "product" ? 12 : 2));
-  if (state.tab === "active") rows = rows.filter((t) => ["Working on", "Being reviewed", "Escalation"].includes(t.status));
+  if (state.tab === "active") rows = rows.filter((t) => ["Working on", "Escalation"].includes(t.status));
   if (state.tab === "escalated") rows = rows.filter((t) => t.status === "Escalation" || t.status === "Escalation resolved");
   if (state.tab === "own") rows = rows.filter((t) => t.claimedBy === current.resolver);
   if (state.tab === "intake") rows = rows.filter((t) => t.category !== "I Have a Doubt");
@@ -1845,11 +1839,10 @@ function sortValue(ticket, key) {
   const statusRank = {
     Unclaimed: 1,
     "Working on": 2,
-    "Being reviewed": 3,
-    "Awaiting feedback": 5,
-    Escalation: 5,
-    "Escalation resolved": 6,
-    Closed: 7,
+    "Awaiting feedback": 3,
+    Escalation: 4,
+    "Escalation resolved": 5,
+    Closed: 6,
   };
   const values = {
     id: Number(ticket.id.replace(/\D/g, "")),
@@ -2283,7 +2276,6 @@ function resolutionFunnel(tickets) {
   const unclaimed  = monthly.filter(t => owner(t) === "Unclaimed").length;
   const assigned   = total - unclaimed;
   const workingOn  = monthly.filter(t => t.status === "Working on").length;
-  const reviewing  = monthly.filter(t => t.status === "Being reviewed").length;
   const submitted  = monthly.filter(t => t.status === "Awaiting feedback").length;
   const closed     = monthly.filter(t => t.status === "Closed").length;
   const escalated  = monthly.filter(t => t.status === "Escalation" || t.status === "Escalation resolved").length;
@@ -4238,7 +4230,6 @@ function statusClass(status) {
   if (status === "Working on") return "work";
   if (status === "Escalation") return "escalated";
   if (status === "Escalation resolved") return "review";
-  if (status === "Being reviewed") return "review";
   if (status === "Unclaimed") return "pool";
   return "open";
 }
