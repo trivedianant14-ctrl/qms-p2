@@ -428,6 +428,10 @@ function createTicket(input) {
     facultyVoiceNote: input.facultyVoiceNote || "",
     studentVoiceNote: input.studentVoiceNote || "",
     studentReference: input.studentReference || "",
+    // One-time add-on the student can attach after the query is already open —
+    // capped to a single note on the intake side, mirrored here as-is.
+    studentAddOnNote: input.studentAddOnNote || "",
+    studentAddOnAt: input.studentAddOnAt || null,
     internalNotes: input.internalNotes || [],
     resolutionCode: input.resolutionCode || null,
     satisfactionScore: input.satisfactionScore ?? satisfactionScore(feedbackType, input.escalationRating),
@@ -511,6 +515,8 @@ function seedDb() {
       timelineStatus: "being_worked_on",
       facultyAssigned: "Meera Joshi",
       studentVoiceNote: "0:24 voice note",
+      studentAddOnNote: "Sorry, one more thing — I checked my Guyton textbook and it also says B, so maybe I'm misreading the question stem, not the answer. Might not be an error after all, but please still confirm.",
+      studentAddOnAt: new Date(Date.now() - 2 * 3600000).toISOString(),
       history: [eventLine("SYSTEM", "Ticket created from student query")],
     }),
     createTicket({
@@ -2856,6 +2862,7 @@ function drawerHtml(ticket) {
       ${state.role === "team" || state.role === "content" ? contentPanel(ticket) : ""}
       ${state.role === "manager" ? managerPanel(ticket) : ""}
       <section class="drawer-card"><h3>Student's Query</h3>${detailGrid(studentQueryRows(ticket))}</section>
+      ${studentAddOnPanel(ticket)}
       ${sessionDetailPanel(ticket)}
       ${state.role === "team" || state.role === "faculty" ? facultyPanel(ticket) : ""}
       ${escalationPanel(ticket)}
@@ -2941,6 +2948,16 @@ function studentQueryRows(ticket) {
     ["Owner", owner(ticket)],
   );
   return rows;
+}
+
+function studentAddOnPanel(ticket) {
+  if (!ticket.studentAddOnNote) return "";
+  return `<section class="drawer-card addon-note-panel">
+    <h3>Additional Context from Student</h3>
+    <p class="muted addon-note-desc">Added after the query was already open — the intake only allows one of these per query, so this is the only follow-up you'll see here.</p>
+    <blockquote class="addon-note-text">${escapeHtml(ticket.studentAddOnNote)}</blockquote>
+    <p class="addon-note-meta">${ticket.studentAddOnAt ? `${absoluteDate(ticket.studentAddOnAt)} - ${relativeTime(ticket.studentAddOnAt)}` : ""}</p>
+  </section>`;
 }
 
 function studentVoiceNoteCell(ticket) {
